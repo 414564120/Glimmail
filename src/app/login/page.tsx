@@ -1,0 +1,101 @@
+import { SymbolIcon } from "@/components/shell/aether-icons";
+
+export default function LoginPage() {
+  return (
+    <main className="surface-grid flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      <button
+        className="fixed right-6 top-6 z-10 flex size-12 items-center justify-center rounded-full border border-white/40 bg-white/30 text-primary shadow-sm backdrop-blur-xl transition hover:bg-white/60"
+        aria-label="Toggle theme"
+        type="button"
+      >
+        <SymbolIcon className="text-[22px]">light_mode</SymbolIcon>
+      </button>
+
+      <section className="glass-card glow-ring w-full max-w-[448px] rounded-xl p-8 md:p-10">
+        <div className="mb-10 text-center">
+          <h1 className="font-display text-[48px] font-extrabold leading-[1.1] text-primary md:text-[64px]">
+            AetherMail
+          </h1>
+          <p className="mt-2 text-base leading-relaxed text-slate-600">
+            Sign in to continue
+          </p>
+        </div>
+
+        <form className="space-y-6">
+          <label className="block space-y-2">
+            <span className="ml-1 block font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">
+              Email Address
+            </span>
+            <span className="relative block">
+              <SymbolIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-slate-500">
+                mail
+              </SymbolIcon>
+              <input
+                className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-4 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition placeholder:text-outline focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
+                id="email"
+                placeholder="hello@example.com"
+                required
+                type="email"
+              />
+            </span>
+          </label>
+
+          <label className="block space-y-2">
+            <span className="ml-1 flex items-center justify-between">
+              <span className="font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">
+                Password
+              </span>
+              <a
+                className="font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary transition hover:text-tertiary"
+                href="#"
+              >
+                Forgot?
+              </a>
+            </span>
+            <span className="relative block">
+              <SymbolIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-slate-500">
+                lock
+              </SymbolIcon>
+              <input
+                className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-12 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition placeholder:text-outline focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
+                id="password"
+                placeholder="••••••••"
+                required
+                type="password"
+              />
+              <button
+                className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500 transition hover:text-primary"
+                aria-label="Show password"
+                type="button"
+              >
+                <SymbolIcon className="text-[20px]">
+                  visibility
+                </SymbolIcon>
+              </button>
+            </span>
+          </label>
+
+          <button
+            className="vibrant-flux mt-8 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-base font-semibold text-white shadow-[0_0_20px_rgba(168,0,170,0.3)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]"
+            type="submit"
+          >
+            Sign In
+            <SymbolIcon className="text-[20px]">
+              arrow_forward
+            </SymbolIcon>
+          </button>
+        </form>
+
+        <p className="mt-8 text-center text-sm text-slate-600">
+          Don&apos;t have an account?
+          <a
+            className="ml-1 font-semibold text-primary transition hover:text-tertiary"
+            href="#"
+          >
+            Create one
+          </a>
+        </p>
+      </section>
+    </main>
+  );
+}
