@@ -10,6 +10,7 @@ Glimmail is a low-cost, multi-user unified inbox for Gmail, Outlook, and 163 Mai
   - `/mailboxes`
   - `/inbox`
 - Multi-agent module boundaries
+- Server-side signed session cookie auth
 - Mock inbox data standing in for provider integrations
 
 ## Commands
@@ -25,6 +26,15 @@ pnpm build
 
 Copy `.env.example` into `.env.local` and fill the provider credentials when the integration slices begin.
 
+For local auth without an `.env.local`, the app accepts:
+
+```text
+owner@aethermail.local
+glimmail-dev-password
+```
+
+Set `AUTH_SECRET`, `GLIMMAIL_ADMIN_EMAIL`, and `GLIMMAIL_ADMIN_PASSWORD` before any shared or production deployment.
+
 ## Architecture docs
 
 - `docs/architecture.md`
@@ -32,7 +42,7 @@ Copy `.env.example` into `.env.local` and fill the provider credentials when the
 
 ## Next implementation slices
 
-1. Add credential auth and user isolation
-2. Add PostgreSQL + Prisma models
+1. Add PostgreSQL + Prisma models
+2. Move sessions and users from environment-backed auth into database-backed records
 3. Wire Gmail, Outlook, and 163 mailbox connection flows
 4. Replace mock data with inbox queries and sync actions

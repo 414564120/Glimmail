@@ -1,6 +1,18 @@
 import { SymbolIcon } from "@/components/shell/aether-icons";
+import { signIn } from "./actions";
 
-export default function LoginPage() {
+type LoginPageProps = {
+  searchParams?: Promise<{
+    error?: string;
+    next?: string;
+  }>;
+};
+
+export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const params = await searchParams;
+  const hasInvalidCredentials = params?.error === "invalid";
+  const nextPath = params?.next || "/inbox";
+
   return (
     <main className="surface-grid relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
       <div className="aether-orb left-[15%] top-[10%] h-64 w-64 animate-[float_6s_ease-in-out_infinite] bg-secondary-container/20" />
@@ -28,7 +40,8 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form className="space-y-6">
+        <form action={signIn} className="space-y-6">
+          <input name="next" type="hidden" value={nextPath} />
           <label className="block space-y-2">
             <span className="ml-1 block font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">
               Email Address
@@ -40,6 +53,7 @@ export default function LoginPage() {
               <input
                 className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-4 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition-all duration-300 placeholder:text-outline hover:border-primary/30 focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
                 id="email"
+                name="email"
                 placeholder="hello@example.com"
                 required
                 type="email"
@@ -66,6 +80,7 @@ export default function LoginPage() {
               <input
                 className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-12 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition-all duration-300 placeholder:text-outline hover:border-primary/30 focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
                 id="password"
+                name="password"
                 placeholder="••••••••"
                 required
                 type="password"
@@ -81,6 +96,12 @@ export default function LoginPage() {
               </button>
             </span>
           </label>
+
+          {hasInvalidCredentials ? (
+            <p className="rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 text-sm text-red-700">
+              Email address or password is incorrect.
+            </p>
+          ) : null}
 
           <button
             className="vibrant-flux hover-lift mt-8 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-base font-semibold text-white shadow-[0_0_20px_rgba(168,0,170,0.3)] hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]"
