@@ -1,11 +1,14 @@
-import { AetherSidebar, MobileBottomNav, MobileTopBar } from "@/components/shell/aether-sidebar";
+import {
+  AetherSidebar,
+  MobileBottomNav,
+  MobileTopBar,
+} from "@/components/shell/aether-sidebar";
 
 const providers = [
   {
     action: "Manage Sync",
     description: "Sync your primary Google workspace and personal accounts seamlessly.",
-    icon: "M",
-    iconClass: "from-red-500 via-yellow-400 to-blue-500",
+    iconClass: "gmail-mark",
     name: "Gmail",
     status: "Connected",
     statusClass: "bg-green-500",
@@ -13,8 +16,7 @@ const providers = [
   {
     action: "Connect",
     description: "Integrate Exchange and Office 365 environments effortlessly.",
-    icon: "O",
-    iconClass: "from-sky-500 to-blue-700",
+    iconClass: "outlook-mark",
     name: "Outlook",
     status: "Not Connected",
     statusClass: "bg-surface-dim",
@@ -22,8 +24,7 @@ const providers = [
   {
     action: "Connect",
     description: "Link your NetEase 163 account for complete regional coverage.",
-    icon: "163",
-    iconClass: "from-red-500 to-rose-700",
+    iconClass: "netease-mark",
     name: "163 Mail",
     status: "Not Connected",
     statusClass: "bg-surface-dim",
@@ -36,10 +37,10 @@ export default function MailboxesPage() {
       <MobileTopBar />
       <AetherSidebar active="Inbox" />
 
-      <section className="flex min-h-screen items-center justify-center px-4 pb-24 pt-24 md:ml-[280px] md:px-12 md:py-16">
-        <div className="w-full max-w-[1120px]">
-          <header className="mx-auto mb-12 max-w-2xl text-center md:mb-16">
-            <h1 className="bg-gradient-to-r from-primary to-tertiary bg-clip-text font-display text-[48px] font-extrabold leading-[1.2] text-transparent md:text-[64px] md:leading-[1.1]">
+      <section className="flex min-h-screen items-start justify-center px-4 pb-28 pt-24 md:ml-64 md:px-12 md:pt-24">
+        <div className="w-full max-w-[1056px]">
+          <header className="mx-auto mb-10 max-w-2xl text-center md:mb-14">
+            <h1 className="gradient-text font-display text-[44px] font-extrabold leading-[1.2] md:text-[64px] md:leading-[1.1]">
               Connect Your World
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
@@ -48,17 +49,18 @@ export default function MailboxesPage() {
             </p>
           </header>
 
-          <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
             {providers.map((provider) => {
               const connected = provider.status === "Connected";
 
               return (
                 <article
-                  className={`glass-card relative flex min-h-[352px] cursor-pointer flex-col items-center overflow-hidden rounded-xl p-8 text-center transition duration-300 hover:-translate-y-2 hover:shadow-[0_16px_40px_rgba(168,0,170,0.16)] ${
+                  className={`glass-card group hover-lift relative flex min-h-[320px] cursor-pointer flex-col items-center overflow-hidden rounded-xl p-8 text-center ${
                     connected ? "" : "opacity-90"
                   }`}
                   key={provider.name}
                 >
+                  <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-0 transition group-hover:opacity-100" />
                   <div
                     className={`absolute right-4 top-4 flex items-center gap-2 ${
                       connected ? "" : "opacity-60"
@@ -73,21 +75,17 @@ export default function MailboxesPage() {
                     </span>
                     <span
                       className={`size-2 rounded-full ${provider.statusClass} ${
-                        connected ? "shadow-[0_0_12px_rgba(34,197,94,0.8)]" : ""
+                        connected ? "animate-[pulse-green_1.8s_ease-in-out_infinite]" : ""
                       }`}
                     />
                   </div>
 
                   <div
                     className={`relative z-10 mb-6 flex size-20 items-center justify-center rounded-full bg-white shadow-sm transition duration-300 group-hover:scale-110 ${
-                      connected ? "" : "grayscale"
+                      connected ? "" : "grayscale group-hover:grayscale-0"
                     }`}
                   >
-                    <div
-                      className={`flex size-10 items-center justify-center rounded-xl bg-gradient-to-br ${provider.iconClass} font-display text-lg font-extrabold text-white shadow-sm`}
-                    >
-                      {provider.icon}
-                    </div>
+                    <span className={`provider-logo ${provider.iconClass}`} />
                   </div>
 
                   <h3 className="mb-2 font-display text-2xl font-bold text-slate-950">
@@ -99,8 +97,8 @@ export default function MailboxesPage() {
                   <button
                     className={
                       connected
-                        ? "mt-auto w-full rounded-full border border-primary px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary transition hover:bg-primary-container/10"
-                        : "vibrant-flux mt-auto w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                        ? "hover-lift mt-auto w-full rounded-full border border-primary px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary-container/10"
+                        : "vibrant-flux hover-lift mt-auto w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
                     }
                     type="button"
                   >
@@ -113,7 +111,15 @@ export default function MailboxesPage() {
         </div>
       </section>
 
-      <MobileBottomNav />
+      <MobileBottomNav
+        active="Settings"
+        items={[
+          ["mail", "Mail"],
+          ["hub", "Accounts"],
+          ["search", "Search"],
+          ["settings", "Settings"],
+        ]}
+      />
     </main>
   );
 }

@@ -2,16 +2,23 @@ import { SymbolIcon } from "@/components/shell/aether-icons";
 
 export default function LoginPage() {
   return (
-    <main className="surface-grid flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+    <main className="surface-grid relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
+      <div className="aether-orb left-[15%] top-[10%] h-64 w-64 animate-[float_6s_ease-in-out_infinite] bg-secondary-container/20" />
+      <div className="aether-orb bottom-[20%] right-[10%] h-96 w-96 animate-[float_8s_ease-in-out_infinite_2s] bg-primary-container/15" />
+      <div className="aether-orb right-[25%] top-[40%] h-32 w-32 animate-[float_7s_ease-in-out_infinite_1s] bg-tertiary/15 blur-2xl" />
+      <div className="login-shape left-[9%] top-[24%] hidden size-16 rounded-[22px] bg-gradient-to-br from-secondary-container/35 to-white/45 md:block" />
+      <div className="login-shape bottom-[16%] right-[18%] hidden h-12 w-24 rounded-full bg-gradient-to-r from-primary-container/35 to-tertiary/20 md:block" />
+      <div className="login-shape right-[13%] top-[18%] hidden size-10 rounded-full bg-gradient-to-br from-tertiary/25 to-secondary-container/25 md:block" />
+
       <button
-        className="fixed right-6 top-6 z-10 flex size-12 items-center justify-center rounded-full border border-white/40 bg-white/30 text-primary shadow-sm backdrop-blur-xl transition hover:bg-white/60"
+        className="hover-lift fixed right-4 top-8 z-10 flex size-12 items-center justify-center rounded-full border border-white/40 bg-white/60 text-primary shadow-sm backdrop-blur-xl md:right-8"
         aria-label="Toggle theme"
         type="button"
       >
         <SymbolIcon className="text-[22px]">light_mode</SymbolIcon>
       </button>
 
-      <section className="glass-card glow-ring w-full max-w-[448px] rounded-xl p-8 md:p-10">
+      <section className="glass-card glow-ring relative z-[1] w-full max-w-[448px] rounded-xl p-8 md:p-10">
         <div className="mb-10 text-center">
           <h1 className="font-display text-[48px] font-extrabold leading-[1.1] text-primary md:text-[64px]">
             AetherMail
@@ -31,7 +38,7 @@ export default function LoginPage() {
                 mail
               </SymbolIcon>
               <input
-                className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-4 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition placeholder:text-outline focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
+                className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-4 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition-all duration-300 placeholder:text-outline hover:border-primary/30 focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
                 id="email"
                 placeholder="hello@example.com"
                 required
@@ -57,7 +64,7 @@ export default function LoginPage() {
                 lock
               </SymbolIcon>
               <input
-                className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-12 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition placeholder:text-outline focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
+                className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-12 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition-all duration-300 placeholder:text-outline hover:border-primary/30 focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
                 id="password"
                 placeholder="••••••••"
                 required
@@ -76,7 +83,7 @@ export default function LoginPage() {
           </label>
 
           <button
-            className="vibrant-flux mt-8 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-base font-semibold text-white shadow-[0_0_20px_rgba(168,0,170,0.3)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]"
+            className="vibrant-flux hover-lift mt-8 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-base font-semibold text-white shadow-[0_0_20px_rgba(168,0,170,0.3)] hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]"
             type="submit"
           >
             Sign In

@@ -43,15 +43,15 @@ export default function InboxPage() {
       <MobileTopBar />
       <AetherSidebar active="Inbox" />
 
-      <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-[280px] md:pb-0 md:pt-0">
-        <header className="glass-card sticky top-0 z-20 hidden h-20 items-center justify-between border-b border-white/40 px-8 md:flex">
-          <label className="relative w-full max-w-[520px]">
+      <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-64 md:pb-0 md:pt-0">
+        <header className="glass-card sticky top-0 z-20 hidden h-16 items-center justify-between border-b border-white/40 px-12 md:flex">
+          <label className="group relative w-96">
             <span className="sr-only">Search mail</span>
             <SymbolIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-[22px] text-slate-600">
               search
             </SymbolIcon>
             <input
-              className="w-full rounded-full border border-white/40 bg-surface-container-highest py-2 pl-10 pr-4 text-base outline-none transition focus:ring-2 focus:ring-secondary-container"
+              className="w-full rounded-full border border-white/40 bg-surface-container-highest py-2 pl-10 pr-4 text-base outline-none transition-shadow duration-300 focus:ring-2 focus:ring-secondary-container"
               placeholder="Search mail, people, or settings..."
               type="text"
             />
@@ -60,7 +60,7 @@ export default function InboxPage() {
           <div className="flex items-center gap-4 text-slate-700">
             {["light_mode", "notifications", "settings"].map((icon) => (
               <button
-                className="flex size-10 items-center justify-center rounded-full transition hover:bg-surface-container-high"
+                className="flex size-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-surface-container-high hover:text-primary"
                 key={icon}
                 type="button"
               >
@@ -73,9 +73,9 @@ export default function InboxPage() {
           </div>
         </header>
 
-        <div className="grid min-h-[calc(100vh-80px)] min-w-0 grid-cols-1 md:grid-cols-[380px_minmax(0,1fr)]">
-          <aside className="min-w-0 border-r border-white/40 bg-white/20 md:h-[calc(100vh-80px)] md:overflow-y-auto">
-            <div className="glass-card sticky top-16 z-10 flex items-center justify-between border-b border-white/40 bg-white/45 p-4 backdrop-blur-md md:top-0">
+        <div className="grid min-h-[calc(100vh-64px)] min-w-0 grid-cols-1 md:grid-cols-[400px_minmax(0,1fr)]">
+          <aside className="custom-scrollbar min-w-0 border-r border-white/40 bg-white/35 backdrop-blur-md md:h-[calc(100vh-64px)] md:overflow-y-auto">
+            <div className="z-10 flex items-center justify-between border-b border-white/60 bg-white/95 p-4 shadow-[0_8px_24px_rgba(49,57,74,0.04)] backdrop-blur-md md:sticky md:top-0 md:bg-white/60">
               <h2 className="font-display text-[28px] font-bold leading-[1.3] text-slate-950">
                 Inbox
               </h2>
@@ -94,7 +94,7 @@ export default function InboxPage() {
                 <article
                   className={`cursor-pointer border-b border-white/35 p-4 transition ${
                     message.active
-                      ? "bg-white/65 shadow-[inset_4px_0_0_var(--primary)]"
+                      ? "bg-white/80 shadow-[inset_4px_0_0_var(--primary)]"
                       : "bg-white/20 hover:bg-white/45"
                   }`}
                   key={message.subject}
@@ -135,11 +135,11 @@ export default function InboxPage() {
             </div>
           </aside>
 
-          <article className="hidden h-[calc(100vh-80px)] min-w-0 overflow-y-auto bg-white/25 p-8 md:block">
-            <div className="glass-card min-h-full min-w-0 rounded-xl p-8 shadow-sm">
-              <header className="mb-10 flex items-start justify-between gap-6 border-b border-white/50 pb-8">
+          <article className="relative hidden h-[calc(100vh-64px)] min-w-0 overflow-hidden bg-white/20 md:block">
+            <div className="pointer-events-none absolute right-[-10%] top-[-20%] h-96 w-96 rounded-full bg-primary-container/20 blur-[100px]" />
+            <header className="glass-card-soft relative z-[1] flex items-start justify-between gap-6 border-b border-white/40 p-6">
                 <div>
-                  <h1 className="mb-2 break-words font-display text-[48px] font-bold leading-[1.2] text-slate-950">
+                  <h1 className="mb-2 break-words font-display text-[42px] font-bold leading-[1.16] text-slate-950">
                     Your AetherMail Verification Code
                   </h1>
                   <div className="flex items-center gap-3">
@@ -160,7 +160,7 @@ export default function InboxPage() {
                   </div>
                 </div>
                 <button
-                  className="flex size-10 shrink-0 items-center justify-center rounded-full transition hover:bg-surface-container-high"
+                  className="flex size-10 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-surface-container-high hover:text-primary"
                   type="button"
                 >
                   <SymbolIcon className="text-[22px] text-slate-600">
@@ -169,27 +169,31 @@ export default function InboxPage() {
                 </button>
               </header>
 
-              <div className="max-w-3xl">
-                <p className="mb-6 text-lg leading-relaxed text-slate-950">
-                  Hello,
-                </p>
-                <p className="mb-8 text-base leading-relaxed text-slate-950">
-                  We received a request to verify your identity. Please use the
-                  verification code below to complete the process. This code
-                  will expire in 15 minutes.
-                </p>
+            <div className="custom-scrollbar relative z-[1] h-[calc(100%-145px)] overflow-y-auto p-8">
+              <div className="glass-card-soft mx-auto max-w-2xl overflow-hidden rounded-2xl p-8">
+                <div className="mb-8 h-1 w-full rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary-container" />
+                <div>
+                  <p className="mb-6 text-lg leading-relaxed text-slate-950">
+                    Hello,
+                  </p>
+                  <p className="mb-8 text-base leading-relaxed text-slate-950">
+                    We received a request to verify your identity. Please use
+                    the verification code below to complete the process. This
+                    code will expire in 15 minutes.
+                  </p>
 
-                <div className="mb-8 rounded-xl border border-white/40 bg-surface-container-low p-6 text-center shadow-sm">
-                  <div className="mb-4 font-display text-[64px] font-extrabold leading-[1.1] tracking-[0.2em] text-tertiary">
-                    749201
+                  <div className="mb-8 rounded-xl border border-white/40 bg-surface-container-low p-6 text-center shadow-sm">
+                    <div className="mb-4 font-display text-[64px] font-extrabold leading-[1.1] tracking-[0.2em] text-tertiary">
+                      749201
+                    </div>
+                    <button
+                      className="vibrant-flux hover-lift mx-auto flex items-center justify-center gap-2 rounded-full px-8 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white shadow-[0_0_15px_rgba(168,0,170,0.4)]"
+                      type="button"
+                    >
+                      <SymbolIcon className="text-[20px]">content_copy</SymbolIcon>
+                      Copy Code
+                    </button>
                   </div>
-                  <button
-                    className="vibrant-flux mx-auto flex items-center justify-center gap-2 rounded-full px-8 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white shadow-[0_0_15px_rgba(168,0,170,0.4)]"
-                    type="button"
-                  >
-                    <SymbolIcon className="text-[20px]">content_copy</SymbolIcon>
-                    Copy Code
-                  </button>
                 </div>
               </div>
             </div>
@@ -198,7 +202,7 @@ export default function InboxPage() {
       </section>
 
       <button
-        className="vibrant-flux fixed bottom-20 right-4 z-40 flex size-14 items-center justify-center rounded-full text-white shadow-[0_0_20px_rgba(168,0,170,0.3)] md:hidden"
+        className="vibrant-flux hover-lift fixed bottom-24 right-4 z-40 flex size-14 items-center justify-center rounded-full text-white shadow-[0_0_20px_rgba(168,0,170,0.3)] md:hidden"
         type="button"
       >
         <SymbolIcon className="text-[24px]">edit</SymbolIcon>
