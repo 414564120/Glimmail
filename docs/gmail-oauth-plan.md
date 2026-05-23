@@ -154,9 +154,10 @@ The client secret must never appear in:
 - Store access + refresh tokens encrypted via existing `saveMailboxCredential`
 - Wire the Gmail "Connect" button on `/mailboxes/connect?provider=gmail` to the Google OAuth URL (replace current placeholder)
 - Handle errors: user denies consent, invalid state, token exchange failure
+- Current implementation uses OpenID Connect scopes (`openid email profile`) for account connection only. The restricted `gmail.readonly` scope should be requested later, when manual Gmail sync is implemented.
 
 ### Phase 3: Gmail profile/account verification
-- After token storage, call `https://gmail.googleapis.com/gmail/v1/users/me/profile` to verify the account
+- After token storage, call `https://openidconnect.googleapis.com/v1/userinfo` to verify the account email
 - Display the connected Gmail address on `/mailboxes` card
 - Test connection: light API call to verify token validity
 

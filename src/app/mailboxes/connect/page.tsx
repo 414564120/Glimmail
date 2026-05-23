@@ -127,8 +127,9 @@ export default async function ConnectPage({ searchParams }: PageProps) {
                 {gmailOAuthConfigured ? (
                   <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
                     You will be redirected to Google to authorize access to your
-                    Gmail inbox. Glimmail requests read-only access to your
-                    messages.
+                    Google account. Glimmail verifies your email address now;
+                    Gmail read-only access will be requested later when sync is
+                    enabled.
                   </div>
                 ) : (
                   <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">
