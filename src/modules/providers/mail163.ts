@@ -13,6 +13,10 @@ function imapPort(): number {
   return parseInt(process.env.MAIL163_IMAP_PORT || String(DEFAULT_PORT), 10);
 }
 
+function quoteImapString(value: string): string {
+  return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 export function testImapConnection(
   address: string,
   password: string,
@@ -33,7 +37,11 @@ export function testImapConnection(
     }, CONNECT_TIMEOUT_MS);
 
     function sendLogin() {
-      socket.write(`${LOGIN_TAG} LOGIN "${address}" "${password}"\r\n`);
+      socket.write(
+        `${LOGIN_TAG} LOGIN ${quoteImapString(address)} ${quoteImapString(
+          password,
+        )}\r\n`,
+      );
       step = "login";
     }
 

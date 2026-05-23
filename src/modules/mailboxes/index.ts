@@ -1,4 +1,5 @@
 export {
+  getUserMailbox,
   getUserMailboxes,
   addMailbox,
   updateMailboxStatus,

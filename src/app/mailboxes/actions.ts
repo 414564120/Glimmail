@@ -5,11 +5,11 @@ import { getCurrentUser } from "@/modules/auth";
 import {
   addMailbox,
   deleteMailbox,
+  getUserMailbox,
   updateMailboxStatus,
 } from "@/modules/mailboxes";
 import { getMailboxCredential } from "@/modules/mailboxes/credentials";
 import { testImapConnection } from "@/modules/providers/mail163";
-import { db } from "@/lib/db";
 
 export async function addMailboxAction(formData: FormData) {
   const user = await getCurrentUser();
@@ -58,9 +58,7 @@ export async function testMailboxConnectionAction(formData: FormData) {
 
   const mailboxId = String(formData.get("mailboxId") || "");
 
-  const mailbox = await db.mailbox.findUnique({
-    where: { id: mailboxId, userId: user.id },
-  });
+  const mailbox = await getUserMailbox(user.id, mailboxId);
   if (!mailbox) {
     redirect("/mailboxes?error=" + encodeURIComponent("Mailbox not found."));
   }

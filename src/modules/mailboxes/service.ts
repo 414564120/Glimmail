@@ -19,6 +19,12 @@ export function getUserMailboxes(userId: string) {
   });
 }
 
+export function getUserMailbox(userId: string, mailboxId: string) {
+  return db.mailbox.findUnique({
+    where: { id: mailboxId, userId },
+  });
+}
+
 export async function addMailbox(
   userId: string,
   provider: string,
