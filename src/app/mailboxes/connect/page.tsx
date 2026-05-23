@@ -109,6 +109,11 @@ export default async function ConnectPage({ searchParams }: PageProps) {
             <form action={addMailboxAction}>
               <input name="provider" type="hidden" value={provider} />
               <input
+                name="returnTo"
+                type="hidden"
+                value={`/mailboxes/connect?provider=${provider}`}
+              />
+              <input
                 className="mb-4 w-full rounded-full border border-border-glass bg-white/70 px-4 py-3 text-center text-base text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
                 name="address"
                 placeholder="you@provider.com"
@@ -117,12 +122,18 @@ export default async function ConnectPage({ searchParams }: PageProps) {
               />
 
               {is163 ? (
-                <input
-                  className="mb-4 w-full rounded-full border border-border-glass bg-white/70 px-4 py-3 text-center text-base text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
-                  name="authCode"
-                  placeholder="Authorization code / App password"
-                  type="password"
-                />
+                <>
+                  <input
+                    className="mb-3 w-full rounded-full border border-border-glass bg-white/70 px-4 py-3 text-center text-base text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+                    name="authCode"
+                    placeholder="Authorization code / App password"
+                    type="password"
+                  />
+                  <p className="mb-4 text-xs leading-relaxed text-slate-500">
+                    Authorization codes are not stored yet. This field is a
+                    placeholder for the later encrypted credential step.
+                  </p>
+                </>
               ) : null}
 
               <button

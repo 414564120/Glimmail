@@ -10,10 +10,15 @@ export async function addMailboxAction(formData: FormData) {
 
   const provider = String(formData.get("provider") || "");
   const address = String(formData.get("address") || "");
+  const returnTo = String(formData.get("returnTo") || "");
+  const failurePath = returnTo.startsWith("/mailboxes/connect")
+    ? returnTo
+    : "/mailboxes";
 
   const result = await addMailbox(user.id, provider, address);
   if ("error" in result) {
-    redirect(`/mailboxes?error=${encodeURIComponent(result.error)}`);
+    const separator = failurePath.includes("?") ? "&" : "?";
+    redirect(`${failurePath}${separator}error=${encodeURIComponent(result.error)}`);
   }
 
   redirect("/mailboxes");
