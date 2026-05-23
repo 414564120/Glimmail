@@ -29,7 +29,7 @@ pnpm prisma:migrate
 
 ## Current stage
 
-Mailbox management is DB-backed with per-user isolation. The `/mailboxes` page reads live data from the database, and a dedicated `/mailboxes/connect?provider=...` page handles per-provider connection flows with domain-validated email input. For 163 Mail an app authorization code field is shown but not yet persisted. Gmail and Outlook display an OAuth placeholder. Server actions support add/delete of mailbox accounts with provider-specific email validation.
+Mailbox management is DB-backed with per-user isolation. The `/mailboxes` page reads live data from the database, and a dedicated `/mailboxes/connect?provider=...` page handles per-provider connection flows with domain-validated email input. 163 Mail app passwords are encrypted with AES-256-GCM before storage (key from `ENCRYPTION_KEY` env var). Gmail and Outlook display an OAuth placeholder and do not store any credentials yet. Server actions support add/delete of mailbox accounts with provider-specific email validation.
 
 The `/settings` page shows the current user's email, role, connected mailbox count, and a logout button.
 

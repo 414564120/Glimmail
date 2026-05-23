@@ -135,8 +135,8 @@ export default async function ConnectPage({ searchParams }: PageProps) {
                     type="password"
                   />
                   <p className="mb-4 text-xs leading-relaxed text-slate-500">
-                    Authorization codes are not stored yet. This field is a
-                    placeholder for the later encrypted credential step.
+                    Your app password is encrypted with AES-256-GCM before being
+                    stored.
                   </p>
                 </>
               ) : null}

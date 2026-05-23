@@ -41,6 +41,7 @@ model User {
   mailboxes Mailbox[]
   messages  Message[]
   syncLogs  SyncLog[]
+  credentials MailboxCredential[]
 }
 
 model Session {
@@ -70,6 +71,7 @@ model Mailbox {
 
   messages Message[]
   syncLogs SyncLog[]
+  credentials MailboxCredential[]
 
   @@unique([userId, provider, address])
   @@index([userId])
@@ -117,4 +119,21 @@ model SyncLog {
 
   @@index([userId, startedAt])
   @@index([mailboxId, startedAt])
+}
+
+model MailboxCredential {
+  id              String   @id @default(cuid())
+  kind            String
+  encryptedSecret String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  mailboxId String
+  mailbox   Mailbox @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([mailboxId, kind])
+  @@index([userId])
 }
