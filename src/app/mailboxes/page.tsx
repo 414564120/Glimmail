@@ -8,7 +8,11 @@ import {
 } from "@/components/shell/aether-sidebar";
 import { getCurrentUser } from "@/modules/auth";
 import { getLatestSyncLog, getUserMailboxes } from "@/modules/mailboxes";
-import { deleteMailboxAction, testMailboxConnectionAction } from "./actions";
+import {
+  deleteMailboxAction,
+  syncMailboxAction,
+  testMailboxConnectionAction,
+} from "./actions";
 
 const PROVIDER_CARDS: Array<{
   provider: MailboxProvider;
@@ -181,19 +185,34 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                         )}
                       <div className="mt-auto flex w-full flex-col gap-2">
                         {mailbox.provider === "mail163" && (
-                          <form action={testMailboxConnectionAction}>
-                            <input
-                              name="mailboxId"
-                              type="hidden"
-                              value={mailbox.id}
-                            />
-                            <button
-                              className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
-                              type="submit"
-                            >
-                              Test Connection
-                            </button>
-                          </form>
+                          <>
+                            <form action={syncMailboxAction}>
+                              <input
+                                name="mailboxId"
+                                type="hidden"
+                                value={mailbox.id}
+                              />
+                              <button
+                                className="vibrant-flux w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                                type="submit"
+                              >
+                                Sync Now
+                              </button>
+                            </form>
+                            <form action={testMailboxConnectionAction}>
+                              <input
+                                name="mailboxId"
+                                type="hidden"
+                                value={mailbox.id}
+                              />
+                              <button
+                                className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
+                                type="submit"
+                              >
+                                Test Connection
+                              </button>
+                            </form>
+                          </>
                         )}
                         <form action={deleteMailboxAction}>
                           <input

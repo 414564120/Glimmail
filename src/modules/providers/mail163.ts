@@ -16,6 +16,24 @@ type Mail163ConnectionResult =
   | { success: true }
   | { error: Mail163ConnectionErrorCode };
 
+export type Mail163SyncErrorCode =
+  | Mail163ConnectionErrorCode
+  | "inbox_open_failed"
+  | "fetch_failed";
+
+export interface SyncedMessage {
+  uid: string;
+  messageId: string | null;
+  sender: string;
+  subject: string;
+  bodyText: string;
+  receivedAt: Date;
+}
+
+type Mail163SyncResult =
+  | { success: true; messages: SyncedMessage[] }
+  | { error: Mail163SyncErrorCode };
+
 function imapHost(): string {
   return process.env.MAIL163_IMAP_HOST || DEFAULT_HOST;
 }
@@ -92,6 +110,480 @@ export function testImapConnection(
           finish({ error: "authentication_failed" });
         }
       }
+    });
+
+    socket.on("error", (err: NodeJS.ErrnoException) => {
+      if (
+        err.code === "ENOTFOUND" ||
+        err.code === "ECONNREFUSED" ||
+        err.code === "ECONNRESET" ||
+        err.code === "EHOSTUNREACH" ||
+        err.code === "ENETUNREACH"
+      ) {
+        finish({ error: "network_unreachable" });
+        return;
+      }
+
+      if (
+        err.code === "CERT_HAS_EXPIRED" ||
+        err.code === "DEPTH_ZERO_SELF_SIGNED_CERT" ||
+        err.code === "ERR_TLS_CERT_ALTNAME_INVALID" ||
+        err.code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+      ) {
+        finish({ error: "tls_failed" });
+        return;
+      }
+
+      finish({ error: "unknown" });
+    });
+
+    socket.on("close", () => {
+      finish({ error: "unknown" });
+    });
+  });
+}
+
+// -- IMAP FETCH response parser -------------------------------------------
+
+function parseHeaderValue(headerBlock: string, name: string): string {
+  const re = new RegExp(`^${name}:\\s*([^\\r\\n]*)`, "im");
+  const m = headerBlock.match(re);
+  return m ? m[1].trim() : "";
+}
+
+function decodeImapUtf8(raw: string): string {
+  return raw
+    .replace(/=\?[^?]+\?[BQ]\?[^?]*\?=/gi, (match) => {
+      try {
+        const parts = match.slice(2, -2).split("?");
+        const enc = parts[1];
+        const data = parts[2];
+        if (enc?.toUpperCase() === "B") {
+          return Buffer.from(data ?? "", "base64").toString("utf-8");
+        }
+        if (enc?.toUpperCase() === "Q") {
+          return (data ?? "")
+            .replace(/_/g, " ")
+            .replace(/=([0-9A-Fa-f]{2})/g, (_: string, hex: string) =>
+              String.fromCharCode(parseInt(hex, 16)),
+            );
+        }
+      } catch {
+        // fall through
+      }
+      return match;
+    })
+    .trim();
+}
+
+export function extractVerificationCode(text: string): string | null {
+  const patterns = [
+    /verification\s*code[:\s]*(\d{4,8})/i,
+    /验证码[:\s]*(\d{4,8})/,
+    /code[:\s]*(\d{4,8})/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) return m[1];
+  }
+  return null;
+}
+
+function parseFetchResponse(data: string): SyncedMessage[] {
+  const messages: SyncedMessage[] = [];
+  let idx = 0;
+
+  while (idx < data.length) {
+    const fetchTag = data.indexOf("*", idx);
+    if (fetchTag === -1) break;
+
+    const afterStar = data.slice(fetchTag + 1);
+    const fetchMatch = afterStar.match(/^\s*(\d+)\s+FETCH\s*\(/);
+    if (!fetchMatch) {
+      idx = fetchTag + 1;
+      continue;
+    }
+
+    const parenStart = fetchTag + fetchMatch[0].length;
+    const contentEnd = findMatchingParen(data, parenStart);
+    if (contentEnd === -1) break;
+
+    const fetchContent = data.slice(parenStart, contentEnd);
+    const msg = parseOneFetchAttrs(fetchContent);
+    if (msg) messages.push(msg);
+
+    idx = contentEnd + 1;
+  }
+
+  return messages;
+}
+
+function findMatchingParen(raw: string, start: number): number {
+  let depth = 1;
+  let i = start;
+
+  while (i < raw.length && depth > 0) {
+    const ch = raw[i];
+
+    if (ch === '"') {
+      i = skipQuoted(raw, i);
+      continue;
+    }
+
+    if (ch === "{") {
+      i = skipLiteral(raw, i);
+      continue;
+    }
+
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    i++;
+  }
+
+  return depth === 0 ? i - 1 : -1;
+}
+
+function skipQuoted(raw: string, start: number): number {
+  let i = start + 1;
+  while (i < raw.length) {
+    if (raw[i] === "\\") {
+      i += 2;
+      continue;
+    }
+    if (raw[i] === '"') return i + 1;
+    i++;
+  }
+  return raw.length;
+}
+
+function skipLiteral(raw: string, start: number): number {
+  const closeBrace = raw.indexOf("}", start);
+  if (closeBrace === -1) return raw.length;
+  const sizeStr = raw.slice(start + 1, closeBrace);
+  const size = parseInt(sizeStr, 10);
+  if (isNaN(size)) return closeBrace + 1;
+  // Skip past }\r\n then N bytes
+  let after = closeBrace + 1;
+  if (raw[after] === "\r") after++;
+  if (raw[after] === "\n") after++;
+  return after + size;
+}
+
+function parseOneFetchAttrs(attrs: string): SyncedMessage | null {
+  let uid = "";
+  let internalDate = "";
+  let headerBlock = "";
+  let bodyText = "";
+  let i = 0;
+
+  while (i < attrs.length) {
+    // Skip whitespace
+    while (i < attrs.length && attrs[i] === " ") i++;
+    if (i >= attrs.length) break;
+
+    const remaining = attrs.slice(i);
+
+    if (remaining.startsWith("UID ")) {
+      i += 4;
+      const val = readAtom(attrs, i);
+      uid = val.value;
+      i = val.nextIdx;
+      continue;
+    }
+
+    if (remaining.startsWith("INTERNALDATE ")) {
+      i += 14;
+      if (attrs[i] === '"') {
+        const val = readQuoted(attrs, i);
+        internalDate = val.value;
+        i = val.nextIdx;
+      }
+      continue;
+    }
+
+    if (remaining.startsWith("BODY[HEADER.FIELDS")) {
+      // Skip to the value (literal or NIL)
+      i = skipBracketSection(attrs, i);
+      if (attrs[i] === " ") i++;
+      if (attrs.slice(i, i + 3) === "NIL") {
+        i += 3;
+      } else if (attrs[i] === "{") {
+        const val = readLiteral(attrs, i);
+        headerBlock = val.value;
+        i = val.nextIdx;
+      }
+      continue;
+    }
+
+    if (remaining.startsWith("BODY[TEXT]") || remaining.startsWith("BODY[TEXT")) {
+      i = skipBracketSection(attrs, i);
+      if (attrs[i] === " ") i++;
+      if (attrs.slice(i, i + 3) === "NIL") {
+        i += 3;
+      } else if (attrs[i] === "{") {
+        const val = readLiteral(attrs, i);
+        bodyText = val.value;
+        i = val.nextIdx;
+      }
+      continue;
+    }
+
+    // Skip unknown attrs
+    if (attrs[i] === "(") {
+      i = findMatchingParen(attrs, i) + 1;
+    } else if (attrs[i] === '"') {
+      i = skipQuoted(attrs, i);
+    } else if (attrs[i] === "{") {
+      i = skipLiteral(attrs, i);
+    } else {
+      const atom = readAtom(attrs, i);
+      i = atom.nextIdx;
+    }
+  }
+
+  if (!uid) return null;
+
+  const sender = parseHeaderValue(headerBlock, "From") || "unknown";
+  const rawSubject = parseHeaderValue(headerBlock, "Subject") || "(no subject)";
+  const subject = decodeImapUtf8(rawSubject);
+  const messageId = parseHeaderValue(headerBlock, "Message-Id") || null;
+
+  const rawDate = parseHeaderValue(headerBlock, "Date") || internalDate;
+  const receivedAt = rawDate ? new Date(rawDate) : new Date();
+
+  return {
+    uid,
+    messageId,
+    sender: sender.replace(/<[^>]*>/g, "").trim(),
+    subject,
+    bodyText,
+    receivedAt: isNaN(receivedAt.getTime()) ? new Date() : receivedAt,
+  };
+}
+
+function readAtom(raw: string, start: number): { value: string; nextIdx: number } {
+  let i = start;
+  while (i < raw.length && raw[i] !== " " && raw[i] !== ")" && raw[i] !== "\r" && raw[i] !== "\n") {
+    i++;
+  }
+  return { value: raw.slice(start, i), nextIdx: i };
+}
+
+function readQuoted(raw: string, start: number): { value: string; nextIdx: number } {
+  let i = start + 1;
+  let value = "";
+  while (i < raw.length) {
+    if (raw[i] === "\\") {
+      value += raw[i + 1] || "";
+      i += 2;
+      continue;
+    }
+    if (raw[i] === '"') {
+      return { value, nextIdx: i + 1 };
+    }
+    value += raw[i];
+    i++;
+  }
+  return { value, nextIdx: raw.length };
+}
+
+function readLiteral(raw: string, start: number): { value: string; nextIdx: number } {
+  const closeBrace = raw.indexOf("}", start);
+  if (closeBrace === -1) return { value: "", nextIdx: raw.length };
+  const size = parseInt(raw.slice(start + 1, closeBrace), 10);
+  if (isNaN(size)) return { value: "", nextIdx: closeBrace + 1 };
+  let after = closeBrace + 1;
+  if (raw[after] === "\r") after++;
+  if (raw[after] === "\n") after++;
+  return { value: raw.slice(after, after + size), nextIdx: after + size };
+}
+
+function skipBracketSection(raw: string, start: number): number {
+  if (raw[start] !== "B") return start;
+  let i = start;
+  while (i < raw.length && raw[i] !== "]") i++;
+  if (raw[i] === "]") i++;
+  return i;
+}
+
+// -- Sync Mailbox ---------------------------------------------------------
+
+const SYNC_FETCH_COUNT = 10;
+
+export function syncMailbox(
+  address: string,
+  password: string,
+): Promise<Mail163SyncResult> {
+  const host = imapHost();
+  const port = imapPort();
+
+  return new Promise((resolve) => {
+    const socket = tls.connect({
+      host,
+      port,
+      rejectUnauthorized: true,
+      servername: host,
+    });
+    let buffer = "";
+    let step: "greeting" | "login" | "select" | "search" | "fetch" | "done" =
+      "greeting";
+    let settled = false;
+    let tagSeq = 1;
+    let existsCount = 0;
+    let searchUids: number[] = [];
+
+    function tag() {
+      const t = `G${String(tagSeq).padStart(3, "0")}`;
+      tagSeq++;
+      return t;
+    }
+
+    function finish(result: Mail163SyncResult) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (!socket.destroyed) {
+        try { socket.end(); } catch { /* ignore */ }
+      }
+      resolve(result);
+    }
+
+    const timer = setTimeout(() => {
+      socket.destroy();
+      finish({ error: "timeout" });
+    }, CONNECT_TIMEOUT_MS);
+
+    function sendLogin() {
+      const loginTag = tag();
+      socket.write(
+        `${loginTag} LOGIN ${quoteImapString(address)} ${quoteImapString(password)}\r\n`,
+      );
+      step = "login";
+      // Wait for loginTag OK
+    }
+
+    function sendSelect() {
+      const selectTag = tag();
+      socket.write(`${selectTag} SELECT INBOX\r\n`);
+      step = "select";
+    }
+
+    function sendSearch() {
+      const searchTag = tag();
+      socket.write(`${searchTag} UID SEARCH ALL\r\n`);
+      step = "search";
+    }
+
+    function sendFetch(start: number, end: number) {
+      const fetchTag = tag();
+      socket.write(
+        `${fetchTag} FETCH ${start}:${end} (UID INTERNALDATE BODY.PEEK[HEADER.FIELDS (From Subject Date Message-Id)] BODY.PEEK[TEXT])\r\n`,
+      );
+      step = "fetch";
+    }
+
+    function handleResponse() {
+      // Check for login failures
+      if (
+        step === "login" &&
+        (buffer.includes(" NO ") || buffer.includes(" BAD "))
+      ) {
+        socket.destroy();
+        finish({ error: "authentication_failed" });
+        return;
+      }
+
+      // After login, check if we got OK
+      if (step === "login" && lookupTaggedStatus(buffer, "G001") === "OK") {
+        sendSelect();
+        buffer = "";
+        return;
+      }
+
+      // After select, parse EXISTS
+      if (step === "select" && lookupTaggedStatus(buffer, "G002") === "OK") {
+        const existsMatch = buffer.match(/\*\s+(\d+)\s+EXISTS/);
+        if (existsMatch) {
+          existsCount = parseInt(existsMatch[1], 10);
+        }
+        if (existsCount === 0) {
+          finish({ success: true, messages: [] });
+          return;
+        }
+        buffer = "";
+        sendSearch();
+        return;
+      }
+
+      if (step === "select" && lookupTaggedStatus(buffer, "G002") !== null) {
+        // select failed
+        socket.destroy();
+        finish({ error: "inbox_open_failed" });
+        return;
+      }
+
+      // After search, parse UIDs
+      if (step === "search" && lookupTaggedStatus(buffer, "G003") === "OK") {
+        const searchMatch = buffer.match(/\*\s+SEARCH\s+([\d\s]+)/i);
+        if (searchMatch) {
+          searchUids = searchMatch[1]
+            .trim()
+            .split(/\s+/)
+            .map(Number)
+            .filter((n) => !isNaN(n));
+        }
+
+        if (searchUids.length === 0) {
+          finish({ success: true, messages: [] });
+          return;
+        }
+
+        // Fetch last N messages by sequence number
+        const count = Math.min(SYNC_FETCH_COUNT, searchUids.length);
+        const startSeq = searchUids.length - count + 1;
+        buffer = "";
+        sendFetch(startSeq, searchUids.length);
+        return;
+      }
+
+      if (step === "search" && lookupTaggedStatus(buffer, "G003") !== null) {
+        socket.destroy();
+        finish({ error: "fetch_failed" });
+        return;
+      }
+
+      // After fetch
+      if (step === "fetch" && lookupTaggedStatus(buffer, "G004") === "OK") {
+        const messages = parseFetchResponse(buffer);
+        socket.write(`${tag()} LOGOUT\r\n`);
+        socket.end();
+        finish({ success: true, messages });
+        return;
+      }
+
+      if (step === "fetch" && lookupTaggedStatus(buffer, "G004") !== null) {
+        socket.destroy();
+        finish({ error: "fetch_failed" });
+        return;
+      }
+    }
+
+    function lookupTaggedStatus(data: string, expectedTag: string): null | "OK" | "NO" | "BAD" {
+      const re = new RegExp(`${expectedTag}\\s+(OK|NO|BAD)`, "i");
+      const m = data.match(re);
+      return m ? (m[1].toUpperCase() as "OK" | "NO" | "BAD") : null;
+    }
+
+    socket.on("data", (data: Buffer) => {
+      buffer += data.toString("utf-8");
+
+      if (step === "greeting" && buffer.includes("* OK")) {
+        sendLogin();
+        buffer = "";
+        return;
+      }
+
+      handleResponse();
     });
 
     socket.on("error", (err: NodeJS.ErrnoException) => {

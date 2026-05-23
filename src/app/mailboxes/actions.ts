@@ -10,8 +10,16 @@ import {
 } from "@/modules/mailboxes";
 import { getMailboxCredential } from "@/modules/mailboxes/credentials";
 import { createSyncLog } from "@/modules/synclogs/service";
-import type { Mail163ConnectionErrorCode } from "@/modules/providers/mail163";
-import { testImapConnection } from "@/modules/providers/mail163";
+import type {
+  Mail163ConnectionErrorCode,
+  Mail163SyncErrorCode,
+} from "@/modules/providers/mail163";
+import {
+  extractVerificationCode,
+  syncMailbox,
+  testImapConnection,
+} from "@/modules/providers/mail163";
+import { db } from "@/lib/db";
 
 const MAIL163_CONNECTION_ERROR_MESSAGES: Record<
   Mail163ConnectionErrorCode,
@@ -25,6 +33,12 @@ const MAIL163_CONNECTION_ERROR_MESSAGES: Record<
   tls_failed:
     "The secure connection to the 163 IMAP server failed. Please try again later.",
   unknown: "Connection test failed. Please try again later.",
+};
+
+const MAIL163_SYNC_ERROR_MESSAGES: Record<Mail163SyncErrorCode, string> = {
+  ...MAIL163_CONNECTION_ERROR_MESSAGES,
+  inbox_open_failed: "Could not open INBOX. Please check your mailbox permissions.",
+  fetch_failed: "Could not fetch messages from the server. Please try again later.",
 };
 
 export async function addMailboxAction(formData: FormData) {
@@ -135,4 +149,98 @@ export async function testMailboxConnectionAction(formData: FormData) {
   redirect(
     "/mailboxes?error=" + encodeURIComponent(errorMessage),
   );
+}
+
+export async function syncMailboxAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/mailboxes");
+
+  const mailboxId = String(formData.get("mailboxId") || "");
+
+  const mailbox = await getUserMailbox(user.id, mailboxId);
+  if (!mailbox) {
+    redirect("/mailboxes?error=" + encodeURIComponent("Mailbox not found."));
+  }
+
+  if (mailbox.provider !== "mail163") {
+    redirect(
+      "/mailboxes?error=" +
+        encodeURIComponent("Sync is only available for 163 Mail."),
+    );
+  }
+
+  const password = await getMailboxCredential(
+    user.id,
+    mailboxId,
+    "app_password",
+  );
+  if (!password) {
+    redirect(
+      "/mailboxes?error=" +
+        encodeURIComponent("No app password found for this mailbox."),
+    );
+  }
+
+  const startedAt = new Date();
+  const result = await syncMailbox(mailbox.address, password);
+  const finishedAt = new Date();
+
+  if ("success" in result) {
+    const { messages } = result;
+
+    if (messages.length > 0) {
+      await db.message.createMany({
+        data: messages.map((m) => ({
+          providerMessageId: m.uid,
+          sender: m.sender,
+          subject: m.subject,
+          preview: m.bodyText.slice(0, 200).replace(/\s+/g, " ").trim(),
+          bodyText: m.bodyText,
+          receivedAt: m.receivedAt,
+          verificationCode: extractVerificationCode(m.bodyText),
+          mailboxId,
+          userId: user.id,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    await Promise.all([
+      updateMailboxStatus(user.id, mailboxId, "active"),
+      createSyncLog({
+        userId: user.id,
+        mailboxId,
+        status: "success",
+        startedAt,
+        finishedAt,
+        message:
+          messages.length > 0
+            ? `Synced ${messages.length} new message${messages.length > 1 ? "s" : ""}.`
+            : "No new messages.",
+      }),
+    ]);
+
+    redirect(
+      "/mailboxes?success=" +
+        encodeURIComponent(
+          messages.length > 0
+            ? `Synced ${messages.length} message${messages.length > 1 ? "s" : ""}.`
+            : "No new messages found.",
+        ),
+    );
+  }
+
+  const errorMessage = MAIL163_SYNC_ERROR_MESSAGES[result.error];
+  await Promise.all([
+    updateMailboxStatus(user.id, mailboxId, "error"),
+    createSyncLog({
+      userId: user.id,
+      mailboxId,
+      status: "error",
+      startedAt,
+      finishedAt,
+      message: errorMessage,
+    }),
+  ]);
+  redirect("/mailboxes?error=" + encodeURIComponent(errorMessage));
 }

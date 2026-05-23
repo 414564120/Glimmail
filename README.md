@@ -33,9 +33,9 @@ Mailbox management is DB-backed with per-user isolation. The `/mailboxes` page r
 
 The `/settings` page shows the current user's email, role, connected mailbox count, and a logout button.
 
-The `/inbox` page reads messages from the local database and supports URL-based message selection (`?message=<id>`). Each message can be marked as read/unread or starred via server actions, with per-user isolation enforced on all mutations. Verification codes are extracted from message content and displayed with a Copy Code button. Messages come from a seed script (`pnpm run db:seed-messages`); real email sync (OAuth, IMAP) is not yet implemented.
+The `/inbox` page reads messages from the local database and supports URL-based message selection (`?message=<id>`). Each message can be marked as read/unread or starred via server actions, with per-user isolation enforced on all mutations. Verification codes are extracted from message content and displayed with a Copy Code button. Messages can come from a seed script (`pnpm run db:seed-messages`) or from manual 163 Mail sync.
 
-163 Mail connected accounts support a connection test via IMAP (Node.js native TLS, no npm dependencies). Each test records a SyncLog entry (status, timestamp, safe message — never the auth code). The `/mailboxes` page shows the latest test result and updates the mailbox status. No email sync is performed.
+163 Mail connected accounts support a connection test and manual sync via IMAP (Node.js native TLS, no npm dependencies). Sync fetches the 10 most recent INBOX messages, deduplicates by provider message ID, and stores them in the local database. Each test and sync records a SyncLog entry (status, timestamp, safe message — never the auth code). The `/mailboxes` page shows the latest result. Gmail and Outlook sync is not yet implemented.
 
 ## Environment
 
