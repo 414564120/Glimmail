@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const db = new PrismaClient();
+import { db } from "./client";
 
 async function main() {
   const user = await db.user.findFirst({ orderBy: { createdAt: "asc" } });

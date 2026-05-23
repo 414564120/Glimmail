@@ -1,7 +1,5 @@
-import { PrismaClient } from "@prisma/client";
 import crypto from "node:crypto";
-
-const db = new PrismaClient();
+import { db } from "./client";
 
 const KEY_LENGTH = 64;
 const SALT_LENGTH = 32;
