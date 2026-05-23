@@ -9,7 +9,22 @@ import {
   updateMailboxStatus,
 } from "@/modules/mailboxes";
 import { getMailboxCredential } from "@/modules/mailboxes/credentials";
+import type { Mail163ConnectionErrorCode } from "@/modules/providers/mail163";
 import { testImapConnection } from "@/modules/providers/mail163";
+
+const MAIL163_CONNECTION_ERROR_MESSAGES: Record<
+  Mail163ConnectionErrorCode,
+  string
+> = {
+  authentication_failed:
+    "Authentication failed. Please check your 163 email address and app password.",
+  timeout: "Connection timed out. Please check your network and try again.",
+  network_unreachable:
+    "Could not reach the 163 IMAP server. Please check your network.",
+  tls_failed:
+    "The secure connection to the 163 IMAP server failed. Please try again later.",
+  unknown: "Connection test failed. Please try again later.",
+};
 
 export async function addMailboxAction(formData: FormData) {
   const user = await getCurrentUser();
@@ -90,5 +105,8 @@ export async function testMailboxConnectionAction(formData: FormData) {
   }
 
   await updateMailboxStatus(user.id, mailboxId, "error");
-  redirect("/mailboxes?error=" + encodeURIComponent(result.error));
+  redirect(
+    "/mailboxes?error=" +
+      encodeURIComponent(MAIL163_CONNECTION_ERROR_MESSAGES[result.error]),
+  );
 }

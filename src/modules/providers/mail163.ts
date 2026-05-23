@@ -5,6 +5,17 @@ const DEFAULT_PORT = 993;
 const CONNECT_TIMEOUT_MS = 15_000;
 const LOGIN_TAG = "G001";
 
+export type Mail163ConnectionErrorCode =
+  | "authentication_failed"
+  | "timeout"
+  | "network_unreachable"
+  | "tls_failed"
+  | "unknown";
+
+type Mail163ConnectionResult =
+  | { success: true }
+  | { error: Mail163ConnectionErrorCode };
+
 function imapHost(): string {
   return process.env.MAIL163_IMAP_HOST || DEFAULT_HOST;
 }
@@ -20,20 +31,31 @@ function quoteImapString(value: string): string {
 export function testImapConnection(
   address: string,
   password: string,
-): Promise<{ success: true } | { error: string }> {
+): Promise<Mail163ConnectionResult> {
   const host = imapHost();
   const port = imapPort();
 
   return new Promise((resolve) => {
-    const socket = tls.connect({ host, port, rejectUnauthorized: true });
+    const socket = tls.connect({
+      host,
+      port,
+      rejectUnauthorized: true,
+      servername: host,
+    });
     let buffer = "";
     let step: "greeting" | "login" = "greeting";
+    let settled = false;
+
+    function finish(result: Mail163ConnectionResult) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(result);
+    }
 
     const timer = setTimeout(() => {
       socket.destroy();
-      resolve({
-        error: "Connection timed out. Please check your network.",
-      });
+      finish({ error: "timeout" });
     }, CONNECT_TIMEOUT_MS);
 
     function sendLogin() {
@@ -56,10 +78,9 @@ export function testImapConnection(
 
       if (step === "login") {
         if (buffer.includes(`${LOGIN_TAG} OK`)) {
-          clearTimeout(timer);
           socket.write(`${LOGIN_TAG} LOGOUT\r\n`);
           socket.end();
-          resolve({ success: true });
+          finish({ success: true });
           return;
         }
 
@@ -67,27 +88,39 @@ export function testImapConnection(
           buffer.includes(`${LOGIN_TAG} NO`) ||
           buffer.includes(`${LOGIN_TAG} BAD`)
         ) {
-          clearTimeout(timer);
           socket.destroy();
-          resolve({
-            error:
-              "Authentication failed. Please check your email and app password.",
-          });
+          finish({ error: "authentication_failed" });
         }
       }
     });
 
     socket.on("error", (err: NodeJS.ErrnoException) => {
-      clearTimeout(timer);
-      if (err.code === "ENOTFOUND" || err.code === "ECONNREFUSED") {
-        resolve({
-          error: "Could not reach IMAP server. Please check your network.",
-        });
-      } else {
-        resolve({
-          error: "Connection failed. Please try again later.",
-        });
+      if (
+        err.code === "ENOTFOUND" ||
+        err.code === "ECONNREFUSED" ||
+        err.code === "ECONNRESET" ||
+        err.code === "EHOSTUNREACH" ||
+        err.code === "ENETUNREACH"
+      ) {
+        finish({ error: "network_unreachable" });
+        return;
       }
+
+      if (
+        err.code === "CERT_HAS_EXPIRED" ||
+        err.code === "DEPTH_ZERO_SELF_SIGNED_CERT" ||
+        err.code === "ERR_TLS_CERT_ALTNAME_INVALID" ||
+        err.code === "UNABLE_TO_VERIFY_LEAF_SIGNATURE"
+      ) {
+        finish({ error: "tls_failed" });
+        return;
+      }
+
+      finish({ error: "unknown" });
+    });
+
+    socket.on("close", () => {
+      finish({ error: "unknown" });
     });
   });
 }
