@@ -192,14 +192,39 @@ export async function testGmailConnectionAction(formData: FormData) {
   }
 
   const startedAt = new Date();
+  const outcome = await testGmailConnectionWithRefresh(
+    user.id,
+    mailboxId,
+    accessToken,
+    startedAt,
+  );
+
+  if (outcome.success) {
+    redirect(
+      "/mailboxes?success=" + encodeURIComponent(outcome.message),
+    );
+  }
+  redirect("/mailboxes?error=" + encodeURIComponent(outcome.message));
+}
+
+type ConnectionOutcome =
+  | { success: true; message: string }
+  | { success: false; message: string };
+
+async function testGmailConnectionWithRefresh(
+  userId: string,
+  mailboxId: string,
+  accessToken: string,
+  startedAt: Date,
+): Promise<ConnectionOutcome> {
   const result = await testGmailConnection(accessToken);
 
   if ("success" in result) {
     const finishedAt = new Date();
     await Promise.all([
-      updateMailboxStatus(user.id, mailboxId, "active"),
+      updateMailboxStatus(userId, mailboxId, "active"),
       createSyncLog({
-        userId: user.id,
+        userId,
         mailboxId,
         status: "success",
         startedAt,
@@ -207,118 +232,98 @@ export async function testGmailConnectionAction(formData: FormData) {
         message: "Google account verified.",
       }),
     ]);
-    redirect(
-      "/mailboxes?success=" +
-        encodeURIComponent("Gmail connection test passed."),
-    );
+    return { success: true, message: "Gmail connection test passed." };
   }
 
   if (result.error === "token_expired") {
     const refreshToken = await getMailboxCredential(
-      user.id,
+      userId,
       mailboxId,
       "oauth_refresh_token",
     );
 
-    if (!refreshToken) {
-      const finishedAt = new Date();
-      const message = "Google authorization expired. Reconnect Gmail.";
-      await Promise.all([
-        updateMailboxStatus(user.id, mailboxId, "error"),
-        createSyncLog({
-          userId: user.id,
-          mailboxId,
-          status: "error",
-          startedAt,
-          finishedAt,
-          message,
-        }),
-      ]);
-      redirect("/mailboxes?error=" + encodeURIComponent(message));
-    }
+    if (refreshToken) {
+      try {
+        const refreshed = await refreshAccessToken(refreshToken);
 
-    try {
-      const refreshed = await refreshAccessToken(refreshToken);
-
-      await saveMailboxCredential(
-        user.id,
-        mailboxId,
-        "oauth_access_token",
-        refreshed.access_token,
-      );
-
-      if (refreshed.refresh_token) {
         await saveMailboxCredential(
-          user.id,
+          userId,
           mailboxId,
-          "oauth_refresh_token",
-          refreshed.refresh_token,
+          "oauth_access_token",
+          refreshed.access_token,
         );
-      }
 
-      const retryResult = await testGmailConnection(refreshed.access_token);
-      const finishedAt = new Date();
-
-      if ("success" in retryResult) {
-        await Promise.all([
-          updateMailboxStatus(user.id, mailboxId, "active"),
-          createSyncLog({
-            userId: user.id,
+        if (refreshed.refresh_token) {
+          await saveMailboxCredential(
+            userId,
             mailboxId,
-            status: "success",
+            "oauth_refresh_token",
+            refreshed.refresh_token,
+          );
+        }
+
+        const retryResult = await testGmailConnection(refreshed.access_token);
+        const finishedAt = new Date();
+
+        if ("success" in retryResult) {
+          await Promise.all([
+            updateMailboxStatus(userId, mailboxId, "active"),
+            createSyncLog({
+              userId,
+              mailboxId,
+              status: "success",
+              startedAt,
+              finishedAt,
+              message: "Google account verified.",
+            }),
+          ]);
+          return { success: true, message: "Gmail connection test passed." };
+        }
+
+        const retryMessage =
+          retryResult.error === "token_expired"
+            ? "Google authorization expired. Reconnect Gmail."
+            : "Gmail connection test failed. Please try again later.";
+
+        await Promise.all([
+          updateMailboxStatus(userId, mailboxId, "error"),
+          createSyncLog({
+            userId,
+            mailboxId,
+            status: "error",
             startedAt,
             finishedAt,
-            message: "Google account verified.",
+            message: retryMessage,
           }),
         ]);
-        redirect(
-          "/mailboxes?success=" +
-            encodeURIComponent("Gmail connection test passed."),
-        );
+        return { success: false, message: retryMessage };
+      } catch {
+        // Fall through to error "expired"
       }
-
-      const retryMessage =
-        retryResult.error === "token_expired"
-          ? "Google authorization expired. Reconnect Gmail."
-          : "Gmail connection test failed. Please try again later.";
-
-      await Promise.all([
-        updateMailboxStatus(user.id, mailboxId, "error"),
-        createSyncLog({
-          userId: user.id,
-          mailboxId,
-          status: "error",
-          startedAt,
-          finishedAt,
-          message: retryMessage,
-        }),
-      ]);
-      redirect("/mailboxes?error=" + encodeURIComponent(retryMessage));
-    } catch {
-      const finishedAt = new Date();
-      const message = "Google authorization expired. Reconnect Gmail.";
-      await Promise.all([
-        updateMailboxStatus(user.id, mailboxId, "error"),
-        createSyncLog({
-          userId: user.id,
-          mailboxId,
-          status: "error",
-          startedAt,
-          finishedAt,
-          message,
-        }),
-      ]);
-      redirect("/mailboxes?error=" + encodeURIComponent(message));
     }
+
+    const finishedAt = new Date();
+    const message = "Google authorization expired. Reconnect Gmail.";
+    await Promise.all([
+      updateMailboxStatus(userId, mailboxId, "error"),
+      createSyncLog({
+        userId,
+        mailboxId,
+        status: "error",
+        startedAt,
+        finishedAt,
+        message,
+      }),
+    ]);
+    return { success: false, message };
   }
 
   const finishedAt = new Date();
   const message = "Gmail connection test failed. Please try again later.";
-
   await Promise.all([
-    updateMailboxStatus(user.id, mailboxId, "error"),
+    updateMailboxStatus(userId, mailboxId, "error"),
     createSyncLog({
-      userId: user.id,
+      userId,
       mailboxId,
       status: "error",
       startedAt,
@@ -326,7 +331,7 @@ export async function testGmailConnectionAction(formData: FormData) {
       message,
     }),
   ]);
-  redirect("/mailboxes?error=" + encodeURIComponent(message));
+  return { success: false, message };
 }
 
 export async function syncGmailAction(formData: FormData) {
@@ -360,7 +365,26 @@ export async function syncGmailAction(formData: FormData) {
   }
 
   const startedAt = new Date();
+  const outcome = await syncGmailInbox(user.id, mailboxId, accessToken, startedAt);
 
+  if (outcome.success) {
+    redirect(
+      "/mailboxes?success=" + encodeURIComponent(outcome.bannerMessage),
+    );
+  }
+  redirect("/mailboxes?error=" + encodeURIComponent(outcome.message));
+}
+
+type SyncOutcome =
+  | { success: true; bannerMessage: string }
+  | { success: false; message: string };
+
+async function syncGmailInbox(
+  userId: string,
+  mailboxId: string,
+  accessToken: string,
+  startedAt: Date,
+): Promise<SyncOutcome> {
   try {
     const entries = await listGmailMessages(accessToken, 10);
     const fetchedCount = entries.length;
@@ -382,7 +406,7 @@ export async function syncGmailAction(formData: FormData) {
           receivedAt: m.receivedAt,
           verificationCode: extractVerificationCode(m.bodyText),
           mailboxId,
-          userId: user.id,
+          userId,
         })),
         skipDuplicates: true,
       });
@@ -403,9 +427,9 @@ export async function syncGmailAction(formData: FormData) {
 
     const finishedAt = new Date();
     await Promise.all([
-      updateMailboxStatus(user.id, mailboxId, "active"),
+      updateMailboxStatus(userId, mailboxId, "active"),
       createSyncLog({
-        userId: user.id,
+        userId,
         mailboxId,
         status: "success",
         startedAt,
@@ -414,7 +438,7 @@ export async function syncGmailAction(formData: FormData) {
       }),
     ]);
 
-    redirect("/mailboxes?success=" + encodeURIComponent(bannerMessage));
+    return { success: true, bannerMessage };
   } catch (error: unknown) {
     if (error instanceof Error) {
       if (error.message === "insufficient_scope") {
@@ -423,7 +447,7 @@ export async function syncGmailAction(formData: FormData) {
           "Gmail inbox sync not authorized. Reconnect Gmail to grant inbox read access.";
         await Promise.all([
           createSyncLog({
-            userId: user.id,
+            userId,
             mailboxId,
             status: "error",
             startedAt,
@@ -431,16 +455,15 @@ export async function syncGmailAction(formData: FormData) {
             message,
           }),
         ]);
-        redirect("/mailboxes?error=" + encodeURIComponent(message));
+        return { success: false, message };
       }
 
-      // 401: try token refresh then retry
       if (
         error.message === "Gmail list failed" ||
         error.message === "Gmail message fetch failed"
       ) {
         const refreshToken = await getMailboxCredential(
-          user.id,
+          userId,
           mailboxId,
           "oauth_refresh_token",
         );
@@ -450,7 +473,7 @@ export async function syncGmailAction(formData: FormData) {
             const refreshed = await refreshAccessToken(refreshToken);
 
             await saveMailboxCredential(
-              user.id,
+              userId,
               mailboxId,
               "oauth_access_token",
               refreshed.access_token,
@@ -458,7 +481,7 @@ export async function syncGmailAction(formData: FormData) {
 
             if (refreshed.refresh_token) {
               await saveMailboxCredential(
-                user.id,
+                userId,
                 mailboxId,
                 "oauth_refresh_token",
                 refreshed.refresh_token,
@@ -488,7 +511,7 @@ export async function syncGmailAction(formData: FormData) {
                   receivedAt: m.receivedAt,
                   verificationCode: extractVerificationCode(m.bodyText),
                   mailboxId,
-                  userId: user.id,
+                  userId,
                 })),
                 skipDuplicates: true,
               });
@@ -509,9 +532,9 @@ export async function syncGmailAction(formData: FormData) {
 
             const finishedAt = new Date();
             await Promise.all([
-              updateMailboxStatus(user.id, mailboxId, "active"),
+              updateMailboxStatus(userId, mailboxId, "active"),
               createSyncLog({
-                userId: user.id,
+                userId,
                 mailboxId,
                 status: "success",
                 startedAt,
@@ -520,37 +543,35 @@ export async function syncGmailAction(formData: FormData) {
               }),
             ]);
 
-            redirect(
-              "/mailboxes?success=" + encodeURIComponent(bannerMessage),
-            );
+            return { success: true, bannerMessage };
           } catch {
-            // Refresh failed
+            // Fall through to error
           }
         }
 
-        const finishedAt = new Date();
-        const message = "Gmail sync failed. Reconnect Gmail.";
+        const finishedAtr = new Date();
+        const msg = "Gmail sync failed. Reconnect Gmail.";
         await Promise.all([
-          updateMailboxStatus(user.id, mailboxId, "error"),
+          updateMailboxStatus(userId, mailboxId, "error"),
           createSyncLog({
-            userId: user.id,
+            userId,
             mailboxId,
             status: "error",
             startedAt,
-            finishedAt,
-            message,
+            finishedAt: finishedAtr,
+            message: msg,
           }),
         ]);
-        redirect("/mailboxes?error=" + encodeURIComponent(message));
+        return { success: false, message: msg };
       }
     }
 
     const finishedAt = new Date();
     const message = "Gmail sync failed. Please try again later.";
     await Promise.all([
-      updateMailboxStatus(user.id, mailboxId, "error"),
+      updateMailboxStatus(userId, mailboxId, "error"),
       createSyncLog({
-        userId: user.id,
+        userId,
         mailboxId,
         status: "error",
         startedAt,
@@ -558,7 +579,7 @@ export async function syncGmailAction(formData: FormData) {
         message,
       }),
     ]);
-    redirect("/mailboxes?error=" + encodeURIComponent(message));
+    return { success: false, message };
   }
 }
 
