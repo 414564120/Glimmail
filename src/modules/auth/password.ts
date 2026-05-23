@@ -24,6 +24,10 @@ export async function verifyPassword(
 
   if (!salt || !hash) return false;
 
+  const storedKey = Buffer.from(hash, "hex");
+
+  if (storedKey.length !== KEY_LENGTH) return false;
+
   const derivedKey = await new Promise<Buffer>((resolve, reject) => {
     crypto.scrypt(password, salt, KEY_LENGTH, (err, key) => {
       if (err) reject(err);
@@ -31,5 +35,5 @@ export async function verifyPassword(
     });
   });
 
-  return crypto.timingSafeEqual(derivedKey, Buffer.from(hash, "hex"));
+  return crypto.timingSafeEqual(derivedKey, storedKey);
 }

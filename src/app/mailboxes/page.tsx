@@ -1,8 +1,10 @@
+import { redirect } from "next/navigation";
 import {
   AetherSidebar,
   MobileBottomNav,
   MobileTopBar,
 } from "@/components/shell/aether-sidebar";
+import { getCurrentUser } from "@/modules/auth";
 
 const providers = [
   {
@@ -31,7 +33,13 @@ const providers = [
   },
 ] as const;
 
-export default function MailboxesPage() {
+export default async function MailboxesPage() {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/login?next=/mailboxes");
+  }
+
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
       <MobileTopBar />

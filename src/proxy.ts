@@ -15,14 +15,6 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname === "/login" && hasSession) {
-    const inboxUrl = request.nextUrl.clone();
-    inboxUrl.pathname = "/inbox";
-    inboxUrl.search = "";
-
-    return NextResponse.redirect(inboxUrl);
-  }
-
   return NextResponse.next();
 }
 

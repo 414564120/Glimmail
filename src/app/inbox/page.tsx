@@ -1,9 +1,11 @@
+import { redirect } from "next/navigation";
 import {
   AetherSidebar,
   MobileBottomNav,
   MobileTopBar,
 } from "@/components/shell/aether-sidebar";
 import { SymbolIcon } from "@/components/shell/aether-icons";
+import { getCurrentUser } from "@/modules/auth";
 
 type MessageItem = {
   active?: boolean;
@@ -37,7 +39,13 @@ const messages: MessageItem[] = [
   },
 ] as const;
 
-export default function InboxPage() {
+export default async function InboxPage() {
+  const user = await getCurrentUser();
+
+  if (!user) {
+    redirect("/login?next=/inbox");
+  }
+
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
       <MobileTopBar />

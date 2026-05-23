@@ -1,4 +1,6 @@
+import { redirect } from "next/navigation";
 import { SymbolIcon } from "@/components/shell/aether-icons";
+import { getCurrentUser } from "@/modules/auth";
 import { signIn } from "./actions";
 
 type LoginPageProps = {
@@ -9,6 +11,12 @@ type LoginPageProps = {
 };
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
+  const user = await getCurrentUser();
+
+  if (user) {
+    redirect("/inbox");
+  }
+
   const params = await searchParams;
   const hasInvalidCredentials = params?.error === "invalid";
   const nextPath = params?.next || "/inbox";
