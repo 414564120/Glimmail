@@ -17,7 +17,7 @@ const MAIL163_CONNECTION_ERROR_MESSAGES: Record<
   string
 > = {
   authentication_failed:
-    "Authentication failed. Please check your 163 email address and app password.",
+    "Authentication failed. Use your 163 client authorization code, not your mailbox login password.",
   timeout: "Connection timed out. Please check your network and try again.",
   network_unreachable:
     "Could not reach the 163 IMAP server. Please check your network.",

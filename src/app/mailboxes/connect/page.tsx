@@ -35,7 +35,7 @@ const PROVIDER_CONFIG: Record<
     name: "163 Mail",
     iconClass: "netease-mark",
     description:
-      "Connect a NetEase 163 account using an app authorization code.",
+      "Connect a NetEase 163 account using a client authorization code.",
   },
 };
 
@@ -131,12 +131,13 @@ export default async function ConnectPage({ searchParams }: PageProps) {
                   <input
                     className="mb-3 w-full rounded-full border border-border-glass bg-white/70 px-4 py-3 text-center text-base text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
                     name="authCode"
-                    placeholder="Authorization code / App password"
+                    placeholder="163 client authorization code"
                     type="password"
                   />
                   <p className="mb-4 text-xs leading-relaxed text-slate-500">
-                    Your app password is encrypted with AES-256-GCM before being
-                    stored.
+                    Use the client authorization code from 163 Mail settings,
+                    not your mailbox login password. The code is encrypted with
+                    AES-256-GCM before being stored.
                   </p>
                 </>
               ) : null}
