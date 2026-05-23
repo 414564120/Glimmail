@@ -6,6 +6,7 @@ import { encrypt } from "@/modules/security/crypto";
 import {
   exchangeCodeForTokens,
   getGmailProfile,
+  hasGmailReadonlyScope,
 } from "@/modules/providers/gmail";
 
 const STATE_COOKIE = "gmail_oauth_state";
@@ -60,6 +61,12 @@ export async function GET(request: NextRequest) {
   } catch {
     return NextResponse.redirect(
       new URL("/mailboxes?error=" + encodeURIComponent("Gmail connection failed. Please try again."), request.url),
+    );
+  }
+
+  if (!hasGmailReadonlyScope(tokens.scope)) {
+    return NextResponse.redirect(
+      new URL("/mailboxes?error=" + encodeURIComponent("Gmail inbox read access was not granted. Reconnect Gmail and approve the Gmail read-only permission."), request.url),
     );
   }
 

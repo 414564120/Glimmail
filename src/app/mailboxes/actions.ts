@@ -24,7 +24,9 @@ import {
   testImapConnection,
 } from "@/modules/providers/mail163";
 import {
+  type GmailApiErrorCode,
   getGmailMessage,
+  isGmailApiError,
   listGmailMessages,
   refreshAccessToken,
   testGmailConnection,
@@ -49,6 +51,19 @@ const MAIL163_SYNC_ERROR_MESSAGES: Record<Mail163SyncErrorCode, string> = {
   ...MAIL163_CONNECTION_ERROR_MESSAGES,
   inbox_open_failed: "Could not open INBOX. Please check your mailbox permissions.",
   fetch_failed: "Could not fetch messages from the server. Please try again later.",
+};
+
+const GMAIL_SYNC_ERROR_MESSAGES: Record<GmailApiErrorCode, string> = {
+  gmail_token_expired: "Google authorization expired. Reconnect Gmail.",
+  gmail_insufficient_scope:
+    "Gmail inbox sync not authorized. Reconnect Gmail and approve Gmail read-only access.",
+  gmail_api_not_enabled:
+    "Gmail API is not enabled for this Google Cloud project. Enable Gmail API, then reconnect Gmail.",
+  gmail_domain_policy:
+    "Gmail sync is blocked by this Google account or Workspace policy.",
+  gmail_rate_limited:
+    "Gmail sync is temporarily rate limited. Please try again later.",
+  gmail_api_failed: "Gmail sync is not allowed for this account or project.",
 };
 
 export async function addMailboxAction(formData: FormData) {
@@ -386,201 +401,141 @@ async function syncGmailInbox(
   startedAt: Date,
 ): Promise<SyncOutcome> {
   try {
-    const entries = await listGmailMessages(accessToken, 10);
-    const fetchedCount = entries.length;
-    let createdCount = 0;
-
-    if (fetchedCount > 0) {
-      const messages = await Promise.all(
-        entries.map((entry) => getGmailMessage(accessToken, entry.id)),
-      );
-
-      const created = await db.message.createMany({
-        data: messages.map((m) => ({
-          providerMessageId: m.messageId,
-          threadId: m.threadId,
-          sender: m.sender,
-          subject: m.subject,
-          preview: m.snippet || createPreview(m.bodyText, m.subject),
-          bodyText: m.bodyText,
-          receivedAt: m.receivedAt,
-          verificationCode: extractVerificationCode(m.bodyText),
-          mailboxId,
-          userId,
-        })),
-        skipDuplicates: true,
-      });
-      createdCount = created.count;
-    }
-
-    const logMessage =
-      fetchedCount > 0
-        ? `Fetched ${fetchedCount}, imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}.`
-        : "No messages in mailbox.";
-
-    const bannerMessage =
-      createdCount > 0
-        ? `Imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}${createdCount < fetchedCount ? ` (${fetchedCount - createdCount} already synced)` : ""}.`
-        : fetchedCount > 0
-          ? `All ${fetchedCount} messages already synced.`
-          : "No messages found.";
-
-    const finishedAt = new Date();
-    await Promise.all([
-      updateMailboxStatus(userId, mailboxId, "active"),
-      createSyncLog({
+    return await importGmailMessages(userId, mailboxId, accessToken, startedAt);
+  } catch (error: unknown) {
+    if (isGmailApiError(error) && error.code === "gmail_token_expired") {
+      const refreshToken = await getMailboxCredential(
         userId,
         mailboxId,
-        status: "success",
-        startedAt,
-        finishedAt,
-        message: logMessage,
-      }),
-    ]);
+        "oauth_refresh_token",
+      );
 
-    return { success: true, bannerMessage };
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      if (error.message === "insufficient_scope") {
-        const finishedAt = new Date();
-        const message =
-          "Gmail inbox sync not authorized. Reconnect Gmail to grant inbox read access.";
-        await Promise.all([
-          createSyncLog({
+      if (refreshToken) {
+        try {
+          const refreshed = await refreshAccessToken(refreshToken);
+
+          await saveMailboxCredential(
             userId,
             mailboxId,
-            status: "error",
-            startedAt,
-            finishedAt,
-            message,
-          }),
-        ]);
-        return { success: false, message };
-      }
+            "oauth_access_token",
+            refreshed.access_token,
+          );
 
-      if (
-        error.message === "Gmail list failed" ||
-        error.message === "Gmail message fetch failed"
-      ) {
-        const refreshToken = await getMailboxCredential(
-          userId,
-          mailboxId,
-          "oauth_refresh_token",
-        );
-
-        if (refreshToken) {
-          try {
-            const refreshed = await refreshAccessToken(refreshToken);
-
+          if (refreshed.refresh_token) {
             await saveMailboxCredential(
               userId,
               mailboxId,
-              "oauth_access_token",
-              refreshed.access_token,
+              "oauth_refresh_token",
+              refreshed.refresh_token,
             );
-
-            if (refreshed.refresh_token) {
-              await saveMailboxCredential(
-                userId,
-                mailboxId,
-                "oauth_refresh_token",
-                refreshed.refresh_token,
-              );
-            }
-
-            // Retry
-            const entries = await listGmailMessages(refreshed.access_token, 10);
-            const fetchedCount = entries.length;
-            let createdCount = 0;
-
-            if (fetchedCount > 0) {
-              const messages = await Promise.all(
-                entries.map((entry) =>
-                  getGmailMessage(refreshed.access_token, entry.id),
-                ),
-              );
-
-              const created = await db.message.createMany({
-                data: messages.map((m) => ({
-                  providerMessageId: m.messageId,
-                  threadId: m.threadId,
-                  sender: m.sender,
-                  subject: m.subject,
-                  preview: m.snippet || createPreview(m.bodyText, m.subject),
-                  bodyText: m.bodyText,
-                  receivedAt: m.receivedAt,
-                  verificationCode: extractVerificationCode(m.bodyText),
-                  mailboxId,
-                  userId,
-                })),
-                skipDuplicates: true,
-              });
-              createdCount = created.count;
-            }
-
-            const logMessage =
-              fetchedCount > 0
-                ? `Fetched ${fetchedCount}, imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}.`
-                : "No messages in mailbox.";
-
-            const bannerMessage =
-              createdCount > 0
-                ? `Imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}${createdCount < fetchedCount ? ` (${fetchedCount - createdCount} already synced)` : ""}.`
-                : fetchedCount > 0
-                  ? `All ${fetchedCount} messages already synced.`
-                  : "No messages found.";
-
-            const finishedAt = new Date();
-            await Promise.all([
-              updateMailboxStatus(userId, mailboxId, "active"),
-              createSyncLog({
-                userId,
-                mailboxId,
-                status: "success",
-                startedAt,
-                finishedAt,
-                message: logMessage,
-              }),
-            ]);
-
-            return { success: true, bannerMessage };
-          } catch {
-            // Fall through to error
           }
-        }
 
-        const finishedAtr = new Date();
-        const msg = "Gmail sync failed. Reconnect Gmail.";
-        await Promise.all([
-          updateMailboxStatus(userId, mailboxId, "error"),
-          createSyncLog({
+          return await importGmailMessages(
             userId,
             mailboxId,
-            status: "error",
+            refreshed.access_token,
             startedAt,
-            finishedAt: finishedAtr,
-            message: msg,
-          }),
-        ]);
-        return { success: false, message: msg };
+          );
+        } catch (retryError: unknown) {
+          return recordGmailSyncError(
+            userId,
+            mailboxId,
+            startedAt,
+            retryError,
+          );
+        }
       }
     }
 
-    const finishedAt = new Date();
-    const message = "Gmail sync failed. Please try again later.";
-    await Promise.all([
-      updateMailboxStatus(userId, mailboxId, "error"),
-      createSyncLog({
-        userId,
-        mailboxId,
-        status: "error",
-        startedAt,
-        finishedAt,
-        message,
-      }),
-    ]);
-    return { success: false, message };
+    return recordGmailSyncError(userId, mailboxId, startedAt, error);
   }
+}
+
+async function importGmailMessages(
+  userId: string,
+  mailboxId: string,
+  accessToken: string,
+  startedAt: Date,
+): Promise<SyncOutcome> {
+  const entries = await listGmailMessages(accessToken, 10);
+  const fetchedCount = entries.length;
+  let createdCount = 0;
+
+  if (fetchedCount > 0) {
+    const messages = await Promise.all(
+      entries.map((entry) => getGmailMessage(accessToken, entry.id)),
+    );
+
+    const created = await db.message.createMany({
+      data: messages.map((m) => ({
+        providerMessageId: m.messageId,
+        threadId: m.threadId,
+        sender: m.sender,
+        subject: m.subject,
+        preview: m.snippet || createPreview(m.bodyText, m.subject),
+        bodyText: m.bodyText,
+        receivedAt: m.receivedAt,
+        verificationCode: extractVerificationCode(m.bodyText),
+        mailboxId,
+        userId,
+      })),
+      skipDuplicates: true,
+    });
+    createdCount = created.count;
+  }
+
+  const logMessage =
+    fetchedCount > 0
+      ? `Fetched ${fetchedCount}, imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}.`
+      : "No messages in mailbox.";
+
+  const bannerMessage =
+    createdCount > 0
+      ? `Imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}${createdCount < fetchedCount ? ` (${fetchedCount - createdCount} already synced)` : ""}.`
+      : fetchedCount > 0
+        ? `All ${fetchedCount} messages already synced.`
+        : "No messages found.";
+
+  const finishedAt = new Date();
+  await Promise.all([
+    updateMailboxStatus(userId, mailboxId, "active"),
+    createSyncLog({
+      userId,
+      mailboxId,
+      status: "success",
+      startedAt,
+      finishedAt,
+      message: logMessage,
+    }),
+  ]);
+
+  return { success: true, bannerMessage };
+}
+
+async function recordGmailSyncError(
+  userId: string,
+  mailboxId: string,
+  startedAt: Date,
+  error: unknown,
+): Promise<SyncOutcome> {
+  const finishedAt = new Date();
+  const message = isGmailApiError(error)
+    ? GMAIL_SYNC_ERROR_MESSAGES[error.code]
+    : "Gmail sync failed. Please try again later.";
+
+  await Promise.all([
+    updateMailboxStatus(userId, mailboxId, "error"),
+    createSyncLog({
+      userId,
+      mailboxId,
+      status: "error",
+      startedAt,
+      finishedAt,
+      message,
+    }),
+  ]);
+
+  return { success: false, message };
 }
 
 export async function syncMailboxAction(formData: FormData) {

@@ -17,6 +17,7 @@ export function buildAuthorizationUrl(
     response_type: "code",
     scope: "openid email profile https://www.googleapis.com/auth/gmail.readonly",
     access_type: "offline",
+    include_granted_scopes: "true",
     prompt: "consent",
     state,
   });
@@ -31,6 +32,12 @@ interface TokenResponse {
   expires_in: number;
   token_type: string;
   scope: string;
+}
+
+const GMAIL_READONLY_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
+
+export function hasGmailReadonlyScope(scope: string | undefined): boolean {
+  return scope?.split(/\s+/).includes(GMAIL_READONLY_SCOPE) ?? false;
 }
 
 export async function exchangeCodeForTokens(
@@ -174,10 +181,7 @@ export async function listGmailMessages(
   );
 
   if (!response.ok) {
-    if (response.status === 403) {
-      throw new Error("insufficient_scope");
-    }
-    throw new Error("Gmail list failed");
+    throw await createGmailApiError(response, "Gmail list failed");
   }
 
   const data = (await response.json()) as GmailListResponse;
@@ -228,7 +232,7 @@ export async function getGmailMessage(
   );
 
   if (!response.ok) {
-    throw new Error("Gmail message fetch failed");
+    throw await createGmailApiError(response, "Gmail message fetch failed");
   }
 
   const msg = (await response.json()) as GmailMessageResponse;
@@ -308,6 +312,102 @@ function getEmailFromIdToken(idToken: string): string | null {
     return payload.email ? payload.email.toLowerCase() : null;
   } catch {
     return null;
+  }
+}
+
+export type GmailApiErrorCode =
+  | "gmail_token_expired"
+  | "gmail_insufficient_scope"
+  | "gmail_api_not_enabled"
+  | "gmail_domain_policy"
+  | "gmail_rate_limited"
+  | "gmail_api_failed";
+
+export class GmailApiError extends Error {
+  constructor(readonly code: GmailApiErrorCode) {
+    super(code);
+    this.name = "GmailApiError";
+  }
+}
+
+export function isGmailApiError(
+  error: unknown,
+): error is GmailApiError {
+  return error instanceof GmailApiError;
+}
+
+async function createGmailApiError(
+  response: Response,
+  fallback: string,
+): Promise<Error> {
+  if (response.status === 401) {
+    return new GmailApiError("gmail_token_expired");
+  }
+
+  const { reason, message } = await readGoogleError(response);
+  const normalizedMessage = message.toLowerCase();
+
+  if (
+    reason === "insufficientPermissions" ||
+    reason === "insufficient_scope" ||
+    normalizedMessage.includes("insufficient authentication scopes")
+  ) {
+    return new GmailApiError("gmail_insufficient_scope");
+  }
+
+  if (
+    reason === "accessNotConfigured" ||
+    reason === "SERVICE_DISABLED" ||
+    normalizedMessage.includes("gmail api has not been used") ||
+    normalizedMessage.includes("it is disabled")
+  ) {
+    return new GmailApiError("gmail_api_not_enabled");
+  }
+
+  if (reason === "domainPolicy") {
+    return new GmailApiError("gmail_domain_policy");
+  }
+
+  if (
+    reason === "dailyLimitExceeded" ||
+    reason === "rateLimitExceeded" ||
+    reason === "userRateLimitExceeded" ||
+    response.status === 429
+  ) {
+    return new GmailApiError("gmail_rate_limited");
+  }
+
+  if (response.status === 403) {
+    return new GmailApiError("gmail_api_failed");
+  }
+
+  return new Error(fallback);
+}
+
+async function readGoogleError(
+  response: Response,
+): Promise<{ reason: string; message: string }> {
+  try {
+    const payload = (await response.json()) as {
+      error?: {
+        message?: string;
+        status?: string;
+        errors?: Array<{ reason?: string; message?: string }>;
+      };
+    };
+
+    return {
+      reason:
+        payload.error?.errors?.find((entry) => entry.reason)?.reason ??
+        payload.error?.status ??
+        "",
+      message:
+        payload.error?.errors?.find((entry) => entry.message)?.message ??
+        payload.error?.message ??
+        "",
+    };
+  } catch {
+    return { reason: "", message: "" };
   }
 }
 
