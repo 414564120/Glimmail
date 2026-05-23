@@ -20,6 +20,7 @@ import {
   syncMailbox,
   testImapConnection,
 } from "@/modules/providers/mail163";
+import { testGmailConnection } from "@/modules/providers/gmail";
 import { db } from "@/lib/db";
 
 const MAIL163_CONNECTION_ERROR_MESSAGES: Record<
@@ -150,6 +151,77 @@ export async function testMailboxConnectionAction(formData: FormData) {
   redirect(
     "/mailboxes?error=" + encodeURIComponent(errorMessage),
   );
+}
+
+export async function testGmailConnectionAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/mailboxes");
+
+  const mailboxId = String(formData.get("mailboxId") || "");
+
+  const mailbox = await getUserMailbox(user.id, mailboxId);
+  if (!mailbox) {
+    redirect("/mailboxes?error=" + encodeURIComponent("Mailbox not found."));
+  }
+
+  if (mailbox.provider !== "gmail") {
+    redirect(
+      "/mailboxes?error=" +
+        encodeURIComponent("Connection test is only available for Gmail."),
+    );
+  }
+
+  const accessToken = await getMailboxCredential(
+    user.id,
+    mailboxId,
+    "oauth_access_token",
+  );
+  if (!accessToken) {
+    redirect(
+      "/mailboxes?error=" +
+        encodeURIComponent("No access token found for this mailbox."),
+    );
+  }
+
+  const startedAt = new Date();
+  const result = await testGmailConnection(accessToken);
+  const finishedAt = new Date();
+
+  if ("success" in result) {
+    await Promise.all([
+      updateMailboxStatus(user.id, mailboxId, "active"),
+      createSyncLog({
+        userId: user.id,
+        mailboxId,
+        status: "success",
+        startedAt,
+        finishedAt,
+        message: "Google account verified.",
+      }),
+    ]);
+    redirect(
+      "/mailboxes?success=" +
+        encodeURIComponent("Gmail connection test passed."),
+    );
+  }
+
+  const errorMessage =
+    result.error === "token_expired"
+      ? "Google authorization expired. Reconnect Gmail."
+      : "Gmail connection test failed. Please try again later.";
+
+  await Promise.all([
+    updateMailboxStatus(user.id, mailboxId, "error"),
+    createSyncLog({
+      userId: user.id,
+      mailboxId,
+      status: "error",
+      startedAt,
+      finishedAt,
+      message: errorMessage,
+    }),
+  ]);
+  redirect("/mailboxes?error=" + encodeURIComponent(errorMessage));
 }
 
 export async function syncMailboxAction(formData: FormData) {

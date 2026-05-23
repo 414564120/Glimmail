@@ -94,6 +94,24 @@ export async function getGmailProfile(
   return { emailAddress: profile.email.toLowerCase() };
 }
 
+export async function testGmailConnection(
+  accessToken: string,
+): Promise<{ success: true } | { error: "token_expired" | "connection_failed" }> {
+  const response = await fetch(
+    "https://openidconnect.googleapis.com/v1/userinfo",
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      return { error: "token_expired" };
+    }
+    return { error: "connection_failed" };
+  }
+
+  return { success: true };
+}
+
 function getEmailFromIdToken(idToken: string): string | null {
   const parts = idToken.split(".");
   if (parts.length < 2 || !parts[1]) return null;

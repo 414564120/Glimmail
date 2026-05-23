@@ -11,6 +11,7 @@ import { getRecentSyncLogs, getUserMailboxes } from "@/modules/mailboxes";
 import {
   deleteMailboxAction,
   syncMailboxAction,
+  testGmailConnectionAction,
   testMailboxConnectionAction,
 } from "./actions";
 
@@ -59,7 +60,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
 
   const recentSyncLogs = new Map<string, Awaited<ReturnType<typeof getRecentSyncLogs>>>();
   for (const mb of mailboxes) {
-    if (mb.provider === "mail163") {
+    if (mb.provider === "mail163" || mb.provider === "gmail") {
       const logs = await getRecentSyncLogs(user.id, mb.id, 3);
       if (logs.length > 0) recentSyncLogs.set(mb.id, logs);
     }
@@ -162,7 +163,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                       <p className="mb-1 text-sm capitalize text-slate-500">
                         Status: {mailbox.status}
                       </p>
-                      {mailbox.provider === "mail163" &&
+                      {(mailbox.provider === "mail163" || mailbox.provider === "gmail") &&
                         recentSyncLogs.has(mailbox.id) && (
                           <div className="mb-4 w-full text-left">
                             <span className="font-label text-[10px] font-semibold uppercase tracking-wider text-slate-400">
@@ -225,6 +226,21 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                               </button>
                             </form>
                           </>
+                        )}
+                        {mailbox.provider === "gmail" && (
+                          <form action={testGmailConnectionAction}>
+                            <input
+                              name="mailboxId"
+                              type="hidden"
+                              value={mailbox.id}
+                            />
+                            <button
+                              className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
+                              type="submit"
+                            >
+                              Test Connection
+                            </button>
+                          </form>
                         )}
                         <form action={deleteMailboxAction}>
                           <input
