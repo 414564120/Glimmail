@@ -14,7 +14,7 @@ const paths: Record<string, string[]> = {
   arrow_forward: ["M5 12h14", "M13 6l6 6-6 6"],
   content_copy: ["M9 9h10v10H9z", "M5 5h10v10"],
   delete: ["M4 7h16", "M10 11v6", "M14 11v6", "M6 7l1 14h10l1-14", "M9 7V4h6v3"],
-  drafts: ["M4 6h16v12H4z", "M4 7l8 6 8-6"],
+  drafts: ["M4 8h16v10H4z", "M4 8l8 5 8-5", "M8 5h8"],
   edit: ["M4 20h4l11-11-4-4L4 16v4Z", "M13 7l4 4"],
   filter_list: ["M4 7h16", "M7 12h10", "M10 17h4"],
   hub: ["M12 12l-5-5", "M12 12l5-5", "M12 12v7", "M7 7a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z", "M17 7a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z", "M12 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"],
