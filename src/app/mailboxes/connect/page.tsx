@@ -70,14 +70,11 @@ export default async function ConnectPage({ searchParams }: PageProps) {
   const mailboxes = await getUserMailboxes(user.id);
 
   let gmailOAuthUrl: string | null = null;
+  let gmailRedirectUri: string | null = null;
+  const gmailOAuthConfigured =
+    !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET;
 
-  if (
-    isGmail &&
-    process.env.GOOGLE_CLIENT_ID &&
-    process.env.GOOGLE_CLIENT_SECRET
-  ) {
-    const state = generateOAuthState();
-    const cookieStore = await cookies();
+  if (isGmail) {
     const headerStore = await headers();
     const host =
       headerStore.get("x-forwarded-host") ??
@@ -89,14 +86,20 @@ export default async function ConnectPage({ searchParams }: PageProps) {
     const redirectUri =
       process.env.GOOGLE_REDIRECT_URI ??
       `${proto}://${host}/api/auth/gmail/callback`;
-    cookieStore.set("gmail_oauth_state", `${state}:${user.id}`, {
-      httpOnly: true,
-      maxAge: 600,
-      path: "/",
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-    });
-    gmailOAuthUrl = buildAuthorizationUrl(state, redirectUri);
+    gmailRedirectUri = redirectUri;
+
+    if (gmailOAuthConfigured) {
+      const state = generateOAuthState();
+      const cookieStore = await cookies();
+      cookieStore.set("gmail_oauth_state", `${state}:${user.id}`, {
+        httpOnly: true,
+        maxAge: 600,
+        path: "/",
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+      });
+      gmailOAuthUrl = buildAuthorizationUrl(state, redirectUri);
+    }
   }
 
   return (
@@ -146,10 +149,32 @@ export default async function ConnectPage({ searchParams }: PageProps) {
                     messages.
                   </div>
                 ) : (
-                  <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                    Google OAuth is not configured. Set GOOGLE_CLIENT_ID and
-                    GOOGLE_CLIENT_SECRET in .env.local to enable Gmail
-                    connections.
+                  <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">
+                    <p className="font-label text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+                      Google setup required
+                    </p>
+                    <p className="mt-2 leading-relaxed">
+                      Create a Google OAuth Web application, then add these
+                      values to <span className="font-mono">.env.local</span>{" "}
+                      and restart <span className="font-mono">pnpm dev</span>.
+                    </p>
+                    <div className="mt-3 space-y-2 rounded-md bg-white/60 p-3 text-xs text-amber-950">
+                      <p>
+                        <span className="font-semibold">Required env:</span>{" "}
+                        <span className="font-mono">GOOGLE_CLIENT_ID</span>,{" "}
+                        <span className="font-mono">GOOGLE_CLIENT_SECRET</span>
+                      </p>
+                      <p>
+                        <span className="font-semibold">Redirect URI:</span>{" "}
+                        <span className="break-all font-mono">
+                          {gmailRedirectUri}
+                        </span>
+                      </p>
+                      <p>
+                        Add the redirect URI above to Google Cloud Console under
+                        Authorized redirect URIs.
+                      </p>
+                    </div>
                   </div>
                 )}
                 {gmailOAuthUrl ? (
@@ -159,7 +184,15 @@ export default async function ConnectPage({ searchParams }: PageProps) {
                   >
                     Connect with Google
                   </a>
-                ) : null}
+                ) : (
+                  <button
+                    className="w-full cursor-not-allowed rounded-full border border-slate-300 px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-400"
+                    disabled
+                    type="button"
+                  >
+                    Connect with Google
+                  </button>
+                )}
               </>
             ) : (
               <>

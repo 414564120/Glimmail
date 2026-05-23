@@ -111,6 +111,13 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                   }`}
                   key={pc.provider}
                 >
+                  {!connected ? (
+                    <Link
+                      aria-label={`Connect ${pc.name}`}
+                      className="absolute inset-0 z-20 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40"
+                      href={`/mailboxes/connect?provider=${pc.provider}`}
+                    />
+                  ) : null}
                   <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-0 transition group-hover:opacity-100" />
                   <div
                     className={`absolute right-4 top-4 flex items-center gap-2 ${
@@ -240,7 +247,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                         {pc.description}
                       </p>
                       <Link
-                        className="vibrant-flux hover-lift mt-auto block w-full rounded-full px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                        className="vibrant-flux hover-lift relative z-30 mt-auto block w-full rounded-full px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
                         href={`/mailboxes/connect?provider=${pc.provider}`}
                       >
                         Connect
