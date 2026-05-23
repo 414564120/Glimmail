@@ -244,18 +244,24 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                               </button>
                             </form>
                             <form action={testGmailConnectionAction}>
-                            <input
-                              name="mailboxId"
-                              type="hidden"
-                              value={mailbox.id}
-                            />
-                            <button
-                              className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
-                              type="submit"
+                              <input
+                                name="mailboxId"
+                                type="hidden"
+                                value={mailbox.id}
+                              />
+                              <button
+                                className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
+                                type="submit"
+                              >
+                                Test Connection
+                              </button>
+                            </form>
+                            <Link
+                              className="block w-full rounded-full border border-slate-300 px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600 hover:bg-white/60"
+                              href="/api/auth/gmail/start"
                             >
-                              Test Connection
-                            </button>
-                          </form>
+                              Reconnect Gmail
+                            </Link>
                           </>
                         )}
                         <form action={deleteMailboxAction}>
