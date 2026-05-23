@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
   let email: string;
   try {
-    const profile = await getGmailProfile(tokens.access_token);
+    const profile = await getGmailProfile(tokens.access_token, tokens.id_token);
     email = profile.emailAddress;
   } catch {
     return NextResponse.redirect(

@@ -27,6 +27,7 @@ export function buildAuthorizationUrl(
 interface TokenResponse {
   access_token: string;
   refresh_token?: string;
+  id_token?: string;
   expires_in: number;
   token_type: string;
   scope: string;
@@ -69,7 +70,13 @@ interface GoogleUserInfo {
 
 export async function getGmailProfile(
   accessToken: string,
+  idToken?: string,
 ): Promise<{ emailAddress: string }> {
+  const idTokenEmail = idToken ? getEmailFromIdToken(idToken) : null;
+  if (idTokenEmail) {
+    return { emailAddress: idTokenEmail };
+  }
+
   const response = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
@@ -85,4 +92,22 @@ export async function getGmailProfile(
   }
 
   return { emailAddress: profile.email.toLowerCase() };
+}
+
+function getEmailFromIdToken(idToken: string): string | null {
+  const parts = idToken.split(".");
+  if (parts.length < 2 || !parts[1]) return null;
+
+  try {
+    const payload = JSON.parse(base64UrlDecode(parts[1])) as { email?: string };
+    return payload.email ? payload.email.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+}
+
+function base64UrlDecode(value: string): string {
+  const padded = value.padEnd(value.length + ((4 - (value.length % 4)) % 4), "=");
+  const base64 = padded.replace(/-/g, "+").replace(/_/g, "/");
+  return Buffer.from(base64, "base64").toString("utf-8");
 }
