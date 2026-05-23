@@ -1,44 +1,56 @@
 import { redirect } from "next/navigation";
+import type { MailboxProvider } from "@prisma/client";
 import {
   AetherSidebar,
   MobileBottomNav,
   MobileTopBar,
 } from "@/components/shell/aether-sidebar";
 import { getCurrentUser } from "@/modules/auth";
+import { getUserMailboxes } from "@/modules/mailboxes";
+import { addMailboxAction, deleteMailboxAction } from "./actions";
 
-const providers = [
+const PROVIDER_CARDS: Array<{
+  provider: MailboxProvider;
+  name: string;
+  iconClass: string;
+  description: string;
+}> = [
   {
-    action: "Manage Sync",
-    description: "Sync your primary Google workspace and personal accounts seamlessly.",
-    iconClass: "gmail-mark",
+    provider: "gmail",
     name: "Gmail",
-    status: "Connected",
-    statusClass: "bg-green-500",
+    iconClass: "gmail-mark",
+    description:
+      "Sync your primary Google workspace and personal accounts seamlessly.",
   },
   {
-    action: "Connect",
-    description: "Integrate Exchange and Office 365 environments effortlessly.",
-    iconClass: "outlook-mark",
+    provider: "outlook",
     name: "Outlook",
-    status: "Not Connected",
-    statusClass: "bg-surface-dim",
+    iconClass: "outlook-mark",
+    description:
+      "Integrate Exchange and Office 365 environments effortlessly.",
   },
   {
-    action: "Connect",
-    description: "Link your NetEase 163 account for complete regional coverage.",
-    iconClass: "netease-mark",
+    provider: "mail163",
     name: "163 Mail",
-    status: "Not Connected",
-    statusClass: "bg-surface-dim",
+    iconClass: "netease-mark",
+    description:
+      "Link your NetEase 163 account for complete regional coverage.",
   },
-] as const;
+];
 
-export default async function MailboxesPage() {
+interface PageProps {
+  searchParams: Promise<{ error?: string }>;
+}
+
+export default async function MailboxesPage({ searchParams }: PageProps) {
   const user = await getCurrentUser();
 
   if (!user) {
     redirect("/login?next=/mailboxes");
   }
+
+  const mailboxes = await getUserMailboxes(user.id);
+  const { error } = await searchParams;
 
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
@@ -57,16 +69,25 @@ export default async function MailboxesPage() {
             </p>
           </header>
 
+          {error && (
+            <div className="mx-auto mb-8 max-w-lg rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-            {providers.map((provider) => {
-              const connected = provider.status === "Connected";
+            {PROVIDER_CARDS.map((pc) => {
+              const mailbox = mailboxes.find(
+                (mb) => mb.provider === pc.provider,
+              );
+              const connected = !!mailbox;
 
               return (
                 <article
-                  className={`glass-card group hover-lift relative flex min-h-[320px] cursor-pointer flex-col items-center overflow-hidden rounded-xl p-8 text-center ${
+                  className={`glass-card group hover-lift relative flex min-h-[320px] flex-col items-center overflow-hidden rounded-xl p-8 text-center ${
                     connected ? "" : "opacity-90"
                   }`}
-                  key={provider.name}
+                  key={pc.provider}
                 >
                   <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-0 transition group-hover:opacity-100" />
                   <div
@@ -79,11 +100,15 @@ export default async function MailboxesPage() {
                         connected ? "text-primary" : "text-slate-600"
                       }`}
                     >
-                      {provider.status}
+                      {connected ? "Connected" : "Not Connected"}
                     </span>
                     <span
-                      className={`size-2 rounded-full ${provider.statusClass} ${
-                        connected ? "animate-[pulse-green_1.8s_ease-in-out_infinite]" : ""
+                      className={`size-2 rounded-full ${
+                        connected ? "bg-green-500" : "bg-surface-dim"
+                      } ${
+                        connected
+                          ? "animate-[pulse-green_1.8s_ease-in-out_infinite]"
+                          : ""
                       }`}
                     />
                   </div>
@@ -93,25 +118,68 @@ export default async function MailboxesPage() {
                       connected ? "" : "grayscale group-hover:grayscale-0"
                     }`}
                   >
-                    <span className={`provider-logo ${provider.iconClass}`} />
+                    <span className={`provider-logo ${pc.iconClass}`} />
                   </div>
 
                   <h3 className="mb-2 font-display text-2xl font-bold text-slate-950">
-                    {provider.name}
+                    {pc.name}
                   </h3>
-                  <p className="mb-8 text-base leading-relaxed text-slate-600 opacity-80">
-                    {provider.description}
-                  </p>
-                  <button
-                    className={
-                      connected
-                        ? "hover-lift mt-auto w-full rounded-full border border-primary px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary-container/10"
-                        : "vibrant-flux hover-lift mt-auto w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
-                    }
-                    type="button"
-                  >
-                    {provider.action}
-                  </button>
+
+                  {connected && mailbox ? (
+                    <>
+                      <p className="mb-1 text-base font-medium text-slate-800">
+                        {mailbox.address}
+                      </p>
+                      <p className="mb-6 text-sm capitalize text-slate-500">
+                        Status: {mailbox.status}
+                      </p>
+                      <form
+                        action={deleteMailboxAction}
+                        className="mt-auto w-full"
+                      >
+                        <input
+                          name="mailboxId"
+                          type="hidden"
+                          value={mailbox.id}
+                        />
+                        <button
+                          className="hover-lift mt-auto w-full rounded-full border border-red-400 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-red-600 hover:bg-red-50"
+                          type="submit"
+                        >
+                          Remove
+                        </button>
+                      </form>
+                    </>
+                  ) : (
+                    <>
+                      <p className="mb-6 text-base leading-relaxed text-slate-600 opacity-80">
+                        {pc.description}
+                      </p>
+                      <form
+                        action={addMailboxAction}
+                        className="mt-auto w-full space-y-3"
+                      >
+                        <input
+                          name="provider"
+                          type="hidden"
+                          value={pc.provider}
+                        />
+                        <input
+                          className="w-full rounded-full border border-border-glass bg-white/70 px-4 py-2 text-center text-sm text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+                          name="address"
+                          placeholder="you@provider.com"
+                          required
+                          type="email"
+                        />
+                        <button
+                          className="vibrant-flux hover-lift w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                          type="submit"
+                        >
+                          Connect
+                        </button>
+                      </form>
+                    </>
+                  )}
                 </article>
               );
             })}
