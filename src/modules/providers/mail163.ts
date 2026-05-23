@@ -464,7 +464,7 @@ export function syncMailbox(
 
     function sendSelect() {
       const selectTag = tag();
-      socket.write(`${selectTag} SELECT INBOX\r\n`);
+      socket.write(`${selectTag} EXAMINE "INBOX"\r\n`);
       step = "select";
     }
 
@@ -474,10 +474,10 @@ export function syncMailbox(
       step = "search";
     }
 
-    function sendFetch(start: number, end: number) {
+    function sendFetch(uids: number[]) {
       const fetchTag = tag();
       socket.write(
-        `${fetchTag} FETCH ${start}:${end} (UID INTERNALDATE BODY.PEEK[HEADER.FIELDS (From Subject Date Message-Id)] BODY.PEEK[TEXT])\r\n`,
+        `${fetchTag} UID FETCH ${uids.join(",")} (UID INTERNALDATE BODY.PEEK[HEADER.FIELDS (From Subject Date Message-Id)] BODY.PEEK[TEXT])\r\n`,
       );
       step = "fetch";
     }
@@ -538,11 +538,11 @@ export function syncMailbox(
           return;
         }
 
-        // Fetch last N messages by sequence number
+        // Fetch the most recent UIDs directly; UID SEARCH returns UIDs, not sequence numbers.
         const count = Math.min(SYNC_FETCH_COUNT, searchUids.length);
-        const startSeq = searchUids.length - count + 1;
+        const uidsToFetch = searchUids.slice(-count);
         buffer = "";
-        sendFetch(startSeq, searchUids.length);
+        sendFetch(uidsToFetch);
         return;
       }
 

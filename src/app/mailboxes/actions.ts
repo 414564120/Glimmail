@@ -187,9 +187,10 @@ export async function syncMailboxAction(formData: FormData) {
 
   if ("success" in result) {
     const { messages } = result;
+    let createdCount = 0;
 
     if (messages.length > 0) {
-      await db.message.createMany({
+      const created = await db.message.createMany({
         data: messages.map((m) => ({
           providerMessageId: m.uid,
           sender: m.sender,
@@ -203,6 +204,7 @@ export async function syncMailboxAction(formData: FormData) {
         })),
         skipDuplicates: true,
       });
+      createdCount = created.count;
     }
 
     await Promise.all([
@@ -214,8 +216,8 @@ export async function syncMailboxAction(formData: FormData) {
         startedAt,
         finishedAt,
         message:
-          messages.length > 0
-            ? `Synced ${messages.length} new message${messages.length > 1 ? "s" : ""}.`
+          createdCount > 0
+            ? `Synced ${createdCount} new message${createdCount > 1 ? "s" : ""}.`
             : "No new messages.",
       }),
     ]);
@@ -223,8 +225,8 @@ export async function syncMailboxAction(formData: FormData) {
     redirect(
       "/mailboxes?success=" +
         encodeURIComponent(
-          messages.length > 0
-            ? `Synced ${messages.length} message${messages.length > 1 ? "s" : ""}.`
+          createdCount > 0
+            ? `Synced ${createdCount} message${createdCount > 1 ? "s" : ""}.`
             : "No new messages found.",
         ),
     );
