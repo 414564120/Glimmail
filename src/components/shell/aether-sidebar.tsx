@@ -1,15 +1,16 @@
 import { SymbolIcon } from "./aether-icons";
 
 const mainItems = [
-  ["inbox", "Inbox"],
-  ["star", "Starred"],
-  ["send", "Sent"],
-  ["drafts", "Drafts"],
+  ["inbox", "Inbox", "/inbox"],
+  ["hub", "Accounts", "/mailboxes"],
+  ["star", "Starred", "/inbox?view=starred"],
+  ["send", "Sent", "/inbox?view=sent"],
+  ["drafts", "Drafts", "/inbox?view=drafts"],
 ] as const;
 
 const bottomItems = [
-  ["archive", "Archive"],
-  ["delete", "Trash"],
+  ["archive", "Archive", "/inbox?view=archive"],
+  ["delete", "Trash", "/inbox?view=trash"],
 ] as const;
 
 export function AetherSidebar({ active = "Inbox" }: { active?: string }) {
@@ -27,16 +28,16 @@ export function AetherSidebar({ active = "Inbox" }: { active?: string }) {
           <p className="text-xs text-outline">4 connected accounts</p>
         </div>
 
-        <button
+        <a
           className="vibrant-flux hover-lift mb-8 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white shadow-[0_0_20px_rgba(168,0,170,0.3)]"
-          type="button"
+          href="/inbox?compose=new"
         >
           <SymbolIcon className="text-[20px]">edit</SymbolIcon>
           Compose
-        </button>
+        </a>
 
         <nav className="space-y-2">
-          {mainItems.map(([icon, label]) => {
+          {mainItems.map(([icon, label, href]) => {
             const isActive = active === label;
 
             return (
@@ -46,7 +47,7 @@ export function AetherSidebar({ active = "Inbox" }: { active?: string }) {
                     ? "bg-primary-container text-[#59005a]"
                     : "text-slate-600 hover:bg-surface-container-high"
                 }`}
-                href="#"
+                href={href}
                 key={label}
               >
                 <SymbolIcon className="text-[22px]" fill={isActive}>
@@ -68,16 +69,34 @@ export function AetherSidebar({ active = "Inbox" }: { active?: string }) {
       </div>
 
       <div className="space-y-2 border-t border-white/35 p-6">
-        {bottomItems.map(([icon, label]) => (
+        {bottomItems.map(([icon, label, href]) => {
+          const isActive = active === label;
+
+          return (
           <a
-            className="hover-lift flex items-center gap-4 rounded-xl px-4 py-3 text-slate-600 hover:bg-surface-container-high"
-            href="#"
+            className={`hover-lift flex items-center gap-4 rounded-xl px-4 py-3 ${
+              isActive
+                ? "bg-primary-container text-[#59005a]"
+                : "text-slate-600 hover:bg-surface-container-high"
+            }`}
+            href={href}
             key={label}
           >
-            <SymbolIcon className="text-[22px]">{icon}</SymbolIcon>
-            <span className="text-base">{label}</span>
+            <SymbolIcon className="text-[22px]" fill={isActive}>
+              {icon}
+            </SymbolIcon>
+            <span
+              className={
+                isActive
+                  ? "font-label text-xs font-semibold uppercase tracking-[0.1em]"
+                  : "text-base"
+              }
+            >
+              {label}
+            </span>
           </a>
-        ))}
+          );
+        })}
       </div>
     </aside>
   );
@@ -100,6 +119,17 @@ export function MobileTopBar() {
 }
 
 type MobileNavItem = readonly [string, string];
+
+const mobileHrefByLabel: Record<string, string> = {
+  Accounts: "/mailboxes",
+  Inbox: "/inbox",
+  Mail: "/inbox",
+  Search: "/inbox?view=search",
+  Settings: "/mailboxes",
+  Starred: "/inbox?view=starred",
+  Sent: "/inbox?view=sent",
+  Drafts: "/inbox?view=drafts",
+};
 
 export function MobileBottomNav({
   active = "Inbox",
@@ -126,7 +156,7 @@ export function MobileBottomNav({
                 ? "scale-105 bg-secondary-container/20 text-primary"
                 : "text-slate-500 hover:text-primary"
             }`}
-            href="#"
+            href={mobileHrefByLabel[label] ?? "/inbox"}
             key={label}
           >
             <SymbolIcon className="text-[22px]" fill={isActive}>

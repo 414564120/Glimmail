@@ -42,8 +42,38 @@ function getInitials(name: string): string {
     .join("");
 }
 
+const viewLabels = {
+  archive: "Archive",
+  drafts: "Drafts",
+  inbox: "Inbox",
+  search: "Search",
+  sent: "Sent",
+  starred: "Starred",
+  trash: "Trash",
+} as const;
+
+type InboxView = keyof typeof viewLabels;
+
+function getInboxView(value?: string): InboxView {
+  if (value && value in viewLabels) {
+    return value as InboxView;
+  }
+
+  return "inbox";
+}
+
+function getViewMessages<T extends { isStarred: boolean }>(
+  messages: T[],
+  view: InboxView,
+) {
+  if (view === "starred") return messages.filter((msg) => msg.isStarred);
+  if (view === "inbox") return messages;
+
+  return [];
+}
+
 interface PageProps {
-  searchParams: Promise<{ message?: string }>;
+  searchParams: Promise<{ compose?: string; message?: string; view?: string }>;
 }
 
 export default async function InboxPage({ searchParams }: PageProps) {
@@ -54,16 +84,26 @@ export default async function InboxPage({ searchParams }: PageProps) {
   }
 
   const messages = await getUserMessages(user.id);
-  const { message: messageIdParam } = await searchParams;
+  const {
+    compose: composeParam,
+    message: messageIdParam,
+    view: viewParam,
+  } = await searchParams;
+  const activeView = getInboxView(viewParam);
+  const visibleMessages = getViewMessages(messages, activeView);
+  const activeLabel = viewLabels[activeView];
+  const composeOpen = composeParam === "new";
 
   const selectedMessage = messageIdParam
-    ? messages.find((m) => m.id === messageIdParam) ?? messages[0] ?? null
-    : messages[0] ?? null;
+    ? visibleMessages.find((m) => m.id === messageIdParam) ??
+      visibleMessages[0] ??
+      null
+    : visibleMessages[0] ?? null;
 
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
       <MobileTopBar />
-      <AetherSidebar active="Inbox" />
+      <AetherSidebar active={activeLabel} />
 
       <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-64 md:pb-0 md:pt-0">
         <header className="glass-card sticky top-0 z-20 hidden h-16 items-center justify-between border-b border-white/40 px-12 md:flex">
@@ -99,7 +139,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
           <aside className="custom-scrollbar min-w-0 border-r border-white/40 bg-white/35 backdrop-blur-md md:h-[calc(100vh-64px)] md:overflow-y-auto">
             <div className="z-10 flex items-center justify-between border-b border-white/60 bg-white/95 p-4 shadow-[0_8px_24px_rgba(49,57,74,0.04)] backdrop-blur-md md:sticky md:top-0 md:bg-white/60">
               <h2 className="font-display text-[28px] font-bold leading-[1.3] text-slate-950">
-                Inbox
+                {activeLabel}
               </h2>
               <button
                 className="flex size-10 items-center justify-center rounded-full transition hover:bg-surface-container-high"
@@ -111,21 +151,29 @@ export default async function InboxPage({ searchParams }: PageProps) {
               </button>
             </div>
 
-            {messages.length === 0 ? (
+            {composeOpen ? (
+              <div className="m-4 rounded-xl border border-white/40 bg-white/60 p-4 text-sm text-slate-600 shadow-sm backdrop-blur-md">
+                Compose is not connected yet.
+              </div>
+            ) : null}
+
+            {visibleMessages.length === 0 ? (
               <div className="flex flex-col items-center justify-center px-8 py-20 text-center">
                 <SymbolIcon className="mb-4 text-[48px] text-slate-400">
-                  mail
+                  {activeView === "starred" ? "star_border" : "mail"}
                 </SymbolIcon>
                 <p className="font-display text-lg font-semibold text-slate-500">
-                  No messages yet
+                  No {activeLabel.toLowerCase()} messages
                 </p>
                 <p className="mt-2 text-sm text-slate-400">
-                  Connect a mailbox and sync to see messages here.
+                  {activeView === "inbox"
+                    ? "Connect a mailbox and sync to see messages here."
+                    : "This view will fill in as the mailbox workflow grows."}
                 </p>
               </div>
             ) : (
               <div>
-                {messages.map((msg) => {
+                {visibleMessages.map((msg) => {
                   const isActive = selectedMessage?.id === msg.id;
                   const isUnread = !msg.isRead;
                   const hasVerification = !!msg.verificationCode;
@@ -137,7 +185,9 @@ export default async function InboxPage({ searchParams }: PageProps) {
                           ? "bg-white/80 shadow-[inset_4px_0_0_var(--primary)]"
                           : "bg-white/20 hover:bg-white/45"
                       }`}
-                      href={`/inbox?message=${encodeURIComponent(msg.id)}`}
+                      href={`/inbox?${
+                        activeView === "inbox" ? "" : `view=${activeView}&`
+                      }message=${encodeURIComponent(msg.id)}`}
                       key={msg.id}
                       scroll={false}
                     >
@@ -225,6 +275,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                       type="hidden"
                       value={selectedMessage.id}
                     />
+                    <input name="view" type="hidden" value={activeView} />
                     <button
                       className="flex size-10 items-center justify-center rounded-full transition hover:bg-surface-container-high"
                       title={selectedMessage.isStarred ? "Unstar" : "Star"}
@@ -247,6 +298,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                       type="hidden"
                       value={selectedMessage.id}
                     />
+                    <input name="view" type="hidden" value={activeView} />
                     <button
                       className="flex size-10 items-center justify-center rounded-full transition hover:bg-surface-container-high"
                       title={
@@ -326,7 +378,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
       >
         <SymbolIcon className="text-[24px]">edit</SymbolIcon>
       </button>
-      <MobileBottomNav />
+      <MobileBottomNav active={activeLabel} />
     </main>
   );
 }

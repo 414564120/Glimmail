@@ -55,7 +55,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
       <MobileTopBar />
-      <AetherSidebar active="Inbox" />
+      <AetherSidebar active="Accounts" />
 
       <section className="flex min-h-screen items-start justify-center px-4 pb-28 pt-24 md:ml-64 md:px-12 md:pt-24">
         <div className="w-full max-w-[1056px]">
@@ -188,7 +188,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
       </section>
 
       <MobileBottomNav
-        active="Settings"
+        active="Accounts"
         items={[
           ["mail", "Mail"],
           ["hub", "Accounts"],
