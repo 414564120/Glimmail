@@ -32,6 +32,18 @@ export function getLatestSyncLog(userId: string, mailboxId: string) {
   });
 }
 
+export function getRecentSyncLogs(
+  userId: string,
+  mailboxId: string,
+  limit: number,
+) {
+  return db.syncLog.findMany({
+    where: { userId, mailboxId },
+    orderBy: { startedAt: "desc" },
+    take: limit,
+  });
+}
+
 export async function addMailbox(
   userId: string,
   provider: string,

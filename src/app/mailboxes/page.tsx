@@ -7,7 +7,7 @@ import {
   MobileTopBar,
 } from "@/components/shell/aether-sidebar";
 import { getCurrentUser } from "@/modules/auth";
-import { getLatestSyncLog, getUserMailboxes } from "@/modules/mailboxes";
+import { getRecentSyncLogs, getUserMailboxes } from "@/modules/mailboxes";
 import {
   deleteMailboxAction,
   syncMailboxAction,
@@ -57,11 +57,11 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
   const mailboxes = await getUserMailboxes(user.id);
   const { error, success } = await searchParams;
 
-  const latestSyncLogs = new Map<string, Awaited<ReturnType<typeof getLatestSyncLog>>>();
+  const recentSyncLogs = new Map<string, Awaited<ReturnType<typeof getRecentSyncLogs>>>();
   for (const mb of mailboxes) {
     if (mb.provider === "mail163") {
-      const log = await getLatestSyncLog(user.id, mb.id);
-      if (log) latestSyncLogs.set(mb.id, log);
+      const logs = await getRecentSyncLogs(user.id, mb.id, 3);
+      if (logs.length > 0) recentSyncLogs.set(mb.id, logs);
     }
   }
 
@@ -156,31 +156,36 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                         Status: {mailbox.status}
                       </p>
                       {mailbox.provider === "mail163" &&
-                        latestSyncLogs.has(mailbox.id) && (
-                          <div className="mb-4 w-full rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-left text-xs">
-                            <div className="mb-1 flex items-center justify-between">
-                              <span className="font-label text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                                Last Test
-                              </span>
-                              <span
-                                className={`font-label text-[10px] font-semibold uppercase tracking-wider ${
-                                  latestSyncLogs.get(mailbox.id)!.status ===
-                                  "success"
-                                    ? "text-green-600"
-                                    : "text-red-500"
-                                }`}
-                              >
-                                {latestSyncLogs.get(mailbox.id)!.status}
-                              </span>
+                        recentSyncLogs.has(mailbox.id) && (
+                          <div className="mb-4 w-full text-left">
+                            <span className="font-label text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                              Recent Activity
+                            </span>
+                            <div className="mt-1 space-y-1">
+                              {recentSyncLogs.get(mailbox.id)!.map((log) => (
+                                <div
+                                  key={log.id}
+                                  className="flex items-start gap-2 rounded-md bg-white/50 px-2 py-1.5 text-xs"
+                                >
+                                  <span
+                                    className={`mt-0.5 size-1.5 shrink-0 rounded-full ${
+                                      log.status === "success"
+                                        ? "bg-green-500"
+                                        : "bg-red-400"
+                                    }`}
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-slate-600">
+                                      {log.message}
+                                    </p>
+                                    <p className="text-[10px] text-slate-400">
+                                      {log.finishedAt?.toLocaleString() ??
+                                        log.startedAt.toLocaleString()}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                            <p className="text-slate-600">
-                              {latestSyncLogs.get(mailbox.id)!.message}
-                            </p>
-                            <p className="mt-1 text-[10px] text-slate-400">
-                              {latestSyncLogs
-                                .get(mailbox.id)!
-                                .finishedAt?.toLocaleString()}
-                            </p>
                           </div>
                         )}
                       <div className="mt-auto flex w-full flex-col gap-2">
