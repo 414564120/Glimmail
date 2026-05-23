@@ -60,14 +60,13 @@ export async function deleteMailbox(
   userId: string,
   mailboxId: string,
 ): Promise<ActionResult> {
-  const existing = await db.mailbox.findUnique({
-    where: { id: mailboxId },
+  const result = await db.mailbox.deleteMany({
+    where: { id: mailboxId, userId },
   });
 
-  if (!existing || existing.userId !== userId) {
+  if (result.count === 0) {
     return { error: "Mailbox not found." };
   }
 
-  await db.mailbox.delete({ where: { id: mailboxId } });
   return { success: true };
 }
