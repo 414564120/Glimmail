@@ -15,6 +15,7 @@ import type {
   Mail163SyncErrorCode,
 } from "@/modules/providers/mail163";
 import {
+  createPreview,
   extractVerificationCode,
   syncMailbox,
   testImapConnection,
@@ -187,15 +188,16 @@ export async function syncMailboxAction(formData: FormData) {
 
   if ("success" in result) {
     const { messages } = result;
+    const fetchedCount = messages.length;
     let createdCount = 0;
 
-    if (messages.length > 0) {
+    if (fetchedCount > 0) {
       const created = await db.message.createMany({
         data: messages.map((m) => ({
-          providerMessageId: m.uid,
+          providerMessageId: m.messageId || m.uid,
           sender: m.sender,
           subject: m.subject,
-          preview: m.bodyText.slice(0, 200).replace(/\s+/g, " ").trim(),
+          preview: createPreview(m.bodyText, m.subject),
           bodyText: m.bodyText,
           receivedAt: m.receivedAt,
           verificationCode: extractVerificationCode(m.bodyText),
@@ -207,6 +209,18 @@ export async function syncMailboxAction(formData: FormData) {
       createdCount = created.count;
     }
 
+    const logMessage =
+      fetchedCount > 0
+        ? `Fetched ${fetchedCount}, imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}.`
+        : "No messages in mailbox.";
+
+    const bannerMessage =
+      createdCount > 0
+        ? `Imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}${createdCount < fetchedCount ? ` (${fetchedCount - createdCount} already synced)` : ""}.`
+        : fetchedCount > 0
+          ? `All ${fetchedCount} messages already synced.`
+          : "No messages found.";
+
     await Promise.all([
       updateMailboxStatus(user.id, mailboxId, "active"),
       createSyncLog({
@@ -215,21 +229,11 @@ export async function syncMailboxAction(formData: FormData) {
         status: "success",
         startedAt,
         finishedAt,
-        message:
-          createdCount > 0
-            ? `Synced ${createdCount} new message${createdCount > 1 ? "s" : ""}.`
-            : "No new messages.",
+        message: logMessage,
       }),
     ]);
 
-    redirect(
-      "/mailboxes?success=" +
-        encodeURIComponent(
-          createdCount > 0
-            ? `Synced ${createdCount} message${createdCount > 1 ? "s" : ""}.`
-            : "No new messages found.",
-        ),
-    );
+    redirect("/mailboxes?success=" + encodeURIComponent(bannerMessage));
   }
 
   const errorMessage = MAIL163_SYNC_ERROR_MESSAGES[result.error];

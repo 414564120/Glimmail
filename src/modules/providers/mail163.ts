@@ -145,42 +145,129 @@ export function testImapConnection(
 
 // -- IMAP FETCH response parser -------------------------------------------
 
-function parseHeaderValue(headerBlock: string, name: string): string {
+export function parseHeaderValue(headerBlock: string, name: string): string {
   const re = new RegExp(`^${name}:\\s*([^\\r\\n]*)`, "im");
   const m = headerBlock.match(re);
   return m ? m[1].trim() : "";
 }
 
-function decodeImapUtf8(raw: string): string {
-  return raw
-    .replace(/=\?[^?]+\?[BQ]\?[^?]*\?=/gi, (match) => {
-      try {
-        const parts = match.slice(2, -2).split("?");
-        const enc = parts[1];
-        const data = parts[2];
-        if (enc?.toUpperCase() === "B") {
-          return Buffer.from(data ?? "", "base64").toString("utf-8");
-        }
-        if (enc?.toUpperCase() === "Q") {
-          return (data ?? "")
-            .replace(/_/g, " ")
-            .replace(/=([0-9A-Fa-f]{2})/g, (_: string, hex: string) =>
-              String.fromCharCode(parseInt(hex, 16)),
-            );
-        }
-      } catch {
-        // fall through
+export function decodeImapUtf8(raw: string): string {
+  // First pass: remove whitespace between adjacent encoded words (RFC 2047)
+  let result = raw.replace(
+    /(=\?[^?]+\?[BQ]\?[^?]*\?=)\s+(?==\?[^?]+\?[BQ]\?[^?]*\?=)/gi,
+    "$1",
+  );
+
+  // Second pass: decode each encoded word
+  result = result.replace(/=\?[^?]+\?[BQ]\?[^?]*\?=/gi, (match) => {
+    try {
+      const parts = match.slice(2, -2).split("?");
+      const enc = parts[1];
+      const data = parts[2];
+      if (enc?.toUpperCase() === "B") {
+        return Buffer.from(data ?? "", "base64").toString("utf-8");
       }
-      return match;
-    })
-    .trim();
+      if (enc?.toUpperCase() === "Q") {
+        const cleaned = (data ?? "").replace(/_/g, " ");
+        const hexBytes: number[] = [];
+        let j = 0;
+        while (j < cleaned.length) {
+          if (cleaned[j] === "=" && j + 2 < cleaned.length) {
+            hexBytes.push(parseInt(cleaned.slice(j + 1, j + 3), 16));
+            j += 3;
+          } else {
+            hexBytes.push(cleaned.charCodeAt(j));
+            j++;
+          }
+        }
+        return Buffer.from(hexBytes).toString("utf-8");
+      }
+    } catch {
+      // fall through
+    }
+    return match;
+  });
+
+  return result.trim();
+}
+
+export function cleanBodyText(raw: string): string | null {
+  if (!raw) return null;
+
+  // Strip MIME boundary lines: --boundary and --boundary--
+  let text = raw.replace(/^--[A-Za-z0-9+/=_\-\.]{10,}(--)?\s*$/gm, "");
+
+  // Strip Content-* headers
+  text = text.replace(/^Content-(Type|Transfer-Encoding|Disposition|ID|Description):\s*[^\r\n]*/gim, "");
+
+  // Strip charset directives
+  text = text.replace(/^charset\s*=\s*["']?[^"'\r\n;]+["']?;?\s*/gim, "");
+
+  // Collapse multiple blank lines
+  text = text.replace(/\n{3,}/g, "\n\n");
+
+  const trimmed = text.trim();
+
+  // Detect base64-encoded body regardless of "readable" heuristic
+  const compact = trimmed.replace(/\s/g, "");
+  if (compact.length > 40 && /^[A-Za-z0-9+/=]+$/.test(compact)) {
+    try {
+      const decoded = Buffer.from(compact, "base64").toString("utf-8");
+      if (looksLikeReadableText(decoded)) {
+        const recleaned = cleanBodyText(decoded);
+        return recleaned ?? decoded.trim();
+      }
+    } catch {
+      // Not valid base64, fall through
+    }
+  }
+
+  if (!looksLikeReadableText(trimmed)) {
+    return null;
+  }
+
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function looksLikeReadableText(text: string): boolean {
+  const len = text.length;
+  if (len === 0) return false;
+
+  const specials = (text.match(/[^a-zA-Z0-9\s]/g) || []).length;
+  if (specials / len > 0.25) return false;
+
+  const letters = (text.match(/[a-zA-Z]/g) || []).length;
+  const vowels = (text.match(/[aeiouAEIOU]/g) || []).length;
+  const spaces = (text.match(/\s/g) || []).length;
+
+  // Has word structure (multiple spaces)
+  if (spaces >= 2) return true;
+
+  // Contains CJK characters (which don't use spaces between words)
+  if (/[一-鿿]/.test(text)) return true;
+
+  // If has several letters but no vowels, it's not natural language
+  if (letters > 3 && vowels === 0) return false;
+
+  // Short, mostly-alphanumeric text could be a short message
+  if (len <= 30 && (letters / len) > 0.4) return true;
+
+  return false;
+}
+
+export function createPreview(bodyText: string, subject: string): string {
+  const cleaned = cleanBodyText(bodyText);
+  if (cleaned && cleaned.length >= 10) {
+    return cleaned.slice(0, 200).replace(/\s+/g, " ").trim();
+  }
+  return subject || "(no preview)";
 }
 
 export function extractVerificationCode(text: string): string | null {
   const patterns = [
-    /verification\s*code[:\s]*(\d{4,8})/i,
-    /验证码[:\s]*(\d{4,8})/,
-    /code[:\s]*(\d{4,8})/i,
+    /verification\s*code\b[^0-9]*?(\d{4,8})/i,
+    /验证码\s*[:：]?\s*[^0-9]*?(\d{4,8})/,
+    /\bcode\b[^0-9]*?(\d{4,8})/i,
   ];
   for (const re of patterns) {
     const m = text.match(re);
