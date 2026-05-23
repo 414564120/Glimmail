@@ -28,7 +28,9 @@ pnpm prisma:migrate
 
 ## Current stage
 
-Mailbox management is DB-backed with per-user isolation. The `/mailboxes` page reads live data from the database, and server actions support add/delete of mailbox accounts with provider-specific email validation (Gmail, Outlook, 163 Mail). Real OAuth, IMAP, and email sync are not yet implemented — only account record management.
+Mailbox management is DB-backed with per-user isolation. The `/mailboxes` page reads live data from the database, and server actions support add/delete of mailbox accounts with provider-specific email validation (Gmail, Outlook, 163 Mail).
+
+The `/inbox` page reads messages from the local database and displays the first message's details, including verification-code extraction with a Copy Code button. Messages come from a seed script (`pnpm run db:seed-messages`); real email sync (OAuth, IMAP) is not yet implemented.
 
 ## Environment
 
@@ -42,6 +44,7 @@ Copy `.env.example` into `.env.local` and fill the provider credentials when the
 pnpm prisma:generate
 pnpm prisma:migrate
 pnpm db:seed
+pnpm db:seed-messages
 ```
 
 `pnpm db:seed` creates the default owner user from `GLIMMAIL_ADMIN_EMAIL` and `GLIMMAIL_ADMIN_PASSWORD`. For local dev without an `.env.local`, the defaults are:

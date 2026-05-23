@@ -5,39 +5,40 @@ import {
   MobileTopBar,
 } from "@/components/shell/aether-sidebar";
 import { SymbolIcon } from "@/components/shell/aether-icons";
+import { CopyCodeButton } from "@/components/inbox/copy-code-button";
 import { getCurrentUser } from "@/modules/auth";
+import { getUserMessages } from "@/modules/messages";
 
-type MessageItem = {
-  active?: boolean;
-  badge?: string;
-  preview: string;
-  sender: string;
-  subject: string;
-  time: string;
-};
+function formatMessageTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3_600_000);
+  const diffDays = Math.floor(diffMs / 86_400_000);
 
-const messages: MessageItem[] = [
-  {
-    active: true,
-    badge: "Verification",
-    preview: "Please use the following code to verify your recent login attempt...",
-    sender: "Security Team",
-    subject: "Your AetherMail Verification Code",
-    time: "Just now",
-  },
-  {
-    preview: "Attached are the finalized UI components for the upcoming release.",
-    sender: "Elena Rostova",
-    subject: "Project Neon - Q3 Assets",
-    time: "10:42 AM",
-  },
-  {
-    preview: "Your weekly summary of storage and bandwidth consumption is ready.",
-    sender: "Cloud Services",
-    subject: "Weekly Usage Report",
-    time: "Yesterday",
-  },
-] as const;
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24)
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  if (diffDays === 1) return "Yesterday";
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join("");
+}
 
 export default async function InboxPage() {
   const user = await getCurrentUser();
@@ -45,6 +46,9 @@ export default async function InboxPage() {
   if (!user) {
     redirect("/login?next=/inbox");
   }
+
+  const messages = await getUserMessages(user.id);
+  const selectedMessage = messages[0] ?? null;
 
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
@@ -97,72 +101,104 @@ export default async function InboxPage() {
               </button>
             </div>
 
-            <div>
-              {messages.map((message) => (
-                <article
-                  className={`cursor-pointer border-b border-white/35 p-4 transition ${
-                    message.active
-                      ? "bg-white/80 shadow-[inset_4px_0_0_var(--primary)]"
-                      : "bg-white/20 hover:bg-white/45"
-                  }`}
-                  key={message.subject}
-                >
-                  <div className="mb-1 flex items-start justify-between gap-4">
-                    <span
-                      className={`font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-950 ${
-                        message.active ? "font-bold" : ""
+            {messages.length === 0 ? (
+              <div className="flex flex-col items-center justify-center px-8 py-20 text-center">
+                <SymbolIcon className="mb-4 text-[48px] text-slate-400">
+                  mail
+                </SymbolIcon>
+                <p className="font-display text-lg font-semibold text-slate-500">
+                  No messages yet
+                </p>
+                <p className="mt-2 text-sm text-slate-400">
+                  Connect a mailbox and sync to see messages here.
+                </p>
+              </div>
+            ) : (
+              <div>
+                {messages.map((msg, index) => {
+                  const isActive = index === 0;
+                  const hasVerification = !!msg.verificationCode;
+
+                  return (
+                    <article
+                      className={`cursor-pointer border-b border-white/35 p-4 transition ${
+                        isActive
+                          ? "bg-white/80 shadow-[inset_4px_0_0_var(--primary)]"
+                          : "bg-white/20 hover:bg-white/45"
                       }`}
+                      key={msg.id}
                     >
-                      {message.sender}
-                    </span>
-                    <span
-                      className={`shrink-0 text-[10px] ${
-                        message.active ? "text-primary" : "text-slate-500"
-                      }`}
-                    >
-                      {message.time}
-                    </span>
-                  </div>
-                  <h3
-                    className={`mb-1 text-base leading-relaxed text-slate-950 ${
-                      message.active ? "font-semibold" : ""
-                    }`}
-                  >
-                    {message.subject}
-                  </h3>
-                  <p className="truncate text-sm text-slate-600">
-                    {message.preview}
-                  </p>
-                  {message.badge ? (
-                    <div className="mt-3 inline-flex rounded bg-primary-container/30 px-2 py-1 font-label text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
-                      {message.badge}
-                    </div>
-                  ) : null}
-                </article>
-              ))}
-            </div>
+                      <div className="mb-1 flex items-start justify-between gap-4">
+                        <span
+                          className={`font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-950 ${
+                            isActive ? "font-bold" : ""
+                          }`}
+                        >
+                          {msg.sender}
+                        </span>
+                        <span
+                          className={`shrink-0 text-[10px] ${
+                            isActive ? "text-primary" : "text-slate-500"
+                          }`}
+                        >
+                          {formatMessageTime(msg.receivedAt)}
+                        </span>
+                      </div>
+                      <h3
+                        className={`mb-1 text-base leading-relaxed text-slate-950 ${
+                          isActive ? "font-semibold" : ""
+                        }`}
+                      >
+                        {msg.subject}
+                      </h3>
+                      <p className="truncate text-sm text-slate-600">
+                        {msg.preview ?? "(no preview)"}
+                      </p>
+                      {hasVerification ? (
+                        <div className="mt-3 inline-flex rounded bg-primary-container/30 px-2 py-1 font-label text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
+                          Verification
+                        </div>
+                      ) : null}
+                    </article>
+                  );
+                })}
+              </div>
+            )}
           </aside>
 
-          <article className="relative hidden h-[calc(100vh-64px)] min-w-0 overflow-hidden bg-white/20 md:block">
-            <div className="pointer-events-none absolute right-[-10%] top-[-20%] h-96 w-96 rounded-full bg-primary-container/20 blur-[100px]" />
-            <header className="glass-card-soft relative z-[1] flex items-start justify-between gap-6 border-b border-white/40 p-6">
+          {selectedMessage ? (
+            <article className="relative hidden h-[calc(100vh-64px)] min-w-0 overflow-hidden bg-white/20 md:block">
+              <div className="pointer-events-none absolute right-[-10%] top-[-20%] h-96 w-96 rounded-full bg-primary-container/20 blur-[100px]" />
+              <header className="glass-card-soft relative z-[1] flex items-start justify-between gap-6 border-b border-white/40 p-6">
                 <div>
                   <h1 className="mb-2 break-words font-display text-[42px] font-bold leading-[1.16] text-slate-950">
-                    Your AetherMail Verification Code
+                    {selectedMessage.subject}
                   </h1>
                   <div className="flex items-center gap-3">
                     <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-primary-container to-secondary-container font-label text-xs font-bold text-white">
-                      ST
+                      {getInitials(selectedMessage.sender)}
                     </div>
                     <div>
                       <div className="font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-950">
-                        Security Team{" "}
+                        {selectedMessage.sender}{" "}
                         <span className="font-normal normal-case tracking-normal text-slate-600">
-                          &lt;security@aethermail.com&gt;
+                          &lt;{selectedMessage.sender.toLowerCase().replace(/\s+/g, "")}
+                          @mail.com&gt;
                         </span>
                       </div>
                       <div className="text-xs text-slate-600">
-                        To: me • Today, 11:05 AM
+                        To: me &bull;{" "}
+                        {selectedMessage.receivedAt.toLocaleDateString("en-US", {
+                          weekday: "long",
+                          month: "long",
+                          day: "numeric",
+                        })}{" "}
+                        at{" "}
+                        {selectedMessage.receivedAt.toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        })}
                       </div>
                     </div>
                   </div>
@@ -177,35 +213,53 @@ export default async function InboxPage() {
                 </button>
               </header>
 
-            <div className="custom-scrollbar relative z-[1] h-[calc(100%-145px)] overflow-y-auto p-8">
-              <div className="glass-card-soft mx-auto max-w-2xl overflow-hidden rounded-2xl p-8">
-                <div className="mb-8 h-1 w-full rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary-container" />
-                <div>
-                  <p className="mb-6 text-lg leading-relaxed text-slate-950">
-                    Hello,
-                  </p>
-                  <p className="mb-8 text-base leading-relaxed text-slate-950">
-                    We received a request to verify your identity. Please use
-                    the verification code below to complete the process. This
-                    code will expire in 15 minutes.
-                  </p>
+              <div className="custom-scrollbar relative z-[1] h-[calc(100%-145px)] overflow-y-auto p-8">
+                <div className="glass-card-soft mx-auto max-w-2xl overflow-hidden rounded-2xl p-8">
+                  <div className="mb-8 h-1 w-full rounded-full bg-gradient-to-r from-primary via-tertiary to-secondary-container" />
 
-                  <div className="mb-8 rounded-xl border border-white/40 bg-surface-container-low p-6 text-center shadow-sm">
-                    <div className="mb-4 font-display text-[64px] font-extrabold leading-[1.1] tracking-[0.2em] text-tertiary">
-                      749201
+                  {selectedMessage.bodyText ? (
+                    <div>
+                      {selectedMessage.bodyText
+                        .split("\n")
+                        .filter(Boolean)
+                        .map((paragraph, i) => (
+                          <p
+                            className={`text-base leading-relaxed text-slate-950 ${
+                              i > 0 ? "mb-8" : "mb-6"
+                            }`}
+                            key={i}
+                          >
+                            {paragraph}
+                          </p>
+                        ))}
                     </div>
-                    <button
-                      className="vibrant-flux hover-lift mx-auto flex items-center justify-center gap-2 rounded-full px-8 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white shadow-[0_0_15px_rgba(168,0,170,0.4)]"
-                      type="button"
-                    >
-                      <SymbolIcon className="text-[20px]">content_copy</SymbolIcon>
-                      Copy Code
-                    </button>
-                  </div>
+                  ) : (
+                    <p className="mb-6 text-base leading-relaxed text-slate-600">
+                      {selectedMessage.preview ?? "No content."}
+                    </p>
+                  )}
+
+                  {selectedMessage.verificationCode ? (
+                    <div className="mb-8 rounded-xl border border-white/40 bg-surface-container-low p-6 text-center shadow-sm">
+                      <div className="mb-4 font-display text-[64px] font-extrabold leading-[1.1] tracking-[0.2em] text-tertiary">
+                        {selectedMessage.verificationCode}
+                      </div>
+                      <CopyCodeButton code={selectedMessage.verificationCode} />
+                    </div>
+                  ) : selectedMessage.bodyText ? (
+                    null
+                  ) : null}
                 </div>
               </div>
-            </div>
-          </article>
+            </article>
+          ) : (
+            <article className="relative hidden h-[calc(100vh-64px)] min-w-0 overflow-hidden bg-white/20 md:flex md:items-center md:justify-center">
+              <div className="pointer-events-none absolute right-[-10%] top-[-20%] h-96 w-96 rounded-full bg-primary-container/20 blur-[100px]" />
+              <p className="relative z-10 text-lg text-slate-400">
+                Select a message to read
+              </p>
+            </article>
+          )}
         </div>
       </section>
 
