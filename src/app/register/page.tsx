@@ -2,25 +2,31 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SymbolIcon } from "@/components/shell/aether-icons";
 import { getCurrentUser } from "@/modules/auth";
-import { signIn } from "./actions";
+import { register } from "./actions";
 
-type LoginPageProps = {
+type RegisterPageProps = {
   searchParams?: Promise<{
     error?: string;
-    next?: string;
   }>;
 };
 
-export default async function LoginPage({ searchParams }: LoginPageProps) {
+function getErrorMessage(error?: string) {
+  if (!error) return null;
+  if (error === "password_mismatch") return "Passwords do not match.";
+  return error;
+}
+
+export default async function RegisterPage({
+  searchParams,
+}: RegisterPageProps) {
   const user = await getCurrentUser();
 
   if (user) {
-    redirect("/inbox");
+    redirect("/mailboxes");
   }
 
   const params = await searchParams;
-  const hasInvalidCredentials = params?.error === "invalid";
-  const nextPath = params?.next || "/inbox";
+  const errorMessage = getErrorMessage(params?.error);
 
   return (
     <main className="surface-grid relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
@@ -32,8 +38,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <div className="login-shape right-[13%] top-[18%] hidden size-10 rounded-full bg-gradient-to-br from-tertiary/25 to-secondary-container/25 md:block" />
 
       <button
-        className="hover-lift fixed right-4 top-8 z-10 flex size-12 items-center justify-center rounded-full border border-white/40 bg-white/60 text-primary shadow-sm backdrop-blur-xl md:right-8"
         aria-label="Toggle theme"
+        className="hover-lift fixed right-4 top-8 z-10 flex size-12 items-center justify-center rounded-full border border-white/40 bg-white/60 text-primary shadow-sm backdrop-blur-xl md:right-8"
         type="button"
       >
         <SymbolIcon className="text-[22px]">light_mode</SymbolIcon>
@@ -45,12 +51,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             AetherMail
           </h1>
           <p className="mt-2 text-base leading-relaxed text-slate-600">
-            Sign in to continue
+            Create your account
           </p>
         </div>
 
-        <form action={signIn} className="space-y-6">
-          <input name="next" type="hidden" value={nextPath} />
+        <form action={register} className="space-y-6">
           <label className="block space-y-2">
             <span className="ml-1 block font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">
               Email Address
@@ -71,38 +76,46 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </label>
 
           <label className="block space-y-2">
-            <span className="ml-1 flex items-center justify-between">
-              <span className="font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">
-                Password
-              </span>
+            <span className="ml-1 block font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">
+              Password
             </span>
             <span className="relative block">
               <SymbolIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-slate-500">
                 lock
               </SymbolIcon>
               <input
-                className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-12 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition-all duration-300 placeholder:text-outline hover:border-primary/30 focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
+                className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-4 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition-all duration-300 placeholder:text-outline hover:border-primary/30 focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
                 id="password"
                 name="password"
                 placeholder="••••••••"
                 required
                 type="password"
               />
-              <button
-                className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500 transition hover:text-primary"
-                aria-label="Show password"
-                type="button"
-              >
-                <SymbolIcon className="text-[20px]">
-                  visibility
-                </SymbolIcon>
-              </button>
             </span>
           </label>
 
-          {hasInvalidCredentials ? (
+          <label className="block space-y-2">
+            <span className="ml-1 block font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">
+              Confirm Password
+            </span>
+            <span className="relative block">
+              <SymbolIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-slate-500">
+                lock
+              </SymbolIcon>
+              <input
+                className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-4 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition-all duration-300 placeholder:text-outline hover:border-primary/30 focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
+                id="confirmPassword"
+                name="confirmPassword"
+                placeholder="••••••••"
+                required
+                type="password"
+              />
+            </span>
+          </label>
+
+          {errorMessage ? (
             <p className="rounded-xl border border-red-200 bg-red-50/80 px-4 py-3 text-sm text-red-700">
-              Email address or password is incorrect.
+              {errorMessage}
             </p>
           ) : null}
 
@@ -110,20 +123,18 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             className="vibrant-flux hover-lift mt-8 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-base font-semibold text-white shadow-[0_0_20px_rgba(168,0,170,0.3)] hover:shadow-[0_0_25px_rgba(0,240,255,0.4)]"
             type="submit"
           >
-            Sign In
-            <SymbolIcon className="text-[20px]">
-              arrow_forward
-            </SymbolIcon>
+            Create Account
+            <SymbolIcon className="text-[20px]">arrow_forward</SymbolIcon>
           </button>
         </form>
 
         <p className="mt-8 text-center text-sm text-slate-600">
-          Don&apos;t have an account?
+          Already have an account?
           <Link
             className="ml-1 font-semibold text-primary transition hover:text-tertiary"
-            href="/register"
+            href="/login"
           >
-            Create one
+            Sign in
           </Link>
         </p>
       </section>

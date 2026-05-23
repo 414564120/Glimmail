@@ -11,6 +11,7 @@ Glimmail is a low-cost, multi-user unified inbox for Gmail, Outlook, and 163 Mai
   - `/inbox`
 - Multi-agent module boundaries
 - Server-side DB-backed session cookie auth
+- First-user registration for local bootstrap
 - Mock inbox data standing in for provider integrations
 
 ## Commands
@@ -51,6 +52,8 @@ glimmail-dev-password
 ```
 
 Set `AUTH_SECRET`, `GLIMMAIL_ADMIN_EMAIL`, and `GLIMMAIL_ADMIN_PASSWORD` before any shared or production deployment. `AUTH_SECRET` is reserved for future use; the current session implementation uses database-backed opaque tokens.
+
+You can also create the first owner from `/register`. After one user exists, self-registration is closed unless `GLIMMAIL_ALLOW_REGISTRATION=true`.
 
 ## Architecture docs
 
