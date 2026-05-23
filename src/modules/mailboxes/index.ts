@@ -1,4 +1,9 @@
-export { getUserMailboxes, addMailbox, deleteMailbox } from "./service";
+export {
+  getUserMailboxes,
+  addMailbox,
+  updateMailboxStatus,
+  deleteMailbox,
+} from "./service";
 export {
   saveMailboxCredential,
   getMailboxCredential,

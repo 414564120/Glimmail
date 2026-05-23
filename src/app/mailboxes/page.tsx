@@ -8,7 +8,7 @@ import {
 } from "@/components/shell/aether-sidebar";
 import { getCurrentUser } from "@/modules/auth";
 import { getUserMailboxes } from "@/modules/mailboxes";
-import { deleteMailboxAction } from "./actions";
+import { deleteMailboxAction, testMailboxConnectionAction } from "./actions";
 
 const PROVIDER_CARDS: Array<{
   provider: MailboxProvider;
@@ -40,7 +40,7 @@ const PROVIDER_CARDS: Array<{
 ];
 
 interface PageProps {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; success?: string }>;
 }
 
 export default async function MailboxesPage({ searchParams }: PageProps) {
@@ -51,7 +51,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
   }
 
   const mailboxes = await getUserMailboxes(user.id);
-  const { error } = await searchParams;
+  const { error, success } = await searchParams;
 
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
@@ -76,6 +76,12 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
           {error && (
             <div className="mx-auto mb-8 max-w-lg rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
               {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mx-auto mb-8 max-w-lg rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-center text-sm text-green-700">
+              {success}
             </div>
           )}
 
@@ -134,25 +140,39 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                       <p className="mb-1 text-base font-medium text-slate-800">
                         {mailbox.address}
                       </p>
-                      <p className="mb-6 text-sm capitalize text-slate-500">
+                      <p className="mb-4 text-sm capitalize text-slate-500">
                         Status: {mailbox.status}
                       </p>
-                      <form
-                        action={deleteMailboxAction}
-                        className="mt-auto w-full"
-                      >
-                        <input
-                          name="mailboxId"
-                          type="hidden"
-                          value={mailbox.id}
-                        />
-                        <button
-                          className="hover-lift mt-auto w-full rounded-full border border-red-400 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-red-600 hover:bg-red-50"
-                          type="submit"
-                        >
-                          Remove
-                        </button>
-                      </form>
+                      <div className="mt-auto flex w-full flex-col gap-2">
+                        {mailbox.provider === "mail163" && (
+                          <form action={testMailboxConnectionAction}>
+                            <input
+                              name="mailboxId"
+                              type="hidden"
+                              value={mailbox.id}
+                            />
+                            <button
+                              className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
+                              type="submit"
+                            >
+                              Test Connection
+                            </button>
+                          </form>
+                        )}
+                        <form action={deleteMailboxAction}>
+                          <input
+                            name="mailboxId"
+                            type="hidden"
+                            value={mailbox.id}
+                          />
+                          <button
+                            className="w-full rounded-full border border-red-400 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-red-600 hover:bg-red-50"
+                            type="submit"
+                          >
+                            Remove
+                          </button>
+                        </form>
+                      </div>
                     </>
                   ) : (
                     <>

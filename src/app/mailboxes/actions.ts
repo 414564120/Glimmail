@@ -2,7 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
-import { addMailbox, deleteMailbox } from "@/modules/mailboxes";
+import {
+  addMailbox,
+  deleteMailbox,
+  updateMailboxStatus,
+} from "@/modules/mailboxes";
+import { getMailboxCredential } from "@/modules/mailboxes/credentials";
+import { testImapConnection } from "@/modules/providers/mail163";
+import { db } from "@/lib/db";
 
 export async function addMailboxAction(formData: FormData) {
   const user = await getCurrentUser();
@@ -43,4 +50,47 @@ export async function deleteMailboxAction(formData: FormData) {
   }
 
   redirect("/mailboxes");
+}
+
+export async function testMailboxConnectionAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/mailboxes");
+
+  const mailboxId = String(formData.get("mailboxId") || "");
+
+  const mailbox = await db.mailbox.findUnique({
+    where: { id: mailboxId, userId: user.id },
+  });
+  if (!mailbox) {
+    redirect("/mailboxes?error=" + encodeURIComponent("Mailbox not found."));
+  }
+
+  if (mailbox.provider !== "mail163") {
+    redirect(
+      "/mailboxes?error=" +
+        encodeURIComponent("Connection test is only available for 163 Mail."),
+    );
+  }
+
+  const password = await getMailboxCredential(
+    user.id,
+    mailboxId,
+    "app_password",
+  );
+  if (!password) {
+    redirect(
+      "/mailboxes?error=" +
+        encodeURIComponent("No app password found for this mailbox."),
+    );
+  }
+
+  const result = await testImapConnection(mailbox.address, password);
+
+  if ("success" in result) {
+    await updateMailboxStatus(user.id, mailboxId, "active");
+    redirect("/mailboxes?success=" + encodeURIComponent("Connection test passed."));
+  }
+
+  await updateMailboxStatus(user.id, mailboxId, "error");
+  redirect("/mailboxes?error=" + encodeURIComponent(result.error));
 }

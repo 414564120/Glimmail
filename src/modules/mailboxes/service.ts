@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import type { Mailbox } from "@prisma/client";
+import type { Mailbox, MailboxStatus } from "@prisma/client";
 import { encrypt } from "@/modules/security/crypto";
 import {
   isValidEmailForProvider,
@@ -76,6 +76,23 @@ export async function addMailbox(
     }
     return { error: "Failed to add mailbox. Please try again." };
   }
+}
+
+export async function updateMailboxStatus(
+  userId: string,
+  mailboxId: string,
+  status: MailboxStatus,
+): Promise<ActionResult> {
+  const result = await db.mailbox.updateMany({
+    where: { id: mailboxId, userId },
+    data: { status },
+  });
+
+  if (result.count === 0) {
+    return { error: "Mailbox not found." };
+  }
+
+  return { success: true };
 }
 
 export async function deleteMailbox(

@@ -35,6 +35,8 @@ The `/settings` page shows the current user's email, role, connected mailbox cou
 
 The `/inbox` page reads messages from the local database and supports URL-based message selection (`?message=<id>`). Each message can be marked as read/unread or starred via server actions, with per-user isolation enforced on all mutations. Verification codes are extracted from message content and displayed with a Copy Code button. Messages come from a seed script (`pnpm run db:seed-messages`); real email sync (OAuth, IMAP) is not yet implemented.
 
+163 Mail connected accounts support a connection test via IMAP (Node.js native TLS, no npm dependencies). The test verifies credentials without syncing messages. Connection results update the mailbox status on the `/mailboxes` page.
+
 ## Environment
 
 Copy `.env.example` into `.env.local` and fill the provider credentials when the integration slices begin.
