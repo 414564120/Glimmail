@@ -410,6 +410,31 @@ function skipBracketSection(raw: string, start: number): number {
 
 const SYNC_FETCH_COUNT = 10;
 
+function parseListMailboxes(data: string): string[] {
+  const names: string[] = [];
+
+  for (const line of data.split(/\r?\n/)) {
+    if (!line.match(/^\*\s+LIST\s+/i)) continue;
+    if (line.match(/\\Noselect/i)) continue;
+
+    const quotedMatch = line.match(/"((?:\\.|[^"\\])*)"\s*$/);
+    const rawName = quotedMatch
+      ? quotedMatch[1].replace(/\\"/g, '"').replace(/\\\\/g, "\\")
+      : line.trim().split(/\s+/).at(-1);
+
+    if (rawName && !names.includes(rawName)) {
+      names.push(rawName);
+    }
+  }
+
+  const inbox = names.find((name) => name.toUpperCase() === "INBOX");
+  const ordered = inbox
+    ? [inbox, ...names.filter((name) => name !== inbox)]
+    : names;
+
+  return ordered.length > 0 ? ordered : ["INBOX"];
+}
+
 export function syncMailbox(
   address: string,
   password: string,
@@ -425,17 +450,20 @@ export function syncMailbox(
       servername: host,
     });
     let buffer = "";
-    let step: "greeting" | "login" | "select" | "search" | "fetch" | "done" =
+    let step: "greeting" | "login" | "list" | "select" | "search" | "fetch" | "done" =
       "greeting";
     let settled = false;
     let tagSeq = 1;
     let existsCount = 0;
     let searchUids: number[] = [];
     let loginTag = "";
+    let listTag = "";
     let selectTag = "";
     let searchTag = "";
     let fetchTag = "";
     let didTryWritableSelect = false;
+    let mailboxNames: string[] = [];
+    let mailboxIndex = 0;
 
     function tag() {
       const t = `G${String(tagSeq).padStart(3, "0")}`;
@@ -467,12 +495,19 @@ export function syncMailbox(
       // Wait for loginTag OK
     }
 
+    function sendList() {
+      listTag = tag();
+      socket.write(`${listTag} LIST "" "*"\r\n`);
+      step = "list";
+    }
+
     function sendSelect() {
       selectTag = tag();
+      const mailboxName = mailboxNames[mailboxIndex] || "INBOX";
       socket.write(
         didTryWritableSelect
-          ? `${selectTag} SELECT "INBOX"\r\n`
-          : `${selectTag} EXAMINE "INBOX"\r\n`,
+          ? `${selectTag} SELECT ${quoteImapString(mailboxName)}\r\n`
+          : `${selectTag} EXAMINE ${quoteImapString(mailboxName)}\r\n`,
       );
       step = "select";
     }
@@ -504,8 +539,26 @@ export function syncMailbox(
 
       // After login, check if we got OK
       if (step === "login" && lookupTaggedStatus(buffer, loginTag) === "OK") {
+        sendList();
+        buffer = "";
+        return;
+      }
+
+      if (step === "list" && lookupTaggedStatus(buffer, listTag) === "OK") {
+        mailboxNames = parseListMailboxes(buffer);
+        mailboxIndex = 0;
+        didTryWritableSelect = false;
         sendSelect();
         buffer = "";
+        return;
+      }
+
+      if (step === "list" && lookupTaggedStatus(buffer, listTag) !== null) {
+        mailboxNames = ["INBOX"];
+        mailboxIndex = 0;
+        didTryWritableSelect = false;
+        buffer = "";
+        sendSelect();
         return;
       }
 
@@ -527,6 +580,14 @@ export function syncMailbox(
       if (step === "select" && lookupTaggedStatus(buffer, selectTag) !== null) {
         if (!didTryWritableSelect) {
           didTryWritableSelect = true;
+          buffer = "";
+          sendSelect();
+          return;
+        }
+
+        mailboxIndex++;
+        if (mailboxIndex < mailboxNames.length) {
+          didTryWritableSelect = false;
           buffer = "";
           sendSelect();
           return;
