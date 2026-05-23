@@ -9,6 +9,7 @@ import {
   updateMailboxStatus,
 } from "@/modules/mailboxes";
 import { getMailboxCredential } from "@/modules/mailboxes/credentials";
+import { createSyncLog } from "@/modules/synclogs/service";
 import type { Mail163ConnectionErrorCode } from "@/modules/providers/mail163";
 import { testImapConnection } from "@/modules/providers/mail163";
 
@@ -97,16 +98,41 @@ export async function testMailboxConnectionAction(formData: FormData) {
     );
   }
 
+  const startedAt = new Date();
   const result = await testImapConnection(mailbox.address, password);
+  const finishedAt = new Date();
 
   if ("success" in result) {
-    await updateMailboxStatus(user.id, mailboxId, "active");
-    redirect("/mailboxes?success=" + encodeURIComponent("Connection test passed."));
+    await Promise.all([
+      updateMailboxStatus(user.id, mailboxId, "active"),
+      createSyncLog({
+        userId: user.id,
+        mailboxId,
+        status: "success",
+        startedAt,
+        finishedAt,
+        message: "IMAP login succeeded.",
+      }),
+    ]);
+    redirect(
+      "/mailboxes?success=" +
+        encodeURIComponent("Connection test passed."),
+    );
   }
 
-  await updateMailboxStatus(user.id, mailboxId, "error");
+  const errorMessage = MAIL163_CONNECTION_ERROR_MESSAGES[result.error];
+  await Promise.all([
+    updateMailboxStatus(user.id, mailboxId, "error"),
+    createSyncLog({
+      userId: user.id,
+      mailboxId,
+      status: "error",
+      startedAt,
+      finishedAt,
+      message: errorMessage,
+    }),
+  ]);
   redirect(
-    "/mailboxes?error=" +
-      encodeURIComponent(MAIL163_CONNECTION_ERROR_MESSAGES[result.error]),
+    "/mailboxes?error=" + encodeURIComponent(errorMessage),
   );
 }

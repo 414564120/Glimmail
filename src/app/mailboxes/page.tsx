@@ -7,7 +7,7 @@ import {
   MobileTopBar,
 } from "@/components/shell/aether-sidebar";
 import { getCurrentUser } from "@/modules/auth";
-import { getUserMailboxes } from "@/modules/mailboxes";
+import { getLatestSyncLog, getUserMailboxes } from "@/modules/mailboxes";
 import { deleteMailboxAction, testMailboxConnectionAction } from "./actions";
 
 const PROVIDER_CARDS: Array<{
@@ -52,6 +52,14 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
 
   const mailboxes = await getUserMailboxes(user.id);
   const { error, success } = await searchParams;
+
+  const latestSyncLogs = new Map<string, Awaited<ReturnType<typeof getLatestSyncLog>>>();
+  for (const mb of mailboxes) {
+    if (mb.provider === "mail163") {
+      const log = await getLatestSyncLog(user.id, mb.id);
+      if (log) latestSyncLogs.set(mb.id, log);
+    }
+  }
 
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
@@ -140,9 +148,37 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                       <p className="mb-1 text-base font-medium text-slate-800">
                         {mailbox.address}
                       </p>
-                      <p className="mb-4 text-sm capitalize text-slate-500">
+                      <p className="mb-1 text-sm capitalize text-slate-500">
                         Status: {mailbox.status}
                       </p>
+                      {mailbox.provider === "mail163" &&
+                        latestSyncLogs.has(mailbox.id) && (
+                          <div className="mb-4 w-full rounded-lg border border-slate-200 bg-white/60 px-3 py-2 text-left text-xs">
+                            <div className="mb-1 flex items-center justify-between">
+                              <span className="font-label text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+                                Last Test
+                              </span>
+                              <span
+                                className={`font-label text-[10px] font-semibold uppercase tracking-wider ${
+                                  latestSyncLogs.get(mailbox.id)!.status ===
+                                  "success"
+                                    ? "text-green-600"
+                                    : "text-red-500"
+                                }`}
+                              >
+                                {latestSyncLogs.get(mailbox.id)!.status}
+                              </span>
+                            </div>
+                            <p className="text-slate-600">
+                              {latestSyncLogs.get(mailbox.id)!.message}
+                            </p>
+                            <p className="mt-1 text-[10px] text-slate-400">
+                              {latestSyncLogs
+                                .get(mailbox.id)!
+                                .finishedAt?.toLocaleString()}
+                            </p>
+                          </div>
+                        )}
                       <div className="mt-auto flex w-full flex-col gap-2">
                         {mailbox.provider === "mail163" && (
                           <form action={testMailboxConnectionAction}>

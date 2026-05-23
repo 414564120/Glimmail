@@ -1,6 +1,7 @@
 export {
   getUserMailbox,
   getUserMailboxes,
+  getLatestSyncLog,
   addMailbox,
   updateMailboxStatus,
   deleteMailbox,

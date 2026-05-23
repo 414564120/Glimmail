@@ -25,6 +25,13 @@ export function getUserMailbox(userId: string, mailboxId: string) {
   });
 }
 
+export function getLatestSyncLog(userId: string, mailboxId: string) {
+  return db.syncLog.findFirst({
+    where: { userId, mailboxId },
+    orderBy: { startedAt: "desc" },
+  });
+}
+
 export async function addMailbox(
   userId: string,
   provider: string,
