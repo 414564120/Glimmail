@@ -161,12 +161,13 @@ The client secret must never appear in:
 - Display the connected Gmail address on `/mailboxes` card
 - Test connection: light API call to verify token validity
 
-### Phase 4: Manual Gmail sync (latest N messages)
+### Phase 4: Manual Gmail sync (latest N messages) ✅
 - Add Gmail sync module (`src/modules/providers/gmail.ts`)
-- Implement `listMessages` (metadata: ID, threadId, labels, snippet) and `getMessage` (full body, headers)
+- Implement `listGmailMessages` (metadata: ID, threadId) via Gmail API `users.messages.list` and `getGmailMessage` (full body, headers) via `users.messages.get` with `format=full`
 - Manual Sync Now button on connected Gmail card
 - Same dedup logic as 163: `providerMessageId + mailboxId`
 - Extract verification codes from Gmail message body (reuse `extractVerificationCode`)
+- Token refresh on 401, scope error detection on 403
 - SyncLog recording (no tokens in message field)
 
 ### Phase 5: Refresh token handling and error UX ✅ (connection test path)

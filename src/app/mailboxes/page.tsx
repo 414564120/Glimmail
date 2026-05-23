@@ -10,6 +10,7 @@ import { getCurrentUser } from "@/modules/auth";
 import { getRecentSyncLogs, getUserMailboxes } from "@/modules/mailboxes";
 import {
   deleteMailboxAction,
+  syncGmailAction,
   syncMailboxAction,
   testGmailConnectionAction,
   testMailboxConnectionAction,
@@ -228,7 +229,21 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                           </>
                         )}
                         {mailbox.provider === "gmail" && (
-                          <form action={testGmailConnectionAction}>
+                          <>
+                            <form action={syncGmailAction}>
+                              <input
+                                name="mailboxId"
+                                type="hidden"
+                                value={mailbox.id}
+                              />
+                              <button
+                                className="vibrant-flux w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                                type="submit"
+                              >
+                                Sync Now
+                              </button>
+                            </form>
+                            <form action={testGmailConnectionAction}>
                             <input
                               name="mailboxId"
                               type="hidden"
@@ -241,6 +256,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                               Test Connection
                             </button>
                           </form>
+                          </>
                         )}
                         <form action={deleteMailboxAction}>
                           <input
