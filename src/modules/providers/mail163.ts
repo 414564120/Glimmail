@@ -450,13 +450,14 @@ export function syncMailbox(
       servername: host,
     });
     let buffer = "";
-    let step: "greeting" | "login" | "list" | "select" | "search" | "fetch" | "done" =
+    let step: "greeting" | "login" | "id" | "list" | "select" | "search" | "fetch" | "done" =
       "greeting";
     let settled = false;
     let tagSeq = 1;
     let existsCount = 0;
     let searchUids: number[] = [];
     let loginTag = "";
+    let idTag = "";
     let listTag = "";
     let selectTag = "";
     let searchTag = "";
@@ -493,6 +494,14 @@ export function syncMailbox(
       );
       step = "login";
       // Wait for loginTag OK
+    }
+
+    function sendClientId() {
+      idTag = tag();
+      socket.write(
+        `${idTag} ID ("name" "Glimmail" "version" "0.1.0" "vendor" "Glimmail")\r\n`,
+      );
+      step = "id";
     }
 
     function sendList() {
@@ -539,6 +548,12 @@ export function syncMailbox(
 
       // After login, check if we got OK
       if (step === "login" && lookupTaggedStatus(buffer, loginTag) === "OK") {
+        sendClientId();
+        buffer = "";
+        return;
+      }
+
+      if (step === "id" && lookupTaggedStatus(buffer, idTag) !== null) {
         sendList();
         buffer = "";
         return;
