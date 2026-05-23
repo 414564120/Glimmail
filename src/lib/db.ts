@@ -17,7 +17,16 @@ function createPrismaClient() {
   return new PrismaClient({ adapter });
 }
 
-export const db = globalForPrisma.prisma ?? createPrismaClient();
+function hasCurrentSchemaDelegates(client: PrismaClient) {
+  return "mailboxCredential" in client;
+}
+
+const cachedPrisma = globalForPrisma.prisma;
+
+export const db =
+  cachedPrisma && hasCurrentSchemaDelegates(cachedPrisma)
+    ? cachedPrisma
+    : createPrismaClient();
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = db;
