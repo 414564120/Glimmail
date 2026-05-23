@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   AetherSidebar,
@@ -8,6 +9,7 @@ import { SymbolIcon } from "@/components/shell/aether-icons";
 import { CopyCodeButton } from "@/components/inbox/copy-code-button";
 import { getCurrentUser } from "@/modules/auth";
 import { getUserMessages } from "@/modules/messages";
+import { toggleReadAction, toggleStarredAction } from "./actions";
 
 function formatMessageTime(date: Date): string {
   const now = new Date();
@@ -40,7 +42,11 @@ function getInitials(name: string): string {
     .join("");
 }
 
-export default async function InboxPage() {
+interface PageProps {
+  searchParams: Promise<{ message?: string }>;
+}
+
+export default async function InboxPage({ searchParams }: PageProps) {
   const user = await getCurrentUser();
 
   if (!user) {
@@ -48,7 +54,11 @@ export default async function InboxPage() {
   }
 
   const messages = await getUserMessages(user.id);
-  const selectedMessage = messages[0] ?? null;
+  const { message: messageIdParam } = await searchParams;
+
+  const selectedMessage = messageIdParam
+    ? messages.find((m) => m.id === messageIdParam) ?? messages[0] ?? null
+    : messages[0] ?? null;
 
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
@@ -115,23 +125,26 @@ export default async function InboxPage() {
               </div>
             ) : (
               <div>
-                {messages.map((msg, index) => {
-                  const isActive = index === 0;
+                {messages.map((msg) => {
+                  const isActive = selectedMessage?.id === msg.id;
+                  const isUnread = !msg.isRead;
                   const hasVerification = !!msg.verificationCode;
 
                   return (
-                    <article
-                      className={`cursor-pointer border-b border-white/35 p-4 transition ${
+                    <Link
+                      className={`block cursor-pointer border-b border-white/35 p-4 transition ${
                         isActive
                           ? "bg-white/80 shadow-[inset_4px_0_0_var(--primary)]"
                           : "bg-white/20 hover:bg-white/45"
                       }`}
+                      href={`/inbox?message=${encodeURIComponent(msg.id)}`}
                       key={msg.id}
+                      scroll={false}
                     >
                       <div className="mb-1 flex items-start justify-between gap-4">
                         <span
-                          className={`font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-950 ${
-                            isActive ? "font-bold" : ""
+                          className={`font-label text-xs uppercase tracking-[0.1em] text-slate-950 ${
+                            isUnread ? "font-bold" : "font-medium text-slate-600"
                           }`}
                         >
                           {msg.sender}
@@ -145,8 +158,10 @@ export default async function InboxPage() {
                         </span>
                       </div>
                       <h3
-                        className={`mb-1 text-base leading-relaxed text-slate-950 ${
-                          isActive ? "font-semibold" : ""
+                        className={`mb-1 text-base leading-relaxed ${
+                          isUnread
+                            ? "font-semibold text-slate-950"
+                            : "font-normal text-slate-700"
                         }`}
                       >
                         {msg.subject}
@@ -159,7 +174,7 @@ export default async function InboxPage() {
                           Verification
                         </div>
                       ) : null}
-                    </article>
+                    </Link>
                   );
                 })}
               </div>
@@ -203,14 +218,58 @@ export default async function InboxPage() {
                     </div>
                   </div>
                 </div>
-                <button
-                  className="flex size-10 shrink-0 items-center justify-center rounded-full text-slate-600 transition hover:bg-surface-container-high hover:text-primary"
-                  type="button"
-                >
-                  <SymbolIcon className="text-[22px] text-slate-600">
-                    more_vert
-                  </SymbolIcon>
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <form action={toggleStarredAction}>
+                    <input
+                      name="messageId"
+                      type="hidden"
+                      value={selectedMessage.id}
+                    />
+                    <button
+                      className="flex size-10 items-center justify-center rounded-full transition hover:bg-surface-container-high"
+                      title={selectedMessage.isStarred ? "Unstar" : "Star"}
+                      type="submit"
+                    >
+                      <SymbolIcon
+                        className={`text-[22px] ${
+                          selectedMessage.isStarred
+                            ? "text-amber-500"
+                            : "text-slate-600"
+                        }`}
+                      >
+                        {selectedMessage.isStarred ? "star" : "star_border"}
+                      </SymbolIcon>
+                    </button>
+                  </form>
+                  <form action={toggleReadAction}>
+                    <input
+                      name="messageId"
+                      type="hidden"
+                      value={selectedMessage.id}
+                    />
+                    <button
+                      className="flex size-10 items-center justify-center rounded-full transition hover:bg-surface-container-high"
+                      title={
+                        selectedMessage.isRead
+                          ? "Mark as unread"
+                          : "Mark as read"
+                      }
+                      type="submit"
+                    >
+                      <SymbolIcon className="text-[22px] text-slate-600">
+                        {selectedMessage.isRead ? "drafts" : "mail"}
+                      </SymbolIcon>
+                    </button>
+                  </form>
+                  <button
+                    className="flex size-10 items-center justify-center rounded-full transition hover:bg-surface-container-high"
+                    type="button"
+                  >
+                    <SymbolIcon className="text-[22px] text-slate-600">
+                      more_vert
+                    </SymbolIcon>
+                  </button>
+                </div>
               </header>
 
               <div className="custom-scrollbar relative z-[1] h-[calc(100%-145px)] overflow-y-auto p-8">
@@ -246,9 +305,7 @@ export default async function InboxPage() {
                       </div>
                       <CopyCodeButton code={selectedMessage.verificationCode} />
                     </div>
-                  ) : selectedMessage.bodyText ? (
-                    null
-                  ) : null}
+                  ) : selectedMessage.bodyText ? null : null}
                 </div>
               </div>
             </article>

@@ -1,1 +1,5 @@
-export { getUserMessages } from "./service";
+export {
+  getUserMessages,
+  toggleMessageRead,
+  toggleMessageStarred,
+} from "./service";
