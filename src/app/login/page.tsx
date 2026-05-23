@@ -74,12 +74,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
               <span className="font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">
                 Password
               </span>
-              <a
-                className="font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary transition hover:text-tertiary"
-                href="#"
-              >
-                Forgot?
-              </a>
             </span>
             <span className="relative block">
               <SymbolIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-slate-500">
@@ -122,15 +116,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           </button>
         </form>
 
-        <p className="mt-8 text-center text-sm text-slate-600">
-          Don&apos;t have an account?
-          <a
-            className="ml-1 font-semibold text-primary transition hover:text-tertiary"
-            href="#"
-          >
-            Create one
-          </a>
-        </p>
       </section>
     </main>
   );

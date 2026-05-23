@@ -5,9 +5,13 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+const databaseUrl =
+  process.env.DATABASE_URL ??
+  "postgresql://postgres:postgres@localhost:5432/glimmail";
+
 function createPrismaClient() {
   const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL!,
+    connectionString: databaseUrl,
   });
 
   return new PrismaClient({ adapter });

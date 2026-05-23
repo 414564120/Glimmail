@@ -8,9 +8,11 @@ export async function verifyPasswordCredentials(
 ): Promise<AuthUser | null> {
   const normalizedEmail = email.trim().toLowerCase();
 
-  const user = await db.user.findUnique({
-    where: { email: normalizedEmail },
-  });
+  const user = await db.user
+    .findUnique({
+      where: { email: normalizedEmail },
+    })
+    .catch(() => null);
 
   if (!user) return null;
 

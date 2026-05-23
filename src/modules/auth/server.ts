@@ -13,7 +13,11 @@ export async function getCurrentUser() {
 
   if (!token) return null;
 
-  return validateSession(token);
+  try {
+    return await validateSession(token);
+  } catch {
+    return null;
+  }
 }
 
 export async function setSessionCookie(user: AuthUser) {
@@ -34,7 +38,11 @@ export async function clearSessionCookie() {
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
   if (token) {
-    await deleteSession(token);
+    try {
+      await deleteSession(token);
+    } catch {
+      // Ignore stale local sessions so logout can always clear the browser.
+    }
   }
 
   cookieStore.delete(SESSION_COOKIE_NAME);
