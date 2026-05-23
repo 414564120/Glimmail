@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SymbolIcon } from "@/components/shell/aether-icons";
+import { PasswordInput } from "@/components/ui/password-input";
 import { getCurrentUser } from "@/modules/auth";
 import { signIn } from "./actions";
 
@@ -76,28 +77,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 Password
               </span>
             </span>
-            <span className="relative block">
-              <SymbolIcon className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-[20px] text-slate-500">
-                lock
-              </SymbolIcon>
-              <input
-                className="w-full rounded-xl border border-outline-variant bg-white/45 py-3 pl-11 pr-12 text-base leading-relaxed text-slate-900 outline-none backdrop-blur-sm transition-all duration-300 placeholder:text-outline hover:border-primary/30 focus:border-secondary-container focus:ring-2 focus:ring-secondary-container/50"
-                id="password"
-                name="password"
-                placeholder="••••••••"
-                required
-                type="password"
-              />
-              <button
-                className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-500 transition hover:text-primary"
-                aria-label="Show password"
-                type="button"
-              >
-                <SymbolIcon className="text-[20px]">
-                  visibility
-                </SymbolIcon>
-              </button>
-            </span>
+            <PasswordInput id="password" name="password" />
           </label>
 
           {hasInvalidCredentials ? (
