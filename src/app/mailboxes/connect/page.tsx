@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { cookies, headers } from "next/headers";
+import { headers } from "next/headers";
 import type { MailboxProvider } from "@prisma/client";
 import {
   AetherSidebar,
@@ -14,10 +14,6 @@ import {
   isValidProvider,
   PROVIDER_DOMAIN_LABELS,
 } from "@/modules/mailboxes/validation";
-import {
-  buildAuthorizationUrl,
-  generateOAuthState,
-} from "@/modules/providers/gmail";
 import { addMailboxAction } from "../actions";
 
 const PROVIDER_CONFIG: Record<
@@ -69,7 +65,6 @@ export default async function ConnectPage({ searchParams }: PageProps) {
   const isOutlook = provider === "outlook";
   const mailboxes = await getUserMailboxes(user.id);
 
-  let gmailOAuthUrl: string | null = null;
   let gmailRedirectUri: string | null = null;
   const gmailOAuthConfigured =
     !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET;
@@ -87,19 +82,6 @@ export default async function ConnectPage({ searchParams }: PageProps) {
       process.env.GOOGLE_REDIRECT_URI ??
       `${proto}://${host}/api/auth/gmail/callback`;
     gmailRedirectUri = redirectUri;
-
-    if (gmailOAuthConfigured) {
-      const state = generateOAuthState();
-      const cookieStore = await cookies();
-      cookieStore.set("gmail_oauth_state", `${state}:${user.id}`, {
-        httpOnly: true,
-        maxAge: 600,
-        path: "/",
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-      });
-      gmailOAuthUrl = buildAuthorizationUrl(state, redirectUri);
-    }
   }
 
   return (
@@ -142,7 +124,7 @@ export default async function ConnectPage({ searchParams }: PageProps) {
 
             {isGmail ? (
               <>
-                {gmailOAuthUrl ? (
+                {gmailOAuthConfigured ? (
                   <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
                     You will be redirected to Google to authorize access to your
                     Gmail inbox. Glimmail requests read-only access to your
@@ -177,10 +159,10 @@ export default async function ConnectPage({ searchParams }: PageProps) {
                     </div>
                   </div>
                 )}
-                {gmailOAuthUrl ? (
+                {gmailOAuthConfigured ? (
                   <a
                     className="vibrant-flux hover-lift inline-block w-full rounded-full px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
-                    href={gmailOAuthUrl}
+                    href="/api/auth/gmail/start"
                   >
                     Connect with Google
                   </a>
