@@ -112,6 +112,42 @@ export async function testGmailConnection(
   return { success: true };
 }
 
+interface RefreshTokenResponse {
+  access_token: string;
+  expires_in: number;
+  token_type: string;
+  scope: string;
+  refresh_token?: string;
+}
+
+export async function refreshAccessToken(
+  refreshToken: string,
+): Promise<RefreshTokenResponse> {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error("Google OAuth credentials not configured");
+  }
+
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Token refresh failed");
+  }
+
+  return response.json() as Promise<RefreshTokenResponse>;
+}
+
 function getEmailFromIdToken(idToken: string): string | null {
   const parts = idToken.split(".");
   if (parts.length < 2 || !parts[1]) return null;

@@ -8,7 +8,10 @@ import {
   getUserMailbox,
   updateMailboxStatus,
 } from "@/modules/mailboxes";
-import { getMailboxCredential } from "@/modules/mailboxes/credentials";
+import {
+  getMailboxCredential,
+  saveMailboxCredential,
+} from "@/modules/mailboxes/credentials";
 import { createSyncLog } from "@/modules/synclogs/service";
 import type {
   Mail163ConnectionErrorCode,
@@ -20,7 +23,10 @@ import {
   syncMailbox,
   testImapConnection,
 } from "@/modules/providers/mail163";
-import { testGmailConnection } from "@/modules/providers/gmail";
+import {
+  refreshAccessToken,
+  testGmailConnection,
+} from "@/modules/providers/gmail";
 import { db } from "@/lib/db";
 
 const MAIL163_CONNECTION_ERROR_MESSAGES: Record<
@@ -185,9 +191,9 @@ export async function testGmailConnectionAction(formData: FormData) {
 
   const startedAt = new Date();
   const result = await testGmailConnection(accessToken);
-  const finishedAt = new Date();
 
   if ("success" in result) {
+    const finishedAt = new Date();
     await Promise.all([
       updateMailboxStatus(user.id, mailboxId, "active"),
       createSyncLog({
@@ -205,10 +211,107 @@ export async function testGmailConnectionAction(formData: FormData) {
     );
   }
 
-  const errorMessage =
-    result.error === "token_expired"
-      ? "Google authorization expired. Reconnect Gmail."
-      : "Gmail connection test failed. Please try again later.";
+  if (result.error === "token_expired") {
+    const refreshToken = await getMailboxCredential(
+      user.id,
+      mailboxId,
+      "oauth_refresh_token",
+    );
+
+    if (!refreshToken) {
+      const finishedAt = new Date();
+      const message = "Google authorization expired. Reconnect Gmail.";
+      await Promise.all([
+        updateMailboxStatus(user.id, mailboxId, "error"),
+        createSyncLog({
+          userId: user.id,
+          mailboxId,
+          status: "error",
+          startedAt,
+          finishedAt,
+          message,
+        }),
+      ]);
+      redirect("/mailboxes?error=" + encodeURIComponent(message));
+    }
+
+    try {
+      const refreshed = await refreshAccessToken(refreshToken);
+
+      await saveMailboxCredential(
+        user.id,
+        mailboxId,
+        "oauth_access_token",
+        refreshed.access_token,
+      );
+
+      if (refreshed.refresh_token) {
+        await saveMailboxCredential(
+          user.id,
+          mailboxId,
+          "oauth_refresh_token",
+          refreshed.refresh_token,
+        );
+      }
+
+      const retryResult = await testGmailConnection(refreshed.access_token);
+      const finishedAt = new Date();
+
+      if ("success" in retryResult) {
+        await Promise.all([
+          updateMailboxStatus(user.id, mailboxId, "active"),
+          createSyncLog({
+            userId: user.id,
+            mailboxId,
+            status: "success",
+            startedAt,
+            finishedAt,
+            message: "Google account verified.",
+          }),
+        ]);
+        redirect(
+          "/mailboxes?success=" +
+            encodeURIComponent("Gmail connection test passed."),
+        );
+      }
+
+      const retryMessage =
+        retryResult.error === "token_expired"
+          ? "Google authorization expired. Reconnect Gmail."
+          : "Gmail connection test failed. Please try again later.";
+
+      await Promise.all([
+        updateMailboxStatus(user.id, mailboxId, "error"),
+        createSyncLog({
+          userId: user.id,
+          mailboxId,
+          status: "error",
+          startedAt,
+          finishedAt,
+          message: retryMessage,
+        }),
+      ]);
+      redirect("/mailboxes?error=" + encodeURIComponent(retryMessage));
+    } catch {
+      const finishedAt = new Date();
+      const message = "Google authorization expired. Reconnect Gmail.";
+      await Promise.all([
+        updateMailboxStatus(user.id, mailboxId, "error"),
+        createSyncLog({
+          userId: user.id,
+          mailboxId,
+          status: "error",
+          startedAt,
+          finishedAt,
+          message,
+        }),
+      ]);
+      redirect("/mailboxes?error=" + encodeURIComponent(message));
+    }
+  }
+
+  const finishedAt = new Date();
+  const message = "Gmail connection test failed. Please try again later.";
 
   await Promise.all([
     updateMailboxStatus(user.id, mailboxId, "error"),
@@ -218,10 +321,10 @@ export async function testGmailConnectionAction(formData: FormData) {
       status: "error",
       startedAt,
       finishedAt,
-      message: errorMessage,
+      message,
     }),
   ]);
-  redirect("/mailboxes?error=" + encodeURIComponent(errorMessage));
+  redirect("/mailboxes?error=" + encodeURIComponent(message));
 }
 
 export async function syncMailboxAction(formData: FormData) {

@@ -169,11 +169,11 @@ The client secret must never appear in:
 - Extract verification codes from Gmail message body (reuse `extractVerificationCode`)
 - SyncLog recording (no tokens in message field)
 
-### Phase 5: Refresh token handling and error UX
-- Detect `401 Unauthorized` from Gmail API → attempt token refresh → retry
-- If refresh fails (`invalid_grant`): mark mailbox status as `error`, show "Reconnect Gmail" prompt
-- If token refresh succeeds: update stored access token, continue operation
-- Rate limit awareness: respect `Retry-After` headers from Gmail API
+### Phase 5: Refresh token handling and error UX ✅ (connection test path)
+- Detect `401 Unauthorized` from OIDC userinfo → attempt token refresh → retry
+- If refresh fails: mark mailbox status as `error`, show "Reconnect Gmail" prompt
+- If token refresh succeeds: update stored access token (and refresh token if rotated), continue operation
+- Rate limit awareness: respect `Retry-After` headers from Gmail API (not yet implemented)
 
 ---
 
