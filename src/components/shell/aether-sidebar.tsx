@@ -83,28 +83,28 @@ export function AetherSidebar({
           const isActive = active === label;
 
           return (
-          <a
-            className={`hover-lift flex items-center gap-4 rounded-xl px-4 py-3 ${
-              isActive
-                ? "bg-primary-container text-[#59005a]"
-                : "text-slate-600 hover:bg-surface-container-high"
-            }`}
-            href={href}
-            key={label}
-          >
-            <SymbolIcon className="text-[22px]" fill={isActive}>
-              {icon}
-            </SymbolIcon>
-            <span
-              className={
+            <a
+              className={`hover-lift flex items-center gap-4 rounded-xl px-4 py-3 ${
                 isActive
-                  ? "font-label text-xs font-semibold uppercase tracking-[0.1em]"
-                  : "text-base"
-              }
+                  ? "bg-primary-container text-[#59005a]"
+                  : "text-slate-600 hover:bg-surface-container-high"
+              }`}
+              href={href}
+              key={label}
             >
-              {label}
-            </span>
-          </a>
+              <SymbolIcon className="text-[22px]" fill={isActive}>
+                {icon}
+              </SymbolIcon>
+              <span
+                className={
+                  isActive
+                    ? "font-label text-xs font-semibold uppercase tracking-[0.1em]"
+                    : "text-base"
+                }
+              >
+                {label}
+              </span>
+            </a>
           );
         })}
       </div>
@@ -153,7 +153,6 @@ export function MobileBottomNav({
   active?: string;
   items?: readonly MobileNavItem[];
 }) {
-
   return (
     <nav className="glass-card fixed bottom-0 z-50 grid h-20 w-full grid-cols-4 rounded-t-xl border-t border-white/40 px-2 py-2 shadow-lg md:hidden">
       {items.map(([icon, label]) => {

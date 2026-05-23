@@ -8,6 +8,7 @@ import {
 } from "@/components/shell/aether-sidebar";
 import { SymbolIcon } from "@/components/shell/aether-icons";
 import { getCurrentUser } from "@/modules/auth";
+import { getUserMailboxes } from "@/modules/mailboxes";
 import {
   isValidProvider,
   PROVIDER_DOMAIN_LABELS,
@@ -60,11 +61,15 @@ export default async function ConnectPage({ searchParams }: PageProps) {
   const domainHint = PROVIDER_DOMAIN_LABELS[provider];
   const is163 = provider === "mail163";
   const isOAuth = provider === "gmail" || provider === "outlook";
+  const mailboxes = await getUserMailboxes(user.id);
 
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
       <MobileTopBar />
-      <AetherSidebar active="Accounts" />
+      <AetherSidebar
+        active="Accounts"
+        connectedAccountCount={mailboxes.length}
+      />
 
       <section className="flex min-h-screen items-start justify-center px-4 pb-28 pt-24 md:ml-64 md:px-12 md:pt-24">
         <div className="w-full max-w-lg">
