@@ -1,56 +1,26 @@
+import { db } from "@/lib/db";
+import { verifyPassword } from "./password";
 import type { AuthUser } from "./session";
 
-const defaultDevEmail = "owner@aethermail.local";
-const defaultDevPassword = "glimmail-dev-password";
-
-function getAdminEmail() {
-  return process.env.GLIMMAIL_ADMIN_EMAIL || defaultDevEmail;
-}
-
-function getAdminPassword() {
-  const password = process.env.GLIMMAIL_ADMIN_PASSWORD;
-
-  if (password) {
-    return password;
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    return null;
-  }
-
-  return defaultDevPassword;
-}
-
-export function getDefaultAdminUser(): AuthUser {
-  return {
-    email: getAdminEmail(),
-    id: "user_owner",
-    name: "Owner",
-    role: "owner",
-  };
-}
-
-export async function verifyPasswordCredentials(email: string, password: string) {
-  const adminPassword = getAdminPassword();
-
-  if (!adminPassword) {
-    return null;
-  }
-
+export async function verifyPasswordCredentials(
+  email: string,
+  password: string,
+): Promise<AuthUser | null> {
   const normalizedEmail = email.trim().toLowerCase();
 
-  if (normalizedEmail !== getAdminEmail().toLowerCase()) {
-    return null;
-  }
+  const user = await db.user.findUnique({
+    where: { email: normalizedEmail },
+  });
 
-  if (password !== adminPassword) {
-    return null;
-  }
+  if (!user) return null;
 
-  return getDefaultAdminUser();
+  const valid = await verifyPassword(password, user.passwordHash);
+
+  if (!valid) return null;
+
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role as "owner" | "member",
+  };
 }
-
-export const localDevCredentials = {
-  email: defaultDevEmail,
-  password: defaultDevPassword,
-};

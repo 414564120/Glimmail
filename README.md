@@ -10,7 +10,7 @@ Glimmail is a low-cost, multi-user unified inbox for Gmail, Outlook, and 163 Mai
   - `/mailboxes`
   - `/inbox`
 - Multi-agent module boundaries
-- Server-side signed session cookie auth
+- Server-side DB-backed session cookie auth
 - Mock inbox data standing in for provider integrations
 
 ## Commands
@@ -29,21 +29,24 @@ pnpm prisma:migrate
 
 Copy `.env.example` into `.env.local` and fill the provider credentials when the integration slices begin.
 
-For local auth without an `.env.local`, the app accepts:
-
-```text
-owner@aethermail.local
-glimmail-dev-password
-```
-
-Set `AUTH_SECRET`, `GLIMMAIL_ADMIN_EMAIL`, and `GLIMMAIL_ADMIN_PASSWORD` before any shared or production deployment.
+## Database setup
 
 `DATABASE_URL` points Prisma at PostgreSQL. For local development, create the database first, then run:
 
 ```bash
 pnpm prisma:generate
 pnpm prisma:migrate
+pnpm db:seed
 ```
+
+`pnpm db:seed` creates the default owner user from `GLIMMAIL_ADMIN_EMAIL` and `GLIMMAIL_ADMIN_PASSWORD`. For local dev without an `.env.local`, the defaults are:
+
+```text
+owner@aethermail.local
+glimmail-dev-password
+```
+
+Set `AUTH_SECRET`, `GLIMMAIL_ADMIN_EMAIL`, and `GLIMMAIL_ADMIN_PASSWORD` before any shared or production deployment. `AUTH_SECRET` is reserved for future use; the current session implementation uses database-backed opaque tokens.
 
 ## Architecture docs
 
@@ -52,6 +55,5 @@ pnpm prisma:migrate
 
 ## Next implementation slices
 
-1. Move sessions and users from environment-backed auth into database-backed records
-2. Wire Gmail, Outlook, and 163 mailbox connection flows
-3. Replace mock data with inbox queries and sync actions
+1. Wire Gmail, Outlook, and 163 mailbox connection flows
+2. Replace mock data with inbox queries and sync actions

@@ -1,115 +1,52 @@
+import crypto from "node:crypto";
+import { db } from "@/lib/db";
+import { SESSION_TTL_SECONDS } from "./constants";
+
 export type AuthUser = {
-  email: string;
   id: string;
-  name: string;
+  email: string;
   role: "owner" | "member";
 };
 
-type SessionPayload = {
-  exp: number;
-  user: AuthUser;
-};
-
-export const SESSION_COOKIE_NAME = "__glimmail_session";
-export const SESSION_TTL_SECONDS = 60 * 60 * 24 * 7;
-
-const encoder = new TextEncoder();
-const devSecret = "glimmail-local-dev-secret-only-change-before-production";
-
-function getAuthSecret() {
-  const secret = process.env.AUTH_SECRET;
-
-  if (secret && secret !== "replace-with-a-long-random-secret") {
-    return secret;
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    throw new Error("AUTH_SECRET must be configured in production.");
-  }
-
-  return devSecret;
+function generateSessionToken(): string {
+  return crypto.randomBytes(32).toString("hex");
 }
 
-function base64UrlEncode(input: Uint8Array | string) {
-  const bytes = typeof input === "string" ? encoder.encode(input) : input;
-  let binary = "";
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
 
-  bytes.forEach((byte) => {
-    binary += String.fromCharCode(byte);
+export async function createSession(userId: string): Promise<string> {
+  const token = generateSessionToken();
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
+
+  await db.session.create({
+    data: { tokenHash, expiresAt, userId },
   });
 
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+  return token;
 }
 
-function base64UrlDecode(input: string) {
-  const normalized = input.replaceAll("-", "+").replaceAll("_", "/");
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
-  const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length);
+export async function validateSession(token: string): Promise<AuthUser | null> {
+  const tokenHash = hashToken(token);
 
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
+  const session = await db.session.findUnique({
+    where: { tokenHash },
+    include: { user: true },
+  });
 
-  return bytes;
-}
+  if (!session || session.expiresAt <= new Date()) return null;
 
-async function getSigningKey() {
-  return crypto.subtle.importKey(
-    "raw",
-    encoder.encode(getAuthSecret()),
-    { hash: "SHA-256", name: "HMAC" },
-    false,
-    ["sign", "verify"],
-  );
-}
-
-async function sign(value: string) {
-  const key = await getSigningKey();
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(value));
-
-  return base64UrlEncode(new Uint8Array(signature));
-}
-
-export async function createSessionToken(user: AuthUser) {
-  const payload: SessionPayload = {
-    exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
-    user,
+  return {
+    id: session.user.id,
+    email: session.user.email,
+    role: session.user.role as "owner" | "member",
   };
-  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
-  const signature = await sign(encodedPayload);
-
-  return `${encodedPayload}.${signature}`;
 }
 
-export async function verifySessionToken(token?: string) {
-  if (!token) {
-    return null;
-  }
+export async function deleteSession(token: string): Promise<void> {
+  const tokenHash = hashToken(token);
 
-  const [encodedPayload, signature] = token.split(".");
-
-  if (!encodedPayload || !signature) {
-    return null;
-  }
-
-  const expectedSignature = await sign(encodedPayload);
-
-  if (signature !== expectedSignature) {
-    return null;
-  }
-
-  try {
-    const payload = JSON.parse(
-      new TextDecoder().decode(base64UrlDecode(encodedPayload)),
-    ) as SessionPayload;
-
-    if (!payload.user?.id || !payload.user.email || payload.exp <= Date.now() / 1000) {
-      return null;
-    }
-
-    return payload.user;
-  } catch {
-    return null;
-  }
+  await db.session.deleteMany({ where: { tokenHash } });
 }
