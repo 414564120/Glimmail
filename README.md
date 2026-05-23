@@ -67,6 +67,7 @@ You can also create the first owner from `/register`. After one user exists, sel
 
 - `docs/architecture.md`
 - `docs/agent-workstreams.md`
+- `docs/gmail-oauth-plan.md` — Gmail OAuth integration plan (draft)
 
 ## Next implementation slices
 
