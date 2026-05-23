@@ -28,7 +28,7 @@ pnpm prisma:migrate
 
 ## Current stage
 
-Mailbox management is DB-backed with per-user isolation. The `/mailboxes` page reads live data from the database, and server actions support add/delete of mailbox accounts with provider-specific email validation (Gmail, Outlook, 163 Mail).
+Mailbox management is DB-backed with per-user isolation. The `/mailboxes` page reads live data from the database, and a dedicated `/mailboxes/connect?provider=...` page handles per-provider connection flows with domain-validated email input. For 163 Mail an app authorization code field is shown but not yet persisted. Gmail and Outlook display an OAuth placeholder. Server actions support add/delete of mailbox accounts with provider-specific email validation.
 
 The `/inbox` page reads messages from the local database and supports URL-based message selection (`?message=<id>`). Each message can be marked as read/unread or starred via server actions, with per-user isolation enforced on all mutations. Verification codes are extracted from message content and displayed with a Copy Code button. Messages come from a seed script (`pnpm run db:seed-messages`); real email sync (OAuth, IMAP) is not yet implemented.
 

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { MailboxProvider } from "@prisma/client";
 import {
@@ -7,7 +8,7 @@ import {
 } from "@/components/shell/aether-sidebar";
 import { getCurrentUser } from "@/modules/auth";
 import { getUserMailboxes } from "@/modules/mailboxes";
-import { addMailboxAction, deleteMailboxAction } from "./actions";
+import { deleteMailboxAction } from "./actions";
 
 const PROVIDER_CARDS: Array<{
   provider: MailboxProvider;
@@ -155,29 +156,12 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                       <p className="mb-6 text-base leading-relaxed text-slate-600 opacity-80">
                         {pc.description}
                       </p>
-                      <form
-                        action={addMailboxAction}
-                        className="mt-auto w-full space-y-3"
+                      <Link
+                        className="vibrant-flux hover-lift mt-auto block w-full rounded-full px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                        href={`/mailboxes/connect?provider=${pc.provider}`}
                       >
-                        <input
-                          name="provider"
-                          type="hidden"
-                          value={pc.provider}
-                        />
-                        <input
-                          className="w-full rounded-full border border-border-glass bg-white/70 px-4 py-2 text-center text-sm text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
-                          name="address"
-                          placeholder="you@provider.com"
-                          required
-                          type="email"
-                        />
-                        <button
-                          className="vibrant-flux hover-lift w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
-                          type="submit"
-                        >
-                          Connect
-                        </button>
-                      </form>
+                        Connect
+                      </Link>
                     </>
                   )}
                 </article>
