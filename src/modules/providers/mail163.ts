@@ -431,6 +431,11 @@ export function syncMailbox(
     let tagSeq = 1;
     let existsCount = 0;
     let searchUids: number[] = [];
+    let loginTag = "";
+    let selectTag = "";
+    let searchTag = "";
+    let fetchTag = "";
+    let didTryWritableSelect = false;
 
     function tag() {
       const t = `G${String(tagSeq).padStart(3, "0")}`;
@@ -454,7 +459,7 @@ export function syncMailbox(
     }, CONNECT_TIMEOUT_MS);
 
     function sendLogin() {
-      const loginTag = tag();
+      loginTag = tag();
       socket.write(
         `${loginTag} LOGIN ${quoteImapString(address)} ${quoteImapString(password)}\r\n`,
       );
@@ -463,19 +468,23 @@ export function syncMailbox(
     }
 
     function sendSelect() {
-      const selectTag = tag();
-      socket.write(`${selectTag} EXAMINE "INBOX"\r\n`);
+      selectTag = tag();
+      socket.write(
+        didTryWritableSelect
+          ? `${selectTag} SELECT "INBOX"\r\n`
+          : `${selectTag} EXAMINE "INBOX"\r\n`,
+      );
       step = "select";
     }
 
     function sendSearch() {
-      const searchTag = tag();
+      searchTag = tag();
       socket.write(`${searchTag} UID SEARCH ALL\r\n`);
       step = "search";
     }
 
     function sendFetch(uids: number[]) {
-      const fetchTag = tag();
+      fetchTag = tag();
       socket.write(
         `${fetchTag} UID FETCH ${uids.join(",")} (UID INTERNALDATE BODY.PEEK[HEADER.FIELDS (From Subject Date Message-Id)] BODY.PEEK[TEXT])\r\n`,
       );
@@ -494,14 +503,14 @@ export function syncMailbox(
       }
 
       // After login, check if we got OK
-      if (step === "login" && lookupTaggedStatus(buffer, "G001") === "OK") {
+      if (step === "login" && lookupTaggedStatus(buffer, loginTag) === "OK") {
         sendSelect();
         buffer = "";
         return;
       }
 
       // After select, parse EXISTS
-      if (step === "select" && lookupTaggedStatus(buffer, "G002") === "OK") {
+      if (step === "select" && lookupTaggedStatus(buffer, selectTag) === "OK") {
         const existsMatch = buffer.match(/\*\s+(\d+)\s+EXISTS/);
         if (existsMatch) {
           existsCount = parseInt(existsMatch[1], 10);
@@ -515,15 +524,21 @@ export function syncMailbox(
         return;
       }
 
-      if (step === "select" && lookupTaggedStatus(buffer, "G002") !== null) {
-        // select failed
+      if (step === "select" && lookupTaggedStatus(buffer, selectTag) !== null) {
+        if (!didTryWritableSelect) {
+          didTryWritableSelect = true;
+          buffer = "";
+          sendSelect();
+          return;
+        }
+
         socket.destroy();
         finish({ error: "inbox_open_failed" });
         return;
       }
 
       // After search, parse UIDs
-      if (step === "search" && lookupTaggedStatus(buffer, "G003") === "OK") {
+      if (step === "search" && lookupTaggedStatus(buffer, searchTag) === "OK") {
         const searchMatch = buffer.match(/\*\s+SEARCH\s+([\d\s]+)/i);
         if (searchMatch) {
           searchUids = searchMatch[1]
@@ -546,14 +561,14 @@ export function syncMailbox(
         return;
       }
 
-      if (step === "search" && lookupTaggedStatus(buffer, "G003") !== null) {
+      if (step === "search" && lookupTaggedStatus(buffer, searchTag) !== null) {
         socket.destroy();
         finish({ error: "fetch_failed" });
         return;
       }
 
       // After fetch
-      if (step === "fetch" && lookupTaggedStatus(buffer, "G004") === "OK") {
+      if (step === "fetch" && lookupTaggedStatus(buffer, fetchTag) === "OK") {
         const messages = parseFetchResponse(buffer);
         socket.write(`${tag()} LOGOUT\r\n`);
         socket.end();
@@ -561,7 +576,7 @@ export function syncMailbox(
         return;
       }
 
-      if (step === "fetch" && lookupTaggedStatus(buffer, "G004") !== null) {
+      if (step === "fetch" && lookupTaggedStatus(buffer, fetchTag) !== null) {
         socket.destroy();
         finish({ error: "fetch_failed" });
         return;
