@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies, headers } from "next/headers";
 import type { MailboxProvider } from "@prisma/client";
 import {
   AetherSidebar,
@@ -13,6 +14,10 @@ import {
   isValidProvider,
   PROVIDER_DOMAIN_LABELS,
 } from "@/modules/mailboxes/validation";
+import {
+  buildAuthorizationUrl,
+  generateOAuthState,
+} from "@/modules/providers/gmail";
 import { addMailboxAction } from "../actions";
 
 const PROVIDER_CONFIG: Record<
@@ -23,7 +28,7 @@ const PROVIDER_CONFIG: Record<
     name: "Gmail",
     iconClass: "gmail-mark",
     description:
-      "Connect a Google account to sync your Gmail inbox. OAuth will be connected in a later step.",
+      "Connect a Google account via OAuth to sync your Gmail inbox.",
   },
   outlook: {
     name: "Outlook",
@@ -60,8 +65,39 @@ export default async function ConnectPage({ searchParams }: PageProps) {
   const config = PROVIDER_CONFIG[provider];
   const domainHint = PROVIDER_DOMAIN_LABELS[provider];
   const is163 = provider === "mail163";
-  const isOAuth = provider === "gmail" || provider === "outlook";
+  const isGmail = provider === "gmail";
+  const isOutlook = provider === "outlook";
   const mailboxes = await getUserMailboxes(user.id);
+
+  let gmailOAuthUrl: string | null = null;
+
+  if (
+    isGmail &&
+    process.env.GOOGLE_CLIENT_ID &&
+    process.env.GOOGLE_CLIENT_SECRET
+  ) {
+    const state = generateOAuthState();
+    const cookieStore = await cookies();
+    const headerStore = await headers();
+    const host =
+      headerStore.get("x-forwarded-host") ??
+      headerStore.get("host") ??
+      "localhost:3000";
+    const proto =
+      headerStore.get("x-forwarded-proto") ??
+      (host.startsWith("localhost") ? "http" : "https");
+    const redirectUri =
+      process.env.GOOGLE_REDIRECT_URI ??
+      `${proto}://${host}/api/auth/gmail/callback`;
+    cookieStore.set("gmail_oauth_state", `${state}:${user.id}`, {
+      httpOnly: true,
+      maxAge: 600,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+    gmailOAuthUrl = buildAuthorizationUrl(state, redirectUri);
+  }
 
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
@@ -100,55 +136,84 @@ export default async function ConnectPage({ searchParams }: PageProps) {
             <p className="mb-4 text-base leading-relaxed text-slate-600">
               {config.description}
             </p>
-            <p className="mb-8 text-sm text-slate-500">
-              Accepted domains: {domainHint}
-            </p>
 
-            {isOAuth ? (
-              <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                OAuth will be connected in a later step. For now, only the email
-                address is saved.
-              </div>
-            ) : null}
+            {isGmail ? (
+              <>
+                {gmailOAuthUrl ? (
+                  <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    You will be redirected to Google to authorize access to your
+                    Gmail inbox. Glimmail requests read-only access to your
+                    messages.
+                  </div>
+                ) : (
+                  <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    Google OAuth is not configured. Set GOOGLE_CLIENT_ID and
+                    GOOGLE_CLIENT_SECRET in .env.local to enable Gmail
+                    connections.
+                  </div>
+                )}
+                {gmailOAuthUrl ? (
+                  <a
+                    className="vibrant-flux hover-lift inline-block w-full rounded-full px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                    href={gmailOAuthUrl}
+                  >
+                    Connect with Google
+                  </a>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <p className="mb-8 text-sm text-slate-500">
+                  Accepted domains: {domainHint}
+                </p>
 
-            <form action={addMailboxAction}>
-              <input name="provider" type="hidden" value={provider} />
-              <input
-                name="returnTo"
-                type="hidden"
-                value={`/mailboxes/connect?provider=${provider}`}
-              />
-              <input
-                className="mb-4 w-full rounded-full border border-border-glass bg-white/70 px-4 py-3 text-center text-base text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
-                name="address"
-                placeholder="you@provider.com"
-                required
-                type="email"
-              />
+                {isOutlook ? (
+                  <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    OAuth will be connected in a later step. For now, only the
+                    email address is saved.
+                  </div>
+                ) : null}
 
-              {is163 ? (
-                <>
+                <form action={addMailboxAction}>
+                  <input name="provider" type="hidden" value={provider} />
                   <input
-                    className="mb-3 w-full rounded-full border border-border-glass bg-white/70 px-4 py-3 text-center text-base text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
-                    name="authCode"
-                    placeholder="163 client authorization code"
-                    type="password"
+                    name="returnTo"
+                    type="hidden"
+                    value={`/mailboxes/connect?provider=${provider}`}
                   />
-                  <p className="mb-4 text-xs leading-relaxed text-slate-500">
-                    Use the client authorization code from 163 Mail settings,
-                    not your mailbox login password. The code is encrypted with
-                    AES-256-GCM before being stored.
-                  </p>
-                </>
-              ) : null}
+                  <input
+                    className="mb-4 w-full rounded-full border border-border-glass bg-white/70 px-4 py-3 text-center text-base text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+                    name="address"
+                    placeholder="you@provider.com"
+                    required
+                    type="email"
+                  />
 
-              <button
-                className="vibrant-flux hover-lift w-full rounded-full px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
-                type="submit"
-              >
-                Connect Account
-              </button>
-            </form>
+                  {is163 ? (
+                    <>
+                      <input
+                        className="mb-3 w-full rounded-full border border-border-glass bg-white/70 px-4 py-3 text-center text-base text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+                        name="authCode"
+                        placeholder="163 client authorization code"
+                        type="password"
+                      />
+                      <p className="mb-4 text-xs leading-relaxed text-slate-500">
+                        Use the client authorization code from 163 Mail
+                        settings, not your mailbox login password. The code is
+                        encrypted with AES-256-GCM before being stored.
+                      </p>
+                    </>
+                  ) : null}
+
+                  <button
+                    className="vibrant-flux hover-lift w-full rounded-full px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                    type="submit"
+                  >
+                    Connect Account
+                  </button>
+                </form>
+              </>
+            )}
           </article>
         </div>
       </section>

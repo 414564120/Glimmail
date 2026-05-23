@@ -1,6 +1,6 @@
 # Gmail OAuth Integration Plan
 
-Status: draft, not yet implemented.
+Status: Phase 1 completed, Phase 2 implemented.
 
 ## Decision: Gmail API vs IMAP XOAUTH2
 
@@ -147,10 +147,10 @@ The client secret must never appear in:
 - Document the consent screen verification process timeline
 - No code changes
 
-### Phase 2: Connect/callback + encrypted token storage
+### Phase 2: Connect/callback + encrypted token storage ✅
 - Add `/api/auth/gmail/callback` route handler
-- Generate `state` parameter, store in session, verify on callback
-- Exchange authorization code for tokens via `googleapis` or raw `fetch`
+- Generate `state` parameter, store in a short-lived HTTP-only cookie bound to the current user, verify on callback
+- Exchange authorization code for tokens via raw `fetch`
 - Store access + refresh tokens encrypted via existing `saveMailboxCredential`
 - Wire the Gmail "Connect" button on `/mailboxes/connect?provider=gmail` to the Google OAuth URL (replace current placeholder)
 - Handle errors: user denies consent, invalid state, token exchange failure
