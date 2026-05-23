@@ -20,6 +20,9 @@ pnpm dev
 pnpm lint
 pnpm typecheck
 pnpm build
+pnpm prisma:generate
+pnpm prisma:format
+pnpm prisma:migrate
 ```
 
 ## Environment
@@ -35,6 +38,13 @@ glimmail-dev-password
 
 Set `AUTH_SECRET`, `GLIMMAIL_ADMIN_EMAIL`, and `GLIMMAIL_ADMIN_PASSWORD` before any shared or production deployment.
 
+`DATABASE_URL` points Prisma at PostgreSQL. For local development, create the database first, then run:
+
+```bash
+pnpm prisma:generate
+pnpm prisma:migrate
+```
+
 ## Architecture docs
 
 - `docs/architecture.md`
@@ -42,7 +52,6 @@ Set `AUTH_SECRET`, `GLIMMAIL_ADMIN_EMAIL`, and `GLIMMAIL_ADMIN_PASSWORD` before 
 
 ## Next implementation slices
 
-1. Add PostgreSQL + Prisma models
-2. Move sessions and users from environment-backed auth into database-backed records
-3. Wire Gmail, Outlook, and 163 mailbox connection flows
-4. Replace mock data with inbox queries and sync actions
+1. Move sessions and users from environment-backed auth into database-backed records
+2. Wire Gmail, Outlook, and 163 mailbox connection flows
+3. Replace mock data with inbox queries and sync actions

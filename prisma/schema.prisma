@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  owner
+  member
+}
+
+enum MailboxProvider {
+  gmail
+  outlook
+  mail163 @map("163")
+}
+
+enum MailboxStatus {
+  active
+  error
+  disconnected
+}
+
+enum SyncStatus {
+  running
+  success
+  error
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(member)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions  Session[]
+  mailboxes Mailbox[]
+  messages  Message[]
+  syncLogs  SyncLog[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Mailbox {
+  id           String          @id @default(cuid())
+  provider     MailboxProvider
+  address      String
+  displayName  String?
+  status       MailboxStatus   @default(active)
+  lastSyncedAt DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  messages Message[]
+  syncLogs SyncLog[]
+
+  @@unique([userId, provider, address])
+  @@index([userId])
+}
+
+model Message {
+  id                String   @id @default(cuid())
+  providerMessageId String
+  threadId          String?
+  sender            String
+  subject           String
+  preview           String?
+  bodyText          String?
+  receivedAt        DateTime
+  isRead            Boolean  @default(false)
+  isStarred         Boolean  @default(false)
+  verificationCode  String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  mailboxId String
+  mailbox   Mailbox @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerMessageId, mailboxId])
+  @@index([userId, receivedAt])
+  @@index([mailboxId, receivedAt])
+}
+
+model SyncLog {
+  id         String     @id @default(cuid())
+  status     SyncStatus
+  startedAt  DateTime
+  finishedAt DateTime?
+  message    String?
+  createdAt  DateTime   @default(now())
+
+  mailboxId String
+  mailbox   Mailbox @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, startedAt])
+  @@index([mailboxId, startedAt])
+}

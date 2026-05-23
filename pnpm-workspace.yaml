@@ -1,6 +1,14 @@
-allowBuilds:
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
+packages:
+  - "."
+
+onlyBuiltDependencies:
+  - "@prisma/engines"
+  - prisma
+
 ignoredBuiltDependencies:
   - sharp
   - unrs-resolver
+
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
