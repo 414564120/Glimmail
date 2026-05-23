@@ -8,6 +8,7 @@ import {
 import { SymbolIcon } from "@/components/shell/aether-icons";
 import { CopyCodeButton } from "@/components/inbox/copy-code-button";
 import { getCurrentUser } from "@/modules/auth";
+import { getUserMailboxes } from "@/modules/mailboxes";
 import { getUserMessages } from "@/modules/messages";
 import { toggleReadAction, toggleStarredAction } from "./actions";
 
@@ -83,7 +84,10 @@ export default async function InboxPage({ searchParams }: PageProps) {
     redirect("/login?next=/inbox");
   }
 
-  const messages = await getUserMessages(user.id);
+  const [messages, mailboxes] = await Promise.all([
+    getUserMessages(user.id),
+    getUserMailboxes(user.id),
+  ]);
   const {
     compose: composeParam,
     message: messageIdParam,
@@ -103,7 +107,10 @@ export default async function InboxPage({ searchParams }: PageProps) {
   return (
     <main className="surface-grid min-h-screen bg-background text-slate-950">
       <MobileTopBar />
-      <AetherSidebar active={activeLabel} />
+      <AetherSidebar
+        active={activeLabel}
+        connectedAccountCount={mailboxes.length}
+      />
 
       <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-64 md:pb-0 md:pt-0">
         <header className="glass-card sticky top-0 z-20 hidden h-16 items-center justify-between border-b border-white/40 px-12 md:flex">
@@ -120,15 +127,24 @@ export default async function InboxPage({ searchParams }: PageProps) {
           </label>
 
           <div className="flex items-center gap-4 text-slate-700">
-            {["light_mode", "notifications", "settings"].map((icon) => (
-              <button
-                className="flex size-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-surface-container-high hover:text-primary"
-                key={icon}
-                type="button"
-              >
-                <SymbolIcon className="text-[22px]">{icon}</SymbolIcon>
-              </button>
-            ))}
+            <button
+              className="flex size-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-surface-container-high hover:text-primary"
+              type="button"
+            >
+              <SymbolIcon className="text-[22px]">light_mode</SymbolIcon>
+            </button>
+            <button
+              className="flex size-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-surface-container-high hover:text-primary"
+              type="button"
+            >
+              <SymbolIcon className="text-[22px]">notifications</SymbolIcon>
+            </button>
+            <Link
+              className="flex size-10 items-center justify-center rounded-full text-slate-600 transition hover:bg-surface-container-high hover:text-primary"
+              href="/settings"
+            >
+              <SymbolIcon className="text-[22px]">settings</SymbolIcon>
+            </Link>
             <div className="size-10 overflow-hidden rounded-full border-2 border-white shadow-sm">
               <div className="h-full w-full bg-gradient-to-br from-primary-container to-secondary-container" />
             </div>

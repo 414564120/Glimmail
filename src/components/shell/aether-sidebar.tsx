@@ -11,9 +11,16 @@ const mainItems = [
 const bottomItems = [
   ["archive", "Archive", "/inbox?view=archive"],
   ["delete", "Trash", "/inbox?view=trash"],
+  ["settings", "Settings", "/settings"],
 ] as const;
 
-export function AetherSidebar({ active = "Inbox" }: { active?: string }) {
+export function AetherSidebar({
+  active = "Inbox",
+  connectedAccountCount = 0,
+}: {
+  active?: string;
+  connectedAccountCount?: number;
+}) {
   return (
     <aside className="glass-card fixed left-0 top-0 z-30 hidden h-screen w-64 flex-col border-r border-white/40 bg-white/35 md:flex">
       <div className="custom-scrollbar flex-1 overflow-y-auto p-6">
@@ -25,7 +32,10 @@ export function AetherSidebar({ active = "Inbox" }: { active?: string }) {
           <h2 className="mb-1 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">
             Global Inbox
           </h2>
-          <p className="text-xs text-outline">4 connected accounts</p>
+          <p className="text-xs text-outline">
+            {connectedAccountCount} connected account
+            {connectedAccountCount !== 1 ? "s" : ""}
+          </p>
         </div>
 
         <a
@@ -125,7 +135,7 @@ const mobileHrefByLabel: Record<string, string> = {
   Inbox: "/inbox",
   Mail: "/inbox",
   Search: "/inbox?view=search",
-  Settings: "/mailboxes",
+  Settings: "/settings",
   Starred: "/inbox?view=starred",
   Sent: "/inbox?view=sent",
   Drafts: "/inbox?view=drafts",
