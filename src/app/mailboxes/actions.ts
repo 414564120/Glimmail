@@ -2,11 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
-import {
-  addMailbox,
-  deleteMailbox,
-  saveMailboxCredential,
-} from "@/modules/mailboxes";
+import { addMailbox, deleteMailbox } from "@/modules/mailboxes";
 
 export async function addMailboxAction(formData: FormData) {
   const user = await getCurrentUser();
@@ -20,20 +16,15 @@ export async function addMailboxAction(formData: FormData) {
     ? returnTo
     : "/mailboxes";
 
-  const result = await addMailbox(user.id, provider, address);
+  const credential =
+    authCode && provider === "mail163"
+      ? { kind: "app_password" as const, plaintext: authCode }
+      : undefined;
+  const result = await addMailbox(user.id, provider, address, credential);
   if ("error" in result) {
     const separator = failurePath.includes("?") ? "&" : "?";
     redirect(
       `${failurePath}${separator}error=${encodeURIComponent(result.error)}`,
-    );
-  }
-
-  if (authCode && provider === "mail163" && "mailbox" in result) {
-    await saveMailboxCredential(
-      user.id,
-      result.mailbox.id,
-      "app_password",
-      authCode,
     );
   }
 

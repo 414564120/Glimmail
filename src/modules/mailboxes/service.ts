@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import type { Mailbox } from "@prisma/client";
+import { encrypt } from "@/modules/security/crypto";
 import {
   isValidEmailForProvider,
   isValidProvider,
@@ -22,6 +23,7 @@ export async function addMailbox(
   userId: string,
   provider: string,
   address: string,
+  credential?: { kind: "app_password" | "oauth_token"; plaintext: string },
 ): Promise<ActionResult> {
   if (!isValidProvider(provider)) {
     return { error: `Unknown provider.` };
@@ -38,10 +40,30 @@ export async function addMailbox(
     return { error: `Email must be a ${label} address.` };
   }
 
+  const encryptedSecret = credential?.plaintext
+    ? encrypt(credential.plaintext)
+    : null;
+
   try {
-    const mailbox = await db.mailbox.create({
-      data: { userId, provider, address: trimmedAddress },
+    const mailbox = await db.$transaction(async (tx) => {
+      const createdMailbox = await tx.mailbox.create({
+        data: { userId, provider, address: trimmedAddress },
+      });
+
+      if (encryptedSecret && credential) {
+        await tx.mailboxCredential.create({
+          data: {
+            encryptedSecret,
+            kind: credential.kind,
+            mailboxId: createdMailbox.id,
+            userId,
+          },
+        });
+      }
+
+      return createdMailbox;
     });
+
     return { success: true, mailbox };
   } catch (error: unknown) {
     if (
