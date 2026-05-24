@@ -6,11 +6,14 @@
 import {
   parseOutlookMessage,
   hasMailReadScope,
+  isOutlookApiError,
+  listOutlookMessages,
   type OutlookMessageEntry,
 } from "./outlook";
 
 let passed = 0;
 let failed = 0;
+const originalFetch = globalThis.fetch;
 
 function assert(condition: boolean, label: string) {
   if (condition) {
@@ -46,6 +49,15 @@ function makeEntry(overrides: Partial<OutlookMessageEntry> = {}): OutlookMessage
     conversationId: "conv-001",
     ...overrides,
   };
+}
+
+function getAuthorizationHeader(headers: HeadersInit | undefined): string {
+  if (!headers) return "";
+  if (headers instanceof Headers) return headers.get("Authorization") ?? "";
+  if (Array.isArray(headers)) {
+    return headers.find(([name]) => name === "Authorization")?.[1] ?? "";
+  }
+  return headers.Authorization ?? "";
 }
 
 // -- parseOutlookMessage ----------------------------------------------------
@@ -189,12 +201,124 @@ assertEq(
   "Scope without Mail.Read returns false",
 );
 
+// -- listOutlookMessages ----------------------------------------------------
+
+console.log("\nlistOutlookMessages");
+
+async function assertRejectsOutlookApiError(
+  status: number,
+  expectedCode: string,
+  label: string,
+) {
+  globalThis.fetch = async () =>
+    new Response("{}", {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  try {
+    await listOutlookMessages("redacted-access-token", 10);
+  } catch (error) {
+    assert(
+      isOutlookApiError(error) && error.code === expectedCode,
+      label,
+    );
+    return;
+  }
+
+  assert(false, `${label}: expected listOutlookMessages to throw`);
+}
+
+async function runAsyncTests() {
+  let requestedUrl = "";
+  let authorizationHeader = "";
+
+  globalThis.fetch = async (input, init) => {
+    requestedUrl = String(input);
+    authorizationHeader = getAuthorizationHeader(init?.headers);
+
+    return new Response(JSON.stringify({ value: [makeEntry({ id: "msg-99" })] }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  const messages = await listOutlookMessages("redacted-access-token", 10);
+  const url = new URL(requestedUrl);
+
+  assertEq(messages.length, 1, "List response value is returned");
+  assertEq(messages[0]?.id, "msg-99", "List response message id is preserved");
+  assertEq(
+    `${url.origin}${url.pathname}`,
+    "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages",
+    "Graph call targets inbox messages only",
+  );
+  assertEq(url.searchParams.get("$top"), "10", "Graph call limits to 10 messages");
+  assertEq(
+    url.searchParams.get("$orderby"),
+    "receivedDateTime desc",
+    "Graph call orders newest first",
+  );
+  assertEq(
+    url.searchParams.get("$select"),
+    "id,subject,from,receivedDateTime,bodyPreview,body,internetMessageId,conversationId",
+    "Graph call selects only expected message fields",
+  );
+  assertEq(
+    url.searchParams.has("$expand"),
+    false,
+    "Graph call does not request attachments",
+  );
+  assertEq(
+    authorizationHeader,
+    "Bearer redacted-access-token",
+    "Graph call sends bearer authorization header",
+  );
+
+  await assertRejectsOutlookApiError(
+    401,
+    "outlook_token_expired",
+    "401 maps to token expired",
+  );
+  await assertRejectsOutlookApiError(
+    403,
+    "outlook_insufficient_scope",
+    "403 maps to insufficient scope",
+  );
+
+  globalThis.fetch = async () => new Response("{}", { status: 500 });
+
+  try {
+    await listOutlookMessages("redacted-access-token", 10);
+  } catch (error) {
+    assert(
+      error instanceof Error &&
+        !isOutlookApiError(error) &&
+        error.message === "Outlook list failed",
+      "Non-Graph auth error uses safe fallback message",
+    );
+    return;
+  }
+
+  assert(false, "Expected 500 response to throw");
+}
+
 // -- Summary ----------------------------------------------------------------
 
-console.log(`\n${passed} passed, ${failed} failed`);
-if (failed > 0) {
-  console.error("SOME TESTS FAILED");
-  process.exit(1);
-} else {
-  console.log("All tests passed.");
-}
+runAsyncTests()
+  .catch((error) => {
+    failed++;
+    console.error("  FAIL: async Outlook provider tests");
+    console.error(error);
+  })
+  .finally(() => {
+    globalThis.fetch = originalFetch;
+
+    console.log(`\n${passed} passed, ${failed} failed`);
+    if (failed > 0) {
+      console.error("SOME TESTS FAILED");
+      process.exit(1);
+    } else {
+      console.log("All tests passed.");
+    }
+  });
