@@ -12,10 +12,8 @@ import { getMailboxCredential } from "@/modules/mailboxes/credentials";
 import { hasGmailReadonlyScope } from "@/modules/providers/gmail";
 import { hasMailReadScope } from "@/modules/providers/outlook";
 import { RemoveMailboxForm } from "@/components/mailboxes/remove-mailbox-form";
+import { SyncNowButton } from "@/components/mailboxes/sync-now-button";
 import {
-  syncGmailAction,
-  syncMailboxAction,
-  syncOutlookAction,
   testGmailConnectionAction,
   testMailboxConnectionAction,
   testOutlookConnectionAction,
@@ -221,19 +219,10 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                       <div className="mt-auto flex w-full flex-col gap-2">
                         {mailbox.provider === "mail163" && (
                           <>
-                            <form action={syncMailboxAction}>
-                              <input
-                                name="mailboxId"
-                                type="hidden"
-                                value={mailbox.id}
-                              />
-                              <button
-                                className="vibrant-flux w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
-                                type="submit"
-                              >
-                                Sync Now
-                              </button>
-                            </form>
+                            <SyncNowButton
+                              mailboxId={mailbox.id}
+                              provider={mailbox.provider}
+                            />
                             <form action={testMailboxConnectionAction}>
                               <input
                                 name="mailboxId"
@@ -252,19 +241,10 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                         {mailbox.provider === "gmail" && (
                           <>
                             {gmailSyncAuthorized.get(mailbox.id) ? (
-                              <form action={syncGmailAction}>
-                                <input
-                                  name="mailboxId"
-                                  type="hidden"
-                                  value={mailbox.id}
-                                />
-                                <button
-                                  className="vibrant-flux w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
-                                  type="submit"
-                                >
-                                  Sync Now
-                                </button>
-                              </form>
+                              <SyncNowButton
+                                mailboxId={mailbox.id}
+                                provider={mailbox.provider}
+                              />
                             ) : (
                               <div className="w-full">
                                 <button
@@ -306,19 +286,10 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                         {mailbox.provider === "outlook" && (
                           <>
                             {outlookSyncAuthorized.get(mailbox.id) ? (
-                              <form action={syncOutlookAction}>
-                                <input
-                                  name="mailboxId"
-                                  type="hidden"
-                                  value={mailbox.id}
-                                />
-                                <button
-                                  className="vibrant-flux w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
-                                  type="submit"
-                                >
-                                  Sync Now
-                                </button>
-                              </form>
+                              <SyncNowButton
+                                mailboxId={mailbox.id}
+                                provider={mailbox.provider}
+                              />
                             ) : (
                               <div className="w-full">
                                 <button
