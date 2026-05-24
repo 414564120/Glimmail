@@ -8,6 +8,8 @@ import {
 } from "@/components/shell/aether-sidebar";
 import { getCurrentUser } from "@/modules/auth";
 import { getRecentSyncLogs, getUserMailboxes } from "@/modules/mailboxes";
+import { getMailboxCredential } from "@/modules/mailboxes/credentials";
+import { hasGmailReadonlyScope } from "@/modules/providers/gmail";
 import {
   deleteMailboxAction,
   syncGmailAction,
@@ -64,6 +66,14 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
     if (mb.provider === "mail163" || mb.provider === "gmail") {
       const logs = await getRecentSyncLogs(user.id, mb.id, 3);
       if (logs.length > 0) recentSyncLogs.set(mb.id, logs);
+    }
+  }
+
+  const gmailSyncAuthorized = new Map<string, boolean>();
+  for (const mb of mailboxes) {
+    if (mb.provider === "gmail") {
+      const scope = await getMailboxCredential(user.id, mb.id, "oauth_granted_scope");
+      gmailSyncAuthorized.set(mb.id, scope ? hasGmailReadonlyScope(scope) : false);
     }
   }
 
@@ -230,19 +240,35 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                         )}
                         {mailbox.provider === "gmail" && (
                           <>
-                            <form action={syncGmailAction}>
-                              <input
-                                name="mailboxId"
-                                type="hidden"
-                                value={mailbox.id}
-                              />
-                              <button
-                                className="vibrant-flux w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
-                                type="submit"
-                              >
-                                Sync Now
-                              </button>
-                            </form>
+                            {gmailSyncAuthorized.get(mailbox.id) ? (
+                              <form action={syncGmailAction}>
+                                <input
+                                  name="mailboxId"
+                                  type="hidden"
+                                  value={mailbox.id}
+                                />
+                                <button
+                                  className="vibrant-flux w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                                  type="submit"
+                                >
+                                  Sync Now
+                                </button>
+                              </form>
+                            ) : (
+                              <div className="w-full">
+                                <button
+                                  className="w-full cursor-not-allowed rounded-full border border-slate-300 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-400"
+                                  disabled
+                                  type="button"
+                                >
+                                  Sync Now
+                                </button>
+                                <p className="mt-1 text-[11px] leading-relaxed text-amber-600">
+                                  Gmail inbox access not yet authorized. Click
+                                  Authorize Sync below, then try again.
+                                </p>
+                              </div>
+                            )}
                             <form action={testGmailConnectionAction}>
                               <input
                                 name="mailboxId"
@@ -260,7 +286,9 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                               className="block w-full rounded-full border border-slate-300 px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600 hover:bg-white/60"
                               href="/api/auth/gmail/start?scope=gmail"
                             >
-                              Authorize Sync
+                              {gmailSyncAuthorized.get(mailbox.id)
+                                ? "Re-authorize Sync"
+                                : "Authorize Sync"}
                             </Link>
                           </>
                         )}

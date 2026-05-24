@@ -41,6 +41,17 @@ The `/inbox` page reads messages from the local database and supports URL-based 
 
 Copy `.env.example` into `.env.local` and fill the provider credentials when the integration slices begin.
 
+## Gmail OAuth testing
+
+When testing Gmail OAuth locally:
+
+- **Gmail API must be enabled** in the Google Cloud Console project. Without it, Sync Now returns "Gmail API is not enabled."
+- **OAuth consent screen** must include the test Google account under "Test users" (APIs & Services → OAuth consent screen). Otherwise Google shows an access-denied page before the callback fires.
+- **Sync authorization** requires the `gmail.readonly` scope. Basic Gmail Connect only requests `openid email profile` — open the connected Gmail card and click **Authorize Sync** to request inbox read access in a separate OAuth step.
+- **Google "unverified app" page** (yellow warning screen) is expected in testing mode. If that page hangs or loops, try a different network or VPN exit node — some Google endpoints are region-blocked.
+
+
+
 ## Database setup
 
 `DATABASE_URL` points Prisma at PostgreSQL. For local development, create the database first, then run:

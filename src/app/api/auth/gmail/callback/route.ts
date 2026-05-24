@@ -111,6 +111,16 @@ export async function GET(request: NextRequest) {
             }),
           ]
         : []),
+      db.mailboxCredential.upsert({
+        where: { mailboxId_kind: { mailboxId: existing.id, kind: "oauth_granted_scope" } },
+        create: {
+          mailboxId: existing.id,
+          userId: user.id,
+          kind: "oauth_granted_scope",
+          encryptedSecret: encrypt(tokens.scope),
+        },
+        update: { encryptedSecret: encrypt(tokens.scope) },
+      }),
     ]);
   } else {
     await db.$transaction(async (tx) => {
@@ -137,6 +147,15 @@ export async function GET(request: NextRequest) {
           },
         });
       }
+
+      await tx.mailboxCredential.create({
+        data: {
+          mailboxId: mailbox.id,
+          userId: user.id,
+          kind: "oauth_granted_scope",
+          encryptedSecret: encrypt(tokens.scope),
+        },
+      });
     });
   }
 

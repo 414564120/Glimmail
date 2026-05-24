@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { encrypt, decrypt } from "@/modules/security/crypto";
 
-type CredentialKind = "app_password" | "oauth_token" | "oauth_access_token" | "oauth_refresh_token";
+type CredentialKind = "app_password" | "oauth_token" | "oauth_access_token" | "oauth_refresh_token" | "oauth_granted_scope";
 
 export async function saveMailboxCredential(
   userId: string,
