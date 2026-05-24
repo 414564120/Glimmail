@@ -11,8 +11,8 @@ import { getRecentSyncLogs, getUserMailboxes } from "@/modules/mailboxes";
 import { getMailboxCredential } from "@/modules/mailboxes/credentials";
 import { hasGmailReadonlyScope } from "@/modules/providers/gmail";
 import { hasMailReadScope } from "@/modules/providers/outlook";
+import { RemoveMailboxForm } from "@/components/mailboxes/remove-mailbox-form";
 import {
-  deleteMailboxAction,
   syncGmailAction,
   syncMailboxAction,
   syncOutlookAction,
@@ -357,19 +357,11 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                             </Link>
                           </>
                         )}
-                        <form action={deleteMailboxAction}>
-                          <input
-                            name="mailboxId"
-                            type="hidden"
-                            value={mailbox.id}
-                          />
-                          <button
-                            className="w-full rounded-full border border-red-400 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-red-600 hover:bg-red-50"
-                            type="submit"
-                          >
-                            Remove
-                          </button>
-                        </form>
+                        <RemoveMailboxForm
+                          address={mailbox.address}
+                          mailboxId={mailbox.id}
+                          provider={mailbox.provider}
+                        />
                       </div>
                     </>
                   ) : (
