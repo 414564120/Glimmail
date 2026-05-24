@@ -57,6 +57,16 @@ const PROVIDER_CARDS: Array<{
   },
 ];
 
+const RECENT_ACTIVITY_PROVIDERS = new Set<MailboxProvider>([
+  "gmail",
+  "outlook",
+  "mail163",
+]);
+
+function supportsRecentActivity(provider: MailboxProvider): boolean {
+  return RECENT_ACTIVITY_PROVIDERS.has(provider);
+}
+
 interface PageProps {
   searchParams: Promise<{ error?: string; success?: string }>;
 }
@@ -73,7 +83,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
 
   const recentSyncLogs = new Map<string, Awaited<ReturnType<typeof getRecentSyncLogs>>>();
   for (const mb of mailboxes) {
-    if (mb.provider === "mail163" || mb.provider === "gmail" || mb.provider === "outlook") {
+    if (supportsRecentActivity(mb.provider)) {
       const logs = await getRecentSyncLogs(user.id, mb.id, 3);
       if (logs.length > 0) recentSyncLogs.set(mb.id, logs);
     }
@@ -192,7 +202,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                       <p className="mb-1 text-sm capitalize text-slate-500">
                         Status: {mailbox.status}
                       </p>
-                      {(mailbox.provider === "mail163" || mailbox.provider === "gmail" || mailbox.provider === "outlook") &&
+                      {supportsRecentActivity(mailbox.provider) &&
                         recentSyncLogs.has(mailbox.id) && (
                           <div className="mb-4 w-full text-left">
                             <span className="font-label text-[10px] font-semibold uppercase tracking-wider text-slate-400">
