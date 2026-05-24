@@ -114,7 +114,7 @@ export async function deleteMailboxAction(formData: FormData) {
     redirect(`/mailboxes?error=${encodeURIComponent(result.error)}`);
   }
 
-  redirect("/mailboxes");
+  redirect("/mailboxes?success=" + encodeURIComponent("Mailbox removed."));
 }
 
 export async function testMailboxConnectionAction(formData: FormData) {
