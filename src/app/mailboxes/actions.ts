@@ -18,6 +18,10 @@ import type {
   Mail163SyncErrorCode,
 } from "@/modules/providers/mail163";
 import {
+  getSafeMailboxConnectReturnPath,
+  MAILBOX_CONNECT_FALLBACK_PATH,
+} from "@/modules/mailboxes/return-path";
+import {
   createPreview,
   extractVerificationCode,
   syncMailbox,
@@ -84,10 +88,7 @@ export async function addMailboxAction(formData: FormData) {
   const provider = String(formData.get("provider") || "");
   const address = String(formData.get("address") || "");
   const authCode = String(formData.get("authCode") || "");
-  const returnTo = String(formData.get("returnTo") || "");
-  const failurePath = returnTo.startsWith("/mailboxes/connect")
-    ? returnTo
-    : "/mailboxes";
+  const failurePath = getSafeMailboxConnectReturnPath(formData.get("returnTo"));
 
   const credential =
     authCode && provider === "mail163"
@@ -95,6 +96,10 @@ export async function addMailboxAction(formData: FormData) {
       : undefined;
   const result = await addMailbox(user.id, provider, address, credential);
   if ("error" in result) {
+    if (failurePath === MAILBOX_CONNECT_FALLBACK_PATH) {
+      redirect(failurePath);
+    }
+
     const separator = failurePath.includes("?") ? "&" : "?";
     redirect(
       `${failurePath}${separator}error=${encodeURIComponent(result.error)}`,
