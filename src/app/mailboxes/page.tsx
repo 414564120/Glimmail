@@ -67,6 +67,11 @@ function supportsRecentActivity(provider: MailboxProvider): boolean {
   return RECENT_ACTIVITY_PROVIDERS.has(provider);
 }
 
+function normalizeBannerMessage(message: string | undefined): string | null {
+  const normalized = message?.trim();
+  return normalized || null;
+}
+
 interface PageProps {
   searchParams: Promise<{ error?: string; success?: string }>;
 }
@@ -80,6 +85,8 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
 
   const mailboxes = await getUserMailboxes(user.id);
   const { error, success } = await searchParams;
+  const errorMessage = normalizeBannerMessage(error);
+  const successMessage = normalizeBannerMessage(success);
 
   const recentSyncLogs = new Map<string, Awaited<ReturnType<typeof getRecentSyncLogs>>>();
   for (const mb of mailboxes) {
@@ -125,15 +132,15 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
             </p>
           </header>
 
-          {error && (
+          {errorMessage && (
             <div className="mx-auto mb-8 max-w-lg rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
-              {error}
+              {errorMessage}
             </div>
           )}
 
-          {success && (
+          {successMessage && (
             <div className="mx-auto mb-8 max-w-lg rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-center text-sm text-green-700">
-              {success}
+              {successMessage}
             </div>
           )}
 
