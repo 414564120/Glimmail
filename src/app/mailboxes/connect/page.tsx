@@ -24,7 +24,7 @@ const PROVIDER_CONFIG: Record<
     name: "Gmail",
     iconClass: "gmail-mark",
     description:
-      "Connect a Google account via OAuth to sync your Gmail inbox.",
+      "Connect a Google account via OAuth. Gmail inbox sync authorization is added after connection.",
   },
   outlook: {
     name: "Outlook",
@@ -127,8 +127,8 @@ export default async function ConnectPage({ searchParams }: PageProps) {
                 {gmailOAuthConfigured ? (
                   <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
                     You will be redirected to Google to authorize access to your
-                    Google account. Glimmail requests read-only access to your
-                    Gmail inbox for message sync.
+                    Google account profile. Gmail inbox sync requires a separate
+                    read-only authorization after connection.
                   </div>
                 ) : (
                   <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">

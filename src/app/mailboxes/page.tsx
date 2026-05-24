@@ -258,9 +258,9 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                             </form>
                             <Link
                               className="block w-full rounded-full border border-slate-300 px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600 hover:bg-white/60"
-                              href="/api/auth/gmail/start"
+                              href="/api/auth/gmail/start?scope=gmail"
                             >
-                              Reconnect Gmail
+                              Authorize Sync
                             </Link>
                           </>
                         )}

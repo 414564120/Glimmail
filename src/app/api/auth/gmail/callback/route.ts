@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
 
   const cookieStore = await cookies();
   const storedStateCookie = cookieStore.get(STATE_COOKIE)?.value;
-  const [storedState, storedUserId] = storedStateCookie?.split(":") ?? [];
+  const [storedState, storedUserId, requestedScope] =
+    storedStateCookie?.split(":") ?? [];
 
   if (
     !storedState ||
@@ -64,7 +65,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!hasGmailReadonlyScope(tokens.scope)) {
+  if (requestedScope === "gmail" && !hasGmailReadonlyScope(tokens.scope)) {
     return NextResponse.redirect(
       new URL("/mailboxes?error=" + encodeURIComponent("Gmail inbox read access was not granted. Reconnect Gmail and approve the Gmail read-only permission."), request.url),
     );

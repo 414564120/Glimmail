@@ -7,15 +7,21 @@ export function generateOAuthState(): string {
 export function buildAuthorizationUrl(
   state: string,
   redirectUri: string,
+  options: { requestGmailReadonly?: boolean } = {},
 ): string {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   if (!clientId) throw new Error("GOOGLE_CLIENT_ID is not set");
+
+  const scopes = ["openid", "email", "profile"];
+  if (options.requestGmailReadonly) {
+    scopes.push(GMAIL_READONLY_SCOPE);
+  }
 
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: "code",
-    scope: "openid email profile https://www.googleapis.com/auth/gmail.readonly",
+    scope: scopes.join(" "),
     access_type: "offline",
     include_granted_scopes: "true",
     prompt: "consent",
