@@ -37,6 +37,8 @@ import {
   listOutlookMessages,
   parseOutlookMessage,
   isOutlookApiError,
+  hasMailReadScope,
+  OutlookApiError,
   type OutlookApiErrorCode,
 } from "@/modules/providers/outlook";
 import { db } from "@/lib/db";
@@ -854,6 +856,23 @@ export async function syncOutlookAction(formData: FormData) {
   }
 
   const startedAt = new Date();
+  const scope = await getMailboxCredential(
+    user.id,
+    mailboxId,
+    "oauth_granted_scope",
+  );
+  if (!hasMailReadScope(scope ?? undefined)) {
+    const outcome = await recordOutlookSyncError(
+      user.id,
+      mailboxId,
+      startedAt,
+      new OutlookApiError("outlook_insufficient_scope"),
+    );
+    if (!outcome.success) {
+      redirect("/mailboxes?error=" + encodeURIComponent(outcome.message));
+    }
+  }
+
   const outcome = await syncOutlookInbox(
     user.id,
     mailboxId,

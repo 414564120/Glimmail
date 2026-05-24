@@ -248,8 +248,9 @@ export function parseOutlookMessage(
   const from = entry.from?.emailAddress;
   const sender = from?.name || from?.address || "unknown";
   const subject = decodeRfc2047(entry.subject ?? "") || "(no subject)";
+  const bodyContentType = entry.body?.contentType?.toLowerCase();
   const bodyText =
-    entry.body?.contentType === "html"
+    bodyContentType === "html"
       ? stripHtml(entry.body.content)
       : (entry.body?.content ?? "");
   const preview = entry.bodyPreview ?? "";
