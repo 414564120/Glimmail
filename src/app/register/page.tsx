@@ -12,9 +12,10 @@ type RegisterPageProps = {
 };
 
 function getErrorMessage(error?: string) {
-  if (!error) return null;
-  if (error === "password_mismatch") return "Passwords do not match.";
-  return error;
+  const code = error?.trim();
+  if (!code) return null;
+  if (code === "password_mismatch") return "Passwords do not match.";
+  return "Registration failed. Please try again.";
 }
 
 export default async function RegisterPage({
