@@ -15,6 +15,7 @@ import {
   deleteMailboxAction,
   syncGmailAction,
   syncMailboxAction,
+  syncOutlookAction,
   testGmailConnectionAction,
   testMailboxConnectionAction,
   testOutlookConnectionAction,
@@ -304,21 +305,35 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                         )}
                         {mailbox.provider === "outlook" && (
                           <>
-                            <div className="w-full">
-                              <button
-                                className="w-full cursor-not-allowed rounded-full border border-slate-300 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-400"
-                                disabled
-                                type="button"
-                              >
-                                Sync Now
-                              </button>
-                              {!outlookSyncAuthorized.get(mailbox.id) && (
+                            {outlookSyncAuthorized.get(mailbox.id) ? (
+                              <form action={syncOutlookAction}>
+                                <input
+                                  name="mailboxId"
+                                  type="hidden"
+                                  value={mailbox.id}
+                                />
+                                <button
+                                  className="vibrant-flux w-full rounded-full px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                                  type="submit"
+                                >
+                                  Sync Now
+                                </button>
+                              </form>
+                            ) : (
+                              <div className="w-full">
+                                <button
+                                  className="w-full cursor-not-allowed rounded-full border border-slate-300 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-400"
+                                  disabled
+                                  type="button"
+                                >
+                                  Sync Now
+                                </button>
                                 <p className="mt-1 text-[11px] leading-relaxed text-amber-600">
                                   Outlook mail access not yet authorized. Click
                                   Authorize Sync below, then try again.
                                 </p>
-                              )}
-                            </div>
+                              </div>
+                            )}
                             <form action={testOutlookConnectionAction}>
                               <input
                                 name="mailboxId"

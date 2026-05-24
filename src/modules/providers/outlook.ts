@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { decodeRfc2047 } from "./rfc2047";
 
 export function generateOAuthState(): string {
   return crypto.randomBytes(32).toString("hex");
@@ -189,4 +190,124 @@ function base64UrlDecode(value: string): string {
   );
   const base64 = padded.replace(/-/g, "+").replace(/_/g, "/");
   return Buffer.from(base64, "base64").toString("utf-8");
+}
+
+// -- Outlook Graph API sync --------------------------------------------------
+
+export interface OutlookMessageEntry {
+  id: string;
+  subject: string;
+  from: { emailAddress: { name?: string; address: string } };
+  receivedDateTime: string;
+  bodyPreview: string;
+  body: { contentType: string; content: string };
+  internetMessageId: string;
+  conversationId: string;
+}
+
+interface OutlookListResponse {
+  value: OutlookMessageEntry[];
+}
+
+export async function listOutlookMessages(
+  accessToken: string,
+  maxResults = 10,
+): Promise<OutlookMessageEntry[]> {
+  const params = new URLSearchParams({
+    $top: String(maxResults),
+    $orderby: "receivedDateTime desc",
+    $select: "id,subject,from,receivedDateTime,bodyPreview,body,internetMessageId,conversationId",
+  });
+
+  const response = await fetch(
+    `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?${params.toString()}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+
+  if (!response.ok) {
+    throw await createOutlookApiError(response, "Outlook list failed");
+  }
+
+  const data = (await response.json()) as OutlookListResponse;
+  return data.value ?? [];
+}
+
+export interface OutlookSyncedMessage {
+  messageId: string;
+  threadId: string;
+  sender: string;
+  subject: string;
+  bodyText: string;
+  preview: string;
+  receivedAt: Date;
+}
+
+export function parseOutlookMessage(
+  entry: OutlookMessageEntry,
+): OutlookSyncedMessage {
+  const from = entry.from?.emailAddress;
+  const sender = from?.name || from?.address || "unknown";
+  const subject = decodeRfc2047(entry.subject ?? "") || "(no subject)";
+  const bodyText =
+    entry.body?.contentType === "html"
+      ? stripHtml(entry.body.content)
+      : (entry.body?.content ?? "");
+  const preview = entry.bodyPreview ?? "";
+
+  return {
+    messageId: entry.id,
+    threadId: entry.conversationId ?? "",
+    sender,
+    subject,
+    bodyText,
+    preview,
+    receivedAt: new Date(entry.receivedDateTime),
+  };
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export type OutlookApiErrorCode =
+  | "outlook_token_expired"
+  | "outlook_insufficient_scope"
+  | "outlook_api_failed";
+
+export class OutlookApiError extends Error {
+  constructor(readonly code: OutlookApiErrorCode) {
+    super(code);
+    this.name = "OutlookApiError";
+  }
+}
+
+export function isOutlookApiError(
+  error: unknown,
+): error is OutlookApiError {
+  return error instanceof OutlookApiError;
+}
+
+async function createOutlookApiError(
+  response: Response,
+  fallback: string,
+): Promise<Error> {
+  if (response.status === 401) {
+    return new OutlookApiError("outlook_token_expired");
+  }
+  if (response.status === 403) {
+    return new OutlookApiError("outlook_insufficient_scope");
+  }
+  return new Error(fallback);
 }

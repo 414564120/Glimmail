@@ -34,6 +34,10 @@ import {
 import {
   testOutlookConnection,
   refreshOutlookToken,
+  listOutlookMessages,
+  parseOutlookMessage,
+  isOutlookApiError,
+  type OutlookApiErrorCode,
 } from "@/modules/providers/outlook";
 import { db } from "@/lib/db";
 
@@ -808,4 +812,204 @@ export async function syncMailboxAction(formData: FormData) {
     }),
   ]);
   redirect("/mailboxes?error=" + encodeURIComponent(errorMessage));
+}
+
+const OUTLOOK_SYNC_ERROR_MESSAGES: Record<OutlookApiErrorCode, string> = {
+  outlook_token_expired:
+    "Microsoft authorization expired. Reconnect Outlook.",
+  outlook_insufficient_scope:
+    "Outlook mail sync not authorized. Re-authorize Sync.",
+  outlook_api_failed:
+    "Outlook sync failed. Please try again later.",
+};
+
+export async function syncOutlookAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/mailboxes");
+
+  const mailboxId = String(formData.get("mailboxId") || "");
+
+  const mailbox = await getUserMailbox(user.id, mailboxId);
+  if (!mailbox) {
+    redirect("/mailboxes?error=" + encodeURIComponent("Mailbox not found."));
+  }
+
+  if (mailbox.provider !== "outlook") {
+    redirect(
+      "/mailboxes?error=" +
+        encodeURIComponent("Sync is only available for Outlook."),
+    );
+  }
+
+  const accessToken = await getMailboxCredential(
+    user.id,
+    mailboxId,
+    "oauth_access_token",
+  );
+  if (!accessToken) {
+    redirect(
+      "/mailboxes?error=" +
+        encodeURIComponent("No access token found. Reconnect Outlook."),
+    );
+  }
+
+  const startedAt = new Date();
+  const outcome = await syncOutlookInbox(
+    user.id,
+    mailboxId,
+    accessToken,
+    startedAt,
+  );
+
+  if (outcome.success) {
+    redirect(
+      "/mailboxes?success=" + encodeURIComponent(outcome.bannerMessage),
+    );
+  }
+  redirect("/mailboxes?error=" + encodeURIComponent(outcome.message));
+}
+
+async function syncOutlookInbox(
+  userId: string,
+  mailboxId: string,
+  accessToken: string,
+  startedAt: Date,
+): Promise<SyncOutcome> {
+  try {
+    return await importOutlookMessages(userId, mailboxId, accessToken, startedAt);
+  } catch (error: unknown) {
+    if (isOutlookApiError(error) && error.code === "outlook_token_expired") {
+      const refreshToken = await getMailboxCredential(
+        userId,
+        mailboxId,
+        "oauth_refresh_token",
+      );
+
+      if (refreshToken) {
+        try {
+          const refreshed = await refreshOutlookToken(refreshToken);
+
+          await saveMailboxCredential(
+            userId,
+            mailboxId,
+            "oauth_access_token",
+            refreshed.access_token,
+          );
+
+          if (refreshed.refresh_token) {
+            await saveMailboxCredential(
+              userId,
+              mailboxId,
+              "oauth_refresh_token",
+              refreshed.refresh_token,
+            );
+          }
+
+          return await importOutlookMessages(
+            userId,
+            mailboxId,
+            refreshed.access_token,
+            startedAt,
+          );
+        } catch (retryError: unknown) {
+          return recordOutlookSyncError(
+            userId,
+            mailboxId,
+            startedAt,
+            retryError,
+          );
+        }
+      }
+    }
+
+    return recordOutlookSyncError(userId, mailboxId, startedAt, error);
+  }
+}
+
+async function importOutlookMessages(
+  userId: string,
+  mailboxId: string,
+  accessToken: string,
+  startedAt: Date,
+): Promise<SyncOutcome> {
+  const entries = await listOutlookMessages(accessToken, 10);
+  const fetchedCount = entries.length;
+  let createdCount = 0;
+
+  if (fetchedCount > 0) {
+    const messages = entries.map((entry) => {
+      const parsed = parseOutlookMessage(entry);
+      return {
+        providerMessageId: parsed.messageId,
+        threadId: parsed.threadId,
+        sender: parsed.sender,
+        subject: parsed.subject,
+        preview: parsed.preview || createPreview(parsed.bodyText, parsed.subject),
+        bodyText: parsed.bodyText,
+        receivedAt: parsed.receivedAt,
+        verificationCode: extractVerificationCode(parsed.bodyText),
+        mailboxId,
+        userId,
+      };
+    });
+
+    const created = await db.message.createMany({
+      data: messages,
+      skipDuplicates: true,
+    });
+    createdCount = created.count;
+  }
+
+  const logMessage =
+    fetchedCount > 0
+      ? `Fetched ${fetchedCount}, imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}.`
+      : "No messages in mailbox.";
+
+  const bannerMessage =
+    createdCount > 0
+      ? `Imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}${createdCount < fetchedCount ? ` (${fetchedCount - createdCount} already synced)` : ""}.`
+      : fetchedCount > 0
+        ? `All ${fetchedCount} messages already synced.`
+        : "No messages found.";
+
+  const finishedAt = new Date();
+  await Promise.all([
+    updateMailboxStatus(userId, mailboxId, "active"),
+    createSyncLog({
+      userId,
+      mailboxId,
+      status: "success",
+      startedAt,
+      finishedAt,
+      message: logMessage,
+    }),
+  ]);
+
+  return { success: true, bannerMessage };
+}
+
+async function recordOutlookSyncError(
+  userId: string,
+  mailboxId: string,
+  startedAt: Date,
+  error: unknown,
+): Promise<SyncOutcome> {
+  const finishedAt = new Date();
+  const message = isOutlookApiError(error)
+    ? OUTLOOK_SYNC_ERROR_MESSAGES[error.code]
+    : "Outlook sync failed. Please try again later.";
+
+  await Promise.all([
+    updateMailboxStatus(userId, mailboxId, "error"),
+    createSyncLog({
+      userId,
+      mailboxId,
+      status: "error",
+      startedAt,
+      finishedAt,
+      message,
+    }),
+  ]);
+
+  return { success: false, message };
 }
