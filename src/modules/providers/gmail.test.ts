@@ -1,6 +1,7 @@
 import {
   buildAuthorizationUrl,
   generateOAuthState,
+  getGmailProfile,
   getGmailMessage,
   hasGmailReadonlyScope,
   isGmailApiError,
@@ -42,6 +43,19 @@ function encodeBase64Url(value: string): string {
     .replace(/\+/g, "-")
     .replace(/\//g, "_")
     .replace(/=+$/g, "");
+}
+
+function makeIdToken(payload: Record<string, unknown>): string {
+  return `header.${Buffer.from(JSON.stringify(payload)).toString("base64url")}.signature`;
+}
+
+function getAuthorizationHeader(headers: HeadersInit | undefined): string {
+  if (!headers) return "";
+  if (headers instanceof Headers) return headers.get("Authorization") ?? "";
+  if (Array.isArray(headers)) {
+    return headers.find(([name]) => name === "Authorization")?.[1] ?? "";
+  }
+  return headers.Authorization ?? "";
 }
 
 function mockGmailMessageResponse(message: unknown) {
@@ -167,6 +181,81 @@ async function main() {
 
   await test("handles missing scope", () => {
     assertEqual(hasGmailReadonlyScope(undefined), false);
+  });
+
+  console.log("\nGmail Profile");
+
+  await test("uses id_token email without calling userinfo", async () => {
+    let fetchCalls = 0;
+    globalThis.fetch = async () => {
+      fetchCalls += 1;
+      throw new Error("fetch should not be called for id_token profile");
+    };
+
+    const profile = await getGmailProfile(
+      "redacted-access-token",
+      makeIdToken({ email: "USER@Example.COM" }),
+    );
+
+    assertEqual(profile.emailAddress, "user@example.com");
+    assertEqual(fetchCalls, 0);
+  });
+
+  await test("falls back to userinfo when id_token is invalid", async () => {
+    let requestedUrl = "";
+    let authorizationHeader = "";
+    globalThis.fetch = async (input, init) => {
+      requestedUrl = String(input);
+      authorizationHeader = getAuthorizationHeader(init?.headers);
+
+      return new Response(JSON.stringify({ email: "USERINFO@Example.COM" }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    };
+
+    const profile = await getGmailProfile(
+      "redacted-access-token",
+      "malformed-token",
+    );
+
+    assertEqual(profile.emailAddress, "userinfo@example.com");
+    assertEqual(
+      requestedUrl,
+      "https://openidconnect.googleapis.com/v1/userinfo",
+    );
+    assertEqual(authorizationHeader, "Bearer redacted-access-token");
+  });
+
+  await test("throws safe error when profile email is missing", async () => {
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify({}), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+
+    try {
+      await getGmailProfile("redacted-access-token", "malformed-token");
+    } catch (error) {
+      assertEqual((error as Error).message, "Google profile email missing");
+      return;
+    }
+
+    throw new Error("expected getGmailProfile to throw");
+  });
+
+  await test("throws safe error when userinfo fails", async () => {
+    globalThis.fetch = async () =>
+      new Response("raw google profile error body", { status: 500 });
+
+    try {
+      await getGmailProfile("redacted-access-token", "malformed-token");
+    } catch (error) {
+      assertEqual((error as Error).message, "Gmail profile fetch failed");
+      return;
+    }
+
+    throw new Error("expected getGmailProfile to throw");
   });
 
   console.log("\nGmail Message Parsing");
