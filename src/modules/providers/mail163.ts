@@ -1,4 +1,5 @@
 import tls from "node:tls";
+import { decodeRfc2047 } from "./rfc2047";
 
 const DEFAULT_HOST = "imap.163.com";
 const DEFAULT_PORT = 993;
@@ -152,43 +153,7 @@ export function parseHeaderValue(headerBlock: string, name: string): string {
 }
 
 export function decodeImapUtf8(raw: string): string {
-  // First pass: remove whitespace between adjacent encoded words (RFC 2047)
-  let result = raw.replace(
-    /(=\?[^?]+\?[BQ]\?[^?]*\?=)\s+(?==\?[^?]+\?[BQ]\?[^?]*\?=)/gi,
-    "$1",
-  );
-
-  // Second pass: decode each encoded word
-  result = result.replace(/=\?[^?]+\?[BQ]\?[^?]*\?=/gi, (match) => {
-    try {
-      const parts = match.slice(2, -2).split("?");
-      const enc = parts[1];
-      const data = parts[2];
-      if (enc?.toUpperCase() === "B") {
-        return Buffer.from(data ?? "", "base64").toString("utf-8");
-      }
-      if (enc?.toUpperCase() === "Q") {
-        const cleaned = (data ?? "").replace(/_/g, " ");
-        const hexBytes: number[] = [];
-        let j = 0;
-        while (j < cleaned.length) {
-          if (cleaned[j] === "=" && j + 2 < cleaned.length) {
-            hexBytes.push(parseInt(cleaned.slice(j + 1, j + 3), 16));
-            j += 3;
-          } else {
-            hexBytes.push(cleaned.charCodeAt(j));
-            j++;
-          }
-        }
-        return Buffer.from(hexBytes).toString("utf-8");
-      }
-    } catch {
-      // fall through
-    }
-    return match;
-  });
-
-  return result.trim();
+  return decodeRfc2047(raw);
 }
 
 export function cleanBodyText(raw: string): string | null {

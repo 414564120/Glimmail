@@ -261,11 +261,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                     </div>
                     <div>
                       <div className="font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-950">
-                        {selectedMessage.sender}{" "}
-                        <span className="font-normal normal-case tracking-normal text-slate-600">
-                          &lt;{selectedMessage.sender.toLowerCase().replace(/\s+/g, "")}
-                          @mail.com&gt;
-                        </span>
+                        {selectedMessage.sender}
                       </div>
                       <div className="text-xs text-slate-600">
                         To: me &bull;{" "}

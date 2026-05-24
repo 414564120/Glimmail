@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { decodeRfc2047 } from "./rfc2047";
 
 export function generateOAuthState(): string {
   return crypto.randomBytes(32).toString("hex");
@@ -247,8 +248,8 @@ export async function getGmailMessage(
   const getHeader = (name: string) =>
     headers.find((h) => h.name.toLowerCase() === name.toLowerCase())?.value ?? "";
 
-  const sender = getHeader("From").replace(/<[^>]*>/g, "").trim() || "unknown";
-  const subject = getHeader("Subject") || "(no subject)";
+  const sender = extractSender(getHeader("From"));
+  const subject = decodeRfc2047(getHeader("Subject")) || "(no subject)";
   const bodyText = extractGmailBody(msg.payload);
   const receivedAt = parseGmailDate(getHeader("Date"), msg.internalDate);
 
@@ -263,8 +264,33 @@ export async function getGmailMessage(
   };
 }
 
+function extractSender(from: string): string {
+  const name = from.replace(/<[^>]*>/g, "").trim();
+  if (name) return name;
+  const emailMatch = from.match(/<([^>]+)>/);
+  if (emailMatch) return emailMatch[1];
+  return from.trim() || "unknown";
+}
+
+function stripHtml(html: string): string {
+  return html
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<head[^>]*>[\s\S]*?<\/head>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#x27;/g, "'")
+    .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function extractGmailBody(payload: GmailMessageResponse["payload"]): string {
   if (payload.parts) {
+    // Prefer text/plain
     for (const part of payload.parts) {
       if (part.mimeType === "text/plain" && part.body.data) {
         return decodeBase64Url(part.body.data);
@@ -277,9 +303,25 @@ function extractGmailBody(payload: GmailMessageResponse["payload"]): string {
         }
       }
     }
-    // Fallback: return first part with data
+    // Fallback to text/html, stripping tags
     for (const part of payload.parts) {
-      if (part.body.data) return decodeBase64Url(part.body.data);
+      if (part.mimeType === "text/html" && part.body.data) {
+        return stripHtml(decodeBase64Url(part.body.data));
+      }
+      if (part.parts) {
+        for (const sub of part.parts) {
+          if (sub.mimeType === "text/html" && sub.body.data) {
+            return stripHtml(decodeBase64Url(sub.body.data));
+          }
+        }
+      }
+    }
+    // Last resort: first part with data
+    for (const part of payload.parts) {
+      if (part.body.data) {
+        const text = decodeBase64Url(part.body.data);
+        return part.mimeType === "text/html" ? stripHtml(text) : text;
+      }
     }
     return "";
   }
