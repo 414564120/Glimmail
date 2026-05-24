@@ -89,9 +89,12 @@ Sources:
 
 ### Authorization request scope parameter
 
+**Phase 2 (basic connect, implemented):**
 ```
-openid profile email offline_access Mail.Read
+openid profile email offline_access User.Read
 ```
+
+**Phase 5 (sync, not yet implemented):** add `Mail.Read` via incremental consent.
 
 Each scope explained:
 
@@ -99,9 +102,10 @@ Each scope explained:
 |---|---|---|---|
 | `openid` | Sign in user (OIDC) | `sub` (unique user ID) | Required for OIDC. Appears as "Sign you in" on consent screen. |
 | `profile` | Basic profile info | `given_name`, `family_name`, `preferred_username` | Enriches ID token; avoids a separate `/me` Graph call for profile. |
-| `email` | Primary email address | `email` | Used to identify which Outlook mailbox to create (`mailbox.address`). Note: `email` claim may be absent for some account types (e.g., Entra External Identities). Always verify via `/me` Graph endpoint as fallback. |
+| `email` | Primary email address | `email` | Used to identify which Outlook mailbox to create (`mailbox.address`). Note: `email` claim may be absent for some account types (e.g., Entra External Identities). Fallback to `preferred_username`, then `upn` from id_token; Graph `/me` as last resort. |
 | `offline_access` | Long-lived refresh token | — | Required on v2 endpoint to receive a `refresh_token`. Without it, the authorization code flow returns only an access token. Appears as "Maintain access to data you have given it access to." |
-| `Mail.Read` | Read user mail | — | Delegated permission to read mail via Microsoft Graph. Appears as "Read your mail." Also requests `User.Read` implicitly (Graph metadata). |
+| `User.Read` | Read user profile via Graph | — | Required for `GET /v1.0/me` fallback when id_token email is unavailable. Delegated permission (no admin consent needed). Appears as "Read your profile." |
+| `Mail.Read` | Read user mail (Phase 5) | — | Delegated permission to read mail via Microsoft Graph. Appears as "Read your mail." |
 
 ### Incremental authorization
 

@@ -11,7 +11,7 @@ export function buildAuthorizationUrl(
   const clientId = process.env.MICROSOFT_CLIENT_ID;
   if (!clientId) throw new Error("MICROSOFT_CLIENT_ID is not set");
 
-  const scopes = ["openid", "profile", "email", "offline_access"];
+  const scopes = ["openid", "profile", "email", "offline_access", "User.Read"];
 
   const params = new URLSearchParams({
     client_id: clientId,

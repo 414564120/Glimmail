@@ -30,7 +30,7 @@ const PROVIDER_CONFIG: Record<
     name: "Outlook",
     iconClass: "outlook-mark",
     description:
-      "Connect a Microsoft account via OAuth. Mail sync will be added in a later step.",
+      "Connect a Microsoft account via OAuth to read basic profile info. Mail sync will be added in a later step.",
   },
   mail163: {
     name: "163 Mail",
@@ -191,8 +191,9 @@ export default async function ConnectPage({ searchParams }: PageProps) {
                 {outlookOAuthConfigured ? (
                   <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
                     You will be redirected to Microsoft to authorize access to
-                    your Microsoft account. Mail sync requires a separate
-                    permission step after connection.
+                    your Microsoft account profile (openid, email, profile,
+                    User.Read). Mail sync requires a separate permission step
+                    after connection.
                   </div>
                 ) : (
                   <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">

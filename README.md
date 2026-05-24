@@ -50,6 +50,26 @@ When testing Gmail OAuth locally:
 - **Sync authorization** requires the `gmail.readonly` scope. Basic Gmail Connect only requests `openid email profile` — open the connected Gmail card and click **Authorize Sync** to request inbox read access in a separate OAuth step.
 - **Google "unverified app" page** (yellow warning screen) is expected in testing mode. If that page hangs or loops, try a different network or VPN exit node — some Google endpoints are region-blocked.
 
+## Outlook OAuth testing
+
+When testing Outlook OAuth locally:
+
+1. **Azure App Registration**: Create an app in the Azure portal with:
+   - Supported account types: "Accounts in any organizational directory and personal Microsoft accounts"
+   - Redirect URI: `http://localhost:3000/api/auth/outlook/callback` (Web platform)
+   - API permissions (delegated): `openid`, `profile`, `email`, `offline_access`, `User.Read` (no admin consent required)
+2. **Client secret**: Create one under Certificates & secrets. Copy the value into `.env.local` as `MICROSOFT_CLIENT_SECRET`.
+3. **Environment variables** in `.env.local`:
+   ```
+   MICROSOFT_CLIENT_ID="<Application (client) ID from Overview>"
+   MICROSOFT_CLIENT_SECRET="<secret value from Certificates & secrets>"
+   ```
+   `MICROSOFT_REDIRECT_URI` is optional — defaults to `http://localhost:3000/api/auth/outlook/callback`.
+4. **Visit** `/mailboxes/connect?provider=outlook` and click **Connect with Microsoft**.
+5. After signing in, you should return to `/mailboxes` with "connected successfully" and see your email address on the Outlook card.
+6. **Email extraction**: The callback tries `email` → `preferred_username` → `upn` from the id_token, then falls back to `GET /v1.0/me` (requires `User.Read`). If the id_token contains the email claim, `/me` is never called.
+7. **Token storage**: `oauth_access_token`, `oauth_refresh_token`, and `oauth_granted_scope` are stored encrypted in `MailboxCredential`. No tokens appear in URLs, logs, or rendered pages.
+
 
 
 ## Database setup
