@@ -43,6 +43,16 @@ function getInitials(name: string): string {
     .join("");
 }
 
+const PROVIDER_LABELS: Record<string, string> = {
+  gmail: "Gmail",
+  outlook: "Outlook",
+  mail163: "163 Mail",
+};
+
+function getProviderLabel(provider: string): string {
+  return PROVIDER_LABELS[provider] ?? provider;
+}
+
 const viewLabels = {
   archive: "Archive",
   drafts: "Drafts",
@@ -215,13 +225,22 @@ export default async function InboxPage({ searchParams }: PageProps) {
                         >
                           {msg.sender}
                         </span>
-                        <span
-                          className={`shrink-0 text-[10px] ${
-                            isActive ? "text-primary" : "text-slate-500"
-                          }`}
-                        >
-                          {formatMessageTime(msg.receivedAt)}
-                        </span>
+                        <div className="flex shrink-0 items-center gap-2">
+                          <span
+                            className={`rounded-full border border-white/50 px-2 py-0.5 font-label text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500 ${
+                              isActive ? "bg-white/70" : ""
+                            }`}
+                          >
+                            {getProviderLabel(msg.mailbox.provider)}
+                          </span>
+                          <span
+                            className={`text-[10px] ${
+                              isActive ? "text-primary" : "text-slate-500"
+                            }`}
+                          >
+                            {formatMessageTime(msg.receivedAt)}
+                          </span>
+                        </div>
                       </div>
                       <h3
                         className={`mb-1 text-base leading-relaxed ${
@@ -264,7 +283,10 @@ export default async function InboxPage({ searchParams }: PageProps) {
                         {selectedMessage.sender}
                       </div>
                       <div className="text-xs text-slate-600">
-                        To: me &bull;{" "}
+                        <span className="inline-flex items-center rounded-full border border-white/50 bg-white/40 px-2 py-0.5 font-label text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-500">
+                          {getProviderLabel(selectedMessage.mailbox.provider)}
+                        </span>{" "}
+                        {selectedMessage.mailbox.address} &bull;{" "}
                         {selectedMessage.receivedAt.toLocaleDateString("en-US", {
                           weekday: "long",
                           month: "long",

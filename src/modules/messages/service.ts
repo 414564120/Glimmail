@@ -4,6 +4,9 @@ export function getUserMessages(userId: string) {
   return db.message.findMany({
     where: { userId },
     orderBy: { receivedAt: "desc" },
+    include: {
+      mailbox: { select: { provider: true, address: true } },
+    },
   });
 }
 
