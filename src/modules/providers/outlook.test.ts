@@ -5,11 +5,13 @@
 
 import {
   buildAuthorizationUrl,
+  exchangeCodeForTokens,
   getOutlookProfile,
   parseOutlookMessage,
   hasMailReadScope,
   isOutlookApiError,
   listOutlookMessages,
+  refreshOutlookToken,
   type OutlookMessageEntry,
 } from "./outlook";
 
@@ -17,6 +19,9 @@ let passed = 0;
 let failed = 0;
 const originalFetch = globalThis.fetch;
 const originalMicrosoftClientId = process.env.MICROSOFT_CLIENT_ID;
+const originalMicrosoftClientSecret = process.env.MICROSOFT_CLIENT_SECRET;
+const microsoftTokenEndpoint = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
+const testRedirectUri = "https://app.example.test/api/auth/outlook/callback";
 
 function assert(condition: boolean, label: string) {
   if (condition) {
@@ -55,12 +60,114 @@ function makeEntry(overrides: Partial<OutlookMessageEntry> = {}): OutlookMessage
 }
 
 function getAuthorizationHeader(headers: HeadersInit | undefined): string {
+  return getHeader(headers, "Authorization");
+}
+
+function getHeader(headers: HeadersInit | undefined, expectedName: string): string {
   if (!headers) return "";
-  if (headers instanceof Headers) return headers.get("Authorization") ?? "";
+  if (headers instanceof Headers) return headers.get(expectedName) ?? "";
+  const lowerExpectedName = expectedName.toLowerCase();
   if (Array.isArray(headers)) {
-    return headers.find(([name]) => name === "Authorization")?.[1] ?? "";
+    return headers.find(([name]) => name.toLowerCase() === lowerExpectedName)?.[1] ?? "";
   }
-  return headers.Authorization ?? "";
+  for (const [name, value] of Object.entries(headers)) {
+    if (name.toLowerCase() === lowerExpectedName) return value;
+  }
+  return "";
+}
+
+function getFormBody(body: BodyInit | null | undefined): URLSearchParams {
+  if (body instanceof URLSearchParams) return body;
+  return new URLSearchParams(String(body ?? ""));
+}
+
+function setMicrosoftCredentials() {
+  process.env.MICROSOFT_CLIENT_ID = "test-client-id";
+  process.env.MICROSOFT_CLIENT_SECRET = "test-client-secret";
+}
+
+function clearMicrosoftCredentials() {
+  delete process.env.MICROSOFT_CLIENT_ID;
+  delete process.env.MICROSOFT_CLIENT_SECRET;
+}
+
+interface CapturedFormRequest {
+  url: string;
+  method: string;
+  contentType: string;
+  body: URLSearchParams;
+}
+
+function mockTokenEndpoint(
+  responseBody: Record<string, unknown>,
+  options: { status?: number; body?: string } = {},
+): CapturedFormRequest {
+  const request: CapturedFormRequest = {
+    url: "",
+    method: "",
+    contentType: "",
+    body: new URLSearchParams(),
+  };
+
+  globalThis.fetch = async (input, init) => {
+    request.url = String(input);
+    request.method = init?.method ?? "";
+    request.contentType = getHeader(init?.headers, "Content-Type");
+    request.body = getFormBody(init?.body);
+
+    return new Response(
+      options.body ?? JSON.stringify(responseBody),
+      {
+        status: options.status ?? 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  };
+
+  return request;
+}
+
+function assertTokenEndpointRequest(
+  request: CapturedFormRequest,
+  labelPrefix: string,
+) {
+  assertEq(
+    request.url,
+    microsoftTokenEndpoint,
+    `${labelPrefix} targets Microsoft v2 token endpoint`,
+  );
+  assertEq(request.method, "POST", `${labelPrefix} uses POST`);
+  assertEq(
+    request.contentType,
+    "application/x-www-form-urlencoded",
+    `${labelPrefix} sends form content type`,
+  );
+}
+
+function assertFormFields(
+  body: URLSearchParams,
+  expected: Record<string, string>,
+  labelPrefix: string,
+) {
+  for (const [name, value] of Object.entries(expected)) {
+    assertEq(body.get(name), value, `${labelPrefix} sends ${name}`);
+  }
+}
+
+async function assertRejectsWithMessage(
+  action: () => Promise<unknown>,
+  expectedMessage: string,
+  label: string,
+): Promise<string> {
+  try {
+    await action();
+    assert(false, `${label}: expected rejection`);
+    return "";
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    assertEq(message, expectedMessage, label);
+    return message;
+  }
 }
 
 function makeIdToken(payload: Record<string, unknown>): string {
@@ -350,6 +457,133 @@ async function assertRejectsOutlookApiError(
 }
 
 async function runAsyncTests() {
+  console.log("\nexchangeCodeForTokens");
+
+  clearMicrosoftCredentials();
+  globalThis.fetch = async () => {
+    throw new Error("fetch should not be called without Microsoft credentials");
+  };
+  await assertRejectsWithMessage(
+    () => exchangeCodeForTokens("redacted-authorization-code", testRedirectUri),
+    "Microsoft OAuth credentials not configured",
+    "Token exchange without credentials throws safe configuration error",
+  );
+
+  process.env.MICROSOFT_CLIENT_ID = "test-client-id";
+  delete process.env.MICROSOFT_CLIENT_SECRET;
+  await assertRejectsWithMessage(
+    () => exchangeCodeForTokens("redacted-authorization-code", testRedirectUri),
+    "Microsoft OAuth credentials not configured",
+    "Token exchange without client secret throws safe configuration error",
+  );
+
+  setMicrosoftCredentials();
+
+  {
+    const request = mockTokenEndpoint({
+      access_token: "redacted-access-token",
+      refresh_token: "redacted-refresh-token",
+      expires_in: 3600,
+      token_type: "Bearer",
+      scope: "openid profile email",
+    });
+    const tokens = await exchangeCodeForTokens(
+      "redacted-authorization-code",
+      testRedirectUri,
+    );
+
+    assertTokenEndpointRequest(request, "Token exchange");
+    assertFormFields(
+      request.body,
+      {
+        code: "redacted-authorization-code",
+        client_id: "test-client-id",
+        client_secret: "test-client-secret",
+        redirect_uri: testRedirectUri,
+        grant_type: "authorization_code",
+      },
+      "Token exchange",
+    );
+    assertEq(
+      tokens.access_token,
+      "redacted-access-token",
+      "Token exchange returns parsed token response",
+    );
+  }
+
+  mockTokenEndpoint({}, { status: 400, body: "raw upstream token exchange body" });
+  const exchangeFailureMessage = await assertRejectsWithMessage(
+    () => exchangeCodeForTokens("redacted-authorization-code", testRedirectUri),
+    "Microsoft token exchange failed",
+    "Token exchange failure throws fixed safe message",
+  );
+  assert(
+    !exchangeFailureMessage.includes("raw upstream token exchange body"),
+    "Token exchange failure does not leak upstream body",
+  );
+
+  console.log("\nrefreshOutlookToken");
+
+  process.env.MICROSOFT_CLIENT_ID = "test-client-id";
+  delete process.env.MICROSOFT_CLIENT_SECRET;
+  globalThis.fetch = async () => {
+    throw new Error("fetch should not be called without Microsoft credentials");
+  };
+  await assertRejectsWithMessage(
+    () => refreshOutlookToken("redacted-refresh-token"),
+    "Microsoft OAuth credentials not configured",
+    "Token refresh without credentials throws safe configuration error",
+  );
+
+  delete process.env.MICROSOFT_CLIENT_ID;
+  process.env.MICROSOFT_CLIENT_SECRET = "test-client-secret";
+  await assertRejectsWithMessage(
+    () => refreshOutlookToken("redacted-refresh-token"),
+    "Microsoft OAuth credentials not configured",
+    "Token refresh without client id throws safe configuration error",
+  );
+
+  setMicrosoftCredentials();
+
+  {
+    const request = mockTokenEndpoint({
+      access_token: "redacted-access-token",
+      refresh_token: "redacted-new-refresh-token",
+      expires_in: 3600,
+      token_type: "Bearer",
+      scope: "openid profile email",
+    });
+    const tokens = await refreshOutlookToken("redacted-refresh-token");
+
+    assertTokenEndpointRequest(request, "Token refresh");
+    assertFormFields(
+      request.body,
+      {
+        client_id: "test-client-id",
+        client_secret: "test-client-secret",
+        refresh_token: "redacted-refresh-token",
+        grant_type: "refresh_token",
+      },
+      "Token refresh",
+    );
+    assertEq(
+      tokens.access_token,
+      "redacted-access-token",
+      "Token refresh returns parsed token response",
+    );
+  }
+
+  mockTokenEndpoint({}, { status: 400, body: "raw upstream token refresh body" });
+  const refreshFailureMessage = await assertRejectsWithMessage(
+    () => refreshOutlookToken("redacted-refresh-token"),
+    "Microsoft token refresh failed",
+    "Token refresh failure throws fixed safe message",
+  );
+  assert(
+    !refreshFailureMessage.includes("raw upstream token refresh body"),
+    "Token refresh failure does not leak upstream body",
+  );
+
   let fetchCalls = 0;
 
   globalThis.fetch = async () => {
@@ -525,7 +759,16 @@ runAsyncTests()
   })
   .finally(() => {
     globalThis.fetch = originalFetch;
-    process.env.MICROSOFT_CLIENT_ID = originalMicrosoftClientId;
+    if (originalMicrosoftClientId === undefined) {
+      delete process.env.MICROSOFT_CLIENT_ID;
+    } else {
+      process.env.MICROSOFT_CLIENT_ID = originalMicrosoftClientId;
+    }
+    if (originalMicrosoftClientSecret === undefined) {
+      delete process.env.MICROSOFT_CLIENT_SECRET;
+    } else {
+      process.env.MICROSOFT_CLIENT_SECRET = originalMicrosoftClientSecret;
+    }
 
     console.log(`\n${passed} passed, ${failed} failed`);
     if (failed > 0) {
