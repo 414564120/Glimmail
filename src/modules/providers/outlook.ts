@@ -114,6 +114,62 @@ function getEmailFromIdToken(idToken: string): string | null {
   }
 }
 
+export async function testOutlookConnection(
+  accessToken: string,
+): Promise<{ success: true } | { error: "token_expired" | "connection_failed" }> {
+  const response = await fetch("https://graph.microsoft.com/v1.0/me", {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      return { error: "token_expired" };
+    }
+    return { error: "connection_failed" };
+  }
+
+  return { success: true };
+}
+
+interface RefreshTokenResponse {
+  access_token: string;
+  expires_in: number;
+  token_type: string;
+  scope: string;
+  refresh_token?: string;
+}
+
+export async function refreshOutlookToken(
+  refreshToken: string,
+): Promise<RefreshTokenResponse> {
+  const clientId = process.env.MICROSOFT_CLIENT_ID;
+  const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    throw new Error("Microsoft OAuth credentials not configured");
+  }
+
+  const response = await fetch(
+    "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Microsoft token refresh failed");
+  }
+
+  return response.json() as Promise<RefreshTokenResponse>;
+}
+
 function base64UrlDecode(value: string): string {
   const padded = value.padEnd(
     value.length + ((4 - (value.length % 4)) % 4),

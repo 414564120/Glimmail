@@ -69,6 +69,7 @@ When testing Outlook OAuth locally:
 5. After signing in, you should return to `/mailboxes` with "connected successfully" and see your email address on the Outlook card.
 6. **Email extraction**: The callback tries `email` → `preferred_username` → `upn` from the id_token, then falls back to `GET /v1.0/me` (requires `User.Read`). If the id_token contains the email claim, `/me` is never called.
 7. **Token storage**: `oauth_access_token`, `oauth_refresh_token`, and `oauth_granted_scope` are stored encrypted in `MailboxCredential`. No tokens appear in URLs, logs, or rendered pages.
+8. **Test Connection**: When connected, the Outlook card shows a **Test Connection** button. It calls `GET /v1.0/me` via Microsoft Graph. On 401, it automatically refreshes the access token and retries. Success records a SyncLog entry ("Microsoft account verified.") and sets the mailbox to active. Refresh failure prompts "Reconnect Outlook."
 
 
 

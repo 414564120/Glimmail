@@ -31,6 +31,10 @@ import {
   refreshAccessToken,
   testGmailConnection,
 } from "@/modules/providers/gmail";
+import {
+  testOutlookConnection,
+  refreshOutlookToken,
+} from "@/modules/providers/outlook";
 import { db } from "@/lib/db";
 
 const MAIL163_CONNECTION_ERROR_MESSAGES: Record<
@@ -335,6 +339,175 @@ async function testGmailConnectionWithRefresh(
 
   const finishedAt = new Date();
   const message = "Gmail connection test failed. Please try again later.";
+  await Promise.all([
+    updateMailboxStatus(userId, mailboxId, "error"),
+    createSyncLog({
+      userId,
+      mailboxId,
+      status: "error",
+      startedAt,
+      finishedAt,
+      message,
+    }),
+  ]);
+  return { success: false, message };
+}
+
+export async function testOutlookConnectionAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/mailboxes");
+
+  const mailboxId = String(formData.get("mailboxId") || "");
+
+  const mailbox = await getUserMailbox(user.id, mailboxId);
+  if (!mailbox) {
+    redirect("/mailboxes?error=" + encodeURIComponent("Mailbox not found."));
+  }
+
+  if (mailbox.provider !== "outlook") {
+    redirect(
+      "/mailboxes?error=" +
+        encodeURIComponent("Connection test is only available for Outlook."),
+    );
+  }
+
+  const accessToken = await getMailboxCredential(
+    user.id,
+    mailboxId,
+    "oauth_access_token",
+  );
+  if (!accessToken) {
+    redirect(
+      "/mailboxes?error=" +
+        encodeURIComponent("No access token found. Reconnect Outlook."),
+    );
+  }
+
+  const startedAt = new Date();
+  const outcome = await testOutlookConnectionWithRefresh(
+    user.id,
+    mailboxId,
+    accessToken,
+    startedAt,
+  );
+
+  if (outcome.success) {
+    redirect(
+      "/mailboxes?success=" + encodeURIComponent(outcome.message),
+    );
+  }
+  redirect("/mailboxes?error=" + encodeURIComponent(outcome.message));
+}
+
+async function testOutlookConnectionWithRefresh(
+  userId: string,
+  mailboxId: string,
+  accessToken: string,
+  startedAt: Date,
+): Promise<ConnectionOutcome> {
+  const result = await testOutlookConnection(accessToken);
+
+  if ("success" in result) {
+    const finishedAt = new Date();
+    await Promise.all([
+      updateMailboxStatus(userId, mailboxId, "active"),
+      createSyncLog({
+        userId,
+        mailboxId,
+        status: "success",
+        startedAt,
+        finishedAt,
+        message: "Microsoft account verified.",
+      }),
+    ]);
+    return { success: true, message: "Outlook connection test passed." };
+  }
+
+  if (result.error === "token_expired") {
+    const refreshToken = await getMailboxCredential(
+      userId,
+      mailboxId,
+      "oauth_refresh_token",
+    );
+
+    if (refreshToken) {
+      try {
+        const refreshed = await refreshOutlookToken(refreshToken);
+
+        await saveMailboxCredential(
+          userId,
+          mailboxId,
+          "oauth_access_token",
+          refreshed.access_token,
+        );
+
+        if (refreshed.refresh_token) {
+          await saveMailboxCredential(
+            userId,
+            mailboxId,
+            "oauth_refresh_token",
+            refreshed.refresh_token,
+          );
+        }
+
+        const retryResult = await testOutlookConnection(refreshed.access_token);
+        const finishedAt = new Date();
+
+        if ("success" in retryResult) {
+          await Promise.all([
+            updateMailboxStatus(userId, mailboxId, "active"),
+            createSyncLog({
+              userId,
+              mailboxId,
+              status: "success",
+              startedAt,
+              finishedAt,
+              message: "Microsoft account verified.",
+            }),
+          ]);
+          return { success: true, message: "Outlook connection test passed." };
+        }
+
+        const retryMessage =
+          retryResult.error === "token_expired"
+            ? "Microsoft authorization expired. Reconnect Outlook."
+            : "Outlook connection test failed. Please try again later.";
+
+        await Promise.all([
+          updateMailboxStatus(userId, mailboxId, "error"),
+          createSyncLog({
+            userId,
+            mailboxId,
+            status: "error",
+            startedAt,
+            finishedAt,
+            message: retryMessage,
+          }),
+        ]);
+        return { success: false, message: retryMessage };
+      } catch {
+        // Fall through to error "expired"
+      }
+    }
+
+    const finishedAt = new Date();
+    const message = "Microsoft authorization expired. Reconnect Outlook.";
+    await Promise.all([
+      updateMailboxStatus(userId, mailboxId, "error"),
+      createSyncLog({
+        userId,
+        mailboxId,
+        status: "error",
+        startedAt,
+        finishedAt,
+        message,
+      }),
+    ]);
+    return { success: false, message };
+  }
+
+  const finishedAt = new Date();
+  const message = "Outlook connection test failed. Please try again later.";
   await Promise.all([
     updateMailboxStatus(userId, mailboxId, "error"),
     createSyncLog({

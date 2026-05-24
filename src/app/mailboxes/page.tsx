@@ -16,6 +16,7 @@ import {
   syncMailboxAction,
   testGmailConnectionAction,
   testMailboxConnectionAction,
+  testOutlookConnectionAction,
 } from "./actions";
 
 const PROVIDER_CARDS: Array<{
@@ -63,7 +64,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
 
   const recentSyncLogs = new Map<string, Awaited<ReturnType<typeof getRecentSyncLogs>>>();
   for (const mb of mailboxes) {
-    if (mb.provider === "mail163" || mb.provider === "gmail") {
+    if (mb.provider === "mail163" || mb.provider === "gmail" || mb.provider === "outlook") {
       const logs = await getRecentSyncLogs(user.id, mb.id, 3);
       if (logs.length > 0) recentSyncLogs.set(mb.id, logs);
     }
@@ -291,6 +292,21 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                                 : "Authorize Sync"}
                             </Link>
                           </>
+                        )}
+                        {mailbox.provider === "outlook" && (
+                          <form action={testOutlookConnectionAction}>
+                            <input
+                              name="mailboxId"
+                              type="hidden"
+                              value={mailbox.id}
+                            />
+                            <button
+                              className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
+                              type="submit"
+                            >
+                              Test Connection
+                            </button>
+                          </form>
                         )}
                         <form action={deleteMailboxAction}>
                           <input
