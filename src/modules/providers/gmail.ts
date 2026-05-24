@@ -327,7 +327,8 @@ function extractGmailBody(payload: GmailMessageResponse["payload"]): string {
   }
 
   if (payload.body.data) {
-    return decodeBase64Url(payload.body.data);
+    const text = decodeBase64Url(payload.body.data);
+    return payload.mimeType === "text/html" ? stripHtml(text) : text;
   }
 
   return "";
