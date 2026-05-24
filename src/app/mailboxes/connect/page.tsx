@@ -30,7 +30,7 @@ const PROVIDER_CONFIG: Record<
     name: "Outlook",
     iconClass: "outlook-mark",
     description:
-      "Connect a Microsoft account via OAuth to read basic profile info. Mail sync will be added in a later step.",
+      "Connect a Microsoft account via OAuth. Mail sync authorization is added after connection.",
   },
   mail163: {
     name: "163 Mail",
@@ -42,6 +42,11 @@ const PROVIDER_CONFIG: Record<
 
 interface PageProps {
   searchParams: Promise<{ provider?: string; error?: string }>;
+}
+
+function normalizeErrorMessage(error: string | undefined): string | null {
+  const normalized = error?.trim();
+  return normalized || null;
 }
 
 export default async function ConnectPage({ searchParams }: PageProps) {
@@ -58,6 +63,7 @@ export default async function ConnectPage({ searchParams }: PageProps) {
   }
 
   const provider = providerParam as MailboxProvider;
+  const errorMessage = normalizeErrorMessage(error);
   const config = PROVIDER_CONFIG[provider];
   const domainHint = PROVIDER_DOMAIN_LABELS[provider];
   const is163 = provider === "mail163";
@@ -112,9 +118,9 @@ export default async function ConnectPage({ searchParams }: PageProps) {
             Back to Accounts
           </Link>
 
-          {error ? (
+          {errorMessage ? (
             <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
-              {error}
+              {errorMessage}
             </div>
           ) : null}
 
