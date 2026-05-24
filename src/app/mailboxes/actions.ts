@@ -42,6 +42,7 @@ import {
   type OutlookApiErrorCode,
 } from "@/modules/providers/outlook";
 import { db } from "@/lib/db";
+import { createSyncSummary } from "@/modules/messages/sync-summary";
 
 const MAIL163_CONNECTION_ERROR_MESSAGES: Record<
   Mail163ConnectionErrorCode,
@@ -663,17 +664,10 @@ async function importGmailMessages(
     createdCount = created.count;
   }
 
-  const logMessage =
-    fetchedCount > 0
-      ? `Fetched ${fetchedCount}, imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}.`
-      : "No messages in mailbox.";
-
-  const bannerMessage =
-    createdCount > 0
-      ? `Imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}${createdCount < fetchedCount ? ` (${fetchedCount - createdCount} already synced)` : ""}.`
-      : fetchedCount > 0
-        ? `All ${fetchedCount} messages already synced.`
-        : "No messages found.";
+  const { logMessage, bannerMessage } = createSyncSummary({
+    fetchedCount,
+    createdCount,
+  });
 
   const finishedAt = new Date();
   await Promise.all([
@@ -774,17 +768,10 @@ export async function syncMailboxAction(formData: FormData) {
       createdCount = created.count;
     }
 
-    const logMessage =
-      fetchedCount > 0
-        ? `Fetched ${fetchedCount}, imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}.`
-        : "No messages in mailbox.";
-
-    const bannerMessage =
-      createdCount > 0
-        ? `Imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}${createdCount < fetchedCount ? ` (${fetchedCount - createdCount} already synced)` : ""}.`
-        : fetchedCount > 0
-          ? `All ${fetchedCount} messages already synced.`
-          : "No messages found.";
+    const { logMessage, bannerMessage } = createSyncSummary({
+      fetchedCount,
+      createdCount,
+    });
 
     await Promise.all([
       updateMailboxStatus(user.id, mailboxId, "active"),
@@ -979,17 +966,10 @@ async function importOutlookMessages(
     createdCount = created.count;
   }
 
-  const logMessage =
-    fetchedCount > 0
-      ? `Fetched ${fetchedCount}, imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}.`
-      : "No messages in mailbox.";
-
-  const bannerMessage =
-    createdCount > 0
-      ? `Imported ${createdCount} new message${createdCount !== 1 ? "s" : ""}${createdCount < fetchedCount ? ` (${fetchedCount - createdCount} already synced)` : ""}.`
-      : fetchedCount > 0
-        ? `All ${fetchedCount} messages already synced.`
-        : "No messages found.";
+  const { logMessage, bannerMessage } = createSyncSummary({
+    fetchedCount,
+    createdCount,
+  });
 
   const finishedAt = new Date();
   await Promise.all([
