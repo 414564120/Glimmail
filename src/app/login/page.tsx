@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { SymbolIcon } from "@/components/shell/aether-icons";
 import { PasswordInput } from "@/components/ui/password-input";
-import { getCurrentUser } from "@/modules/auth";
+import { getCurrentUser, getSafeNextPath } from "@/modules/auth";
 import { signIn } from "./actions";
 
 type LoginPageProps = {
@@ -11,29 +11,6 @@ type LoginPageProps = {
     next?: string;
   }>;
 };
-
-const ALLOWED_NEXT_PATHS = ["/inbox", "/mailboxes", "/settings"];
-
-function getSafeNextPath(value: string | undefined): string {
-  const nextPath = value?.trim() ?? "";
-
-  if (!nextPath.startsWith("/") || nextPath.startsWith("//")) {
-    return "/inbox";
-  }
-
-  if (
-    !ALLOWED_NEXT_PATHS.some(
-      (route) =>
-        nextPath === route ||
-        nextPath.startsWith(`${route}/`) ||
-        nextPath.startsWith(`${route}?`),
-    )
-  ) {
-    return "/inbox";
-  }
-
-  return nextPath;
-}
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const user = await getCurrentUser();
