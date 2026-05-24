@@ -4,6 +4,7 @@
  */
 
 import {
+  buildAuthorizationUrl,
   parseOutlookMessage,
   hasMailReadScope,
   isOutlookApiError,
@@ -14,6 +15,7 @@ import {
 let passed = 0;
 let failed = 0;
 const originalFetch = globalThis.fetch;
+const originalMicrosoftClientId = process.env.MICROSOFT_CLIENT_ID;
 
 function assert(condition: boolean, label: string) {
   if (condition) {
@@ -201,6 +203,92 @@ assertEq(
   "Scope without Mail.Read returns false",
 );
 
+// -- buildAuthorizationUrl --------------------------------------------------
+
+console.log("\nbuildAuthorizationUrl");
+
+{
+  process.env.MICROSOFT_CLIENT_ID = "outlook-client-id";
+  const url = new URL(
+    buildAuthorizationUrl(
+      "state-123",
+      "http://localhost:3000/api/auth/outlook/callback",
+    ),
+  );
+  const scopes = url.searchParams.get("scope")?.split(" ") ?? [];
+
+  assertEq(
+    `${url.origin}${url.pathname}`,
+    "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+    "Authorization URL targets Microsoft v2 authorize endpoint",
+  );
+  assertEq(
+    url.searchParams.get("client_id"),
+    "outlook-client-id",
+    "Authorization URL includes client id",
+  );
+  assertEq(
+    url.searchParams.get("redirect_uri"),
+    "http://localhost:3000/api/auth/outlook/callback",
+    "Authorization URL includes redirect URI",
+  );
+  assertEq(
+    url.searchParams.get("response_type"),
+    "code",
+    "Authorization URL requests authorization code",
+  );
+  assertEq(
+    url.searchParams.get("response_mode"),
+    "query",
+    "Authorization URL uses query response mode",
+  );
+  assertEq(url.searchParams.get("state"), "state-123", "Authorization URL includes state");
+
+  for (const scope of ["openid", "profile", "email", "offline_access", "User.Read"]) {
+    assert(scopes.includes(scope), `Default authorization includes ${scope}`);
+  }
+  assertEq(
+    scopes.includes("https://graph.microsoft.com/Mail.Read"),
+    false,
+    "Default authorization does not request Mail.Read",
+  );
+}
+
+{
+  process.env.MICROSOFT_CLIENT_ID = "outlook-client-id";
+  const url = new URL(
+    buildAuthorizationUrl(
+      "state-456",
+      "http://localhost:3000/api/auth/outlook/callback",
+      { requestMailRead: true },
+    ),
+  );
+  const scopes = url.searchParams.get("scope")?.split(" ") ?? [];
+
+  assert(
+    scopes.includes("https://graph.microsoft.com/Mail.Read"),
+    "Mail sync authorization requests Mail.Read",
+  );
+}
+
+{
+  delete process.env.MICROSOFT_CLIENT_ID;
+
+  try {
+    buildAuthorizationUrl(
+      "state-789",
+      "http://localhost:3000/api/auth/outlook/callback",
+    );
+    assert(false, "Missing client id should throw");
+  } catch (error) {
+    assertEq(
+      error instanceof Error ? error.message : "",
+      "MICROSOFT_CLIENT_ID is not set",
+      "Missing client id throws safe configuration error",
+    );
+  }
+}
+
 // -- listOutlookMessages ----------------------------------------------------
 
 console.log("\nlistOutlookMessages");
@@ -313,6 +401,7 @@ runAsyncTests()
   })
   .finally(() => {
     globalThis.fetch = originalFetch;
+    process.env.MICROSOFT_CLIENT_ID = originalMicrosoftClientId;
 
     console.log(`\n${passed} passed, ${failed} failed`);
     if (failed > 0) {
