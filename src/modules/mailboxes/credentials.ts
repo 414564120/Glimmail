@@ -9,6 +9,13 @@ export async function saveMailboxCredential(
   kind: CredentialKind,
   plaintext: string,
 ) {
+  const mailbox = await db.mailbox.findUnique({
+    where: { id: mailboxId, userId },
+    select: { id: true },
+  });
+
+  if (!mailbox) return null;
+
   const encryptedSecret = encrypt(plaintext);
 
   return db.mailboxCredential.upsert({
