@@ -32,7 +32,9 @@ export function buildAuthorizationUrl(
 const MAIL_READ_SCOPE = "https://graph.microsoft.com/Mail.Read";
 
 export function hasMailReadScope(scope: string | undefined): boolean {
-  return scope?.split(/\s+/).includes(MAIL_READ_SCOPE) ?? false;
+  if (!scope) return false;
+  const scopes = scope.split(/\s+/);
+  return scopes.includes(MAIL_READ_SCOPE) || scopes.includes("Mail.Read");
 }
 
 interface TokenResponse {
