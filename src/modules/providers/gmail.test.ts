@@ -1,11 +1,13 @@
 import {
   buildAuthorizationUrl,
+  exchangeCodeForTokens,
   generateOAuthState,
   getGmailProfile,
   getGmailMessage,
   hasGmailReadonlyScope,
   isGmailApiError,
   listGmailMessages,
+  refreshAccessToken,
 } from "./gmail";
 
 type TestFn = () => void | Promise<void>;
@@ -35,6 +37,7 @@ function assert(condition: boolean, message: string): asserts condition {
 }
 
 const originalClientId = process.env.GOOGLE_CLIENT_ID;
+const originalClientSecret = process.env.GOOGLE_CLIENT_SECRET;
 const originalFetch = globalThis.fetch;
 
 function encodeBase64Url(value: string): string {
@@ -50,12 +53,21 @@ function makeIdToken(payload: Record<string, unknown>): string {
 }
 
 function getAuthorizationHeader(headers: HeadersInit | undefined): string {
+  return getHeaderValue(headers, "Authorization");
+}
+
+function getHeaderValue(headers: HeadersInit | undefined, headerName: string): string {
   if (!headers) return "";
-  if (headers instanceof Headers) return headers.get("Authorization") ?? "";
+  if (headers instanceof Headers) return headers.get(headerName) ?? "";
   if (Array.isArray(headers)) {
-    return headers.find(([name]) => name === "Authorization")?.[1] ?? "";
+    return headers.find(([name]) => name === headerName)?.[1] ?? "";
   }
-  return headers.Authorization ?? "";
+  return headers[headerName] ?? "";
+}
+
+function parseFormBody(body: BodyInit | null | undefined): URLSearchParams {
+  assert(body instanceof URLSearchParams, "body should be URLSearchParams");
+  return body;
 }
 
 function mockGmailMessageResponse(message: unknown) {
@@ -157,6 +169,165 @@ async function main() {
     }
 
     throw new Error("expected buildAuthorizationUrl to throw");
+  });
+
+  console.log("\nGmail Token Exchange");
+
+  await test("exchanges authorization code with safe form fields", async () => {
+    process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
+    process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
+    let requestedUrl = "";
+    let method = "";
+    let contentType = "";
+    let body = new URLSearchParams();
+
+    globalThis.fetch = async (input, init) => {
+      requestedUrl = String(input);
+      method = init?.method ?? "";
+      contentType = getHeaderValue(init?.headers, "Content-Type");
+      body = parseFormBody(init?.body);
+
+      return new Response(
+        JSON.stringify({
+          access_token: "redacted-access-token",
+          refresh_token: "redacted-refresh-token",
+          id_token: "redacted-id-token",
+          expires_in: 3600,
+          token_type: "Bearer",
+          scope: "openid email profile",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    };
+
+    const tokens = await exchangeCodeForTokens(
+      "redacted-authorization-code",
+      "http://localhost:3000/api/auth/gmail/callback",
+    );
+
+    assertEqual(requestedUrl, "https://oauth2.googleapis.com/token");
+    assertEqual(method, "POST");
+    assertEqual(contentType, "application/x-www-form-urlencoded");
+    assertEqual(body.get("code"), "redacted-authorization-code");
+    assertEqual(body.get("client_id"), "test-google-client-id");
+    assertEqual(body.get("client_secret"), "test-google-client-secret");
+    assertEqual(
+      body.get("redirect_uri"),
+      "http://localhost:3000/api/auth/gmail/callback",
+    );
+    assertEqual(body.get("grant_type"), "authorization_code");
+    assertEqual(tokens.access_token, "redacted-access-token");
+  });
+
+  await test("requires Google OAuth credentials for token exchange", async () => {
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+
+    try {
+      await exchangeCodeForTokens(
+        "redacted-authorization-code",
+        "http://localhost:3000/api/auth/gmail/callback",
+      );
+    } catch (error) {
+      assertEqual((error as Error).message, "Google OAuth credentials not configured");
+      return;
+    }
+
+    throw new Error("expected exchangeCodeForTokens to throw");
+  });
+
+  await test("uses a safe token exchange error", async () => {
+    process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
+    process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
+    globalThis.fetch = async () =>
+      new Response("raw google token error body", { status: 400 });
+
+    try {
+      await exchangeCodeForTokens(
+        "redacted-authorization-code",
+        "http://localhost:3000/api/auth/gmail/callback",
+      );
+    } catch (error) {
+      assertEqual((error as Error).message, "Token exchange failed");
+      return;
+    }
+
+    throw new Error("expected exchangeCodeForTokens to throw");
+  });
+
+  console.log("\nGmail Token Refresh");
+
+  await test("refreshes access token with safe form fields", async () => {
+    process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
+    process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
+    let requestedUrl = "";
+    let method = "";
+    let contentType = "";
+    let body = new URLSearchParams();
+
+    globalThis.fetch = async (input, init) => {
+      requestedUrl = String(input);
+      method = init?.method ?? "";
+      contentType = getHeaderValue(init?.headers, "Content-Type");
+      body = parseFormBody(init?.body);
+
+      return new Response(
+        JSON.stringify({
+          access_token: "redacted-new-access-token",
+          expires_in: 3600,
+          token_type: "Bearer",
+          scope: "openid email profile",
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    };
+
+    const tokens = await refreshAccessToken("redacted-refresh-token");
+
+    assertEqual(requestedUrl, "https://oauth2.googleapis.com/token");
+    assertEqual(method, "POST");
+    assertEqual(contentType, "application/x-www-form-urlencoded");
+    assertEqual(body.get("client_id"), "test-google-client-id");
+    assertEqual(body.get("client_secret"), "test-google-client-secret");
+    assertEqual(body.get("refresh_token"), "redacted-refresh-token");
+    assertEqual(body.get("grant_type"), "refresh_token");
+    assertEqual(tokens.access_token, "redacted-new-access-token");
+  });
+
+  await test("requires Google OAuth credentials for token refresh", async () => {
+    delete process.env.GOOGLE_CLIENT_ID;
+    delete process.env.GOOGLE_CLIENT_SECRET;
+
+    try {
+      await refreshAccessToken("redacted-refresh-token");
+    } catch (error) {
+      assertEqual((error as Error).message, "Google OAuth credentials not configured");
+      return;
+    }
+
+    throw new Error("expected refreshAccessToken to throw");
+  });
+
+  await test("uses a safe token refresh error", async () => {
+    process.env.GOOGLE_CLIENT_ID = "test-google-client-id";
+    process.env.GOOGLE_CLIENT_SECRET = "test-google-client-secret";
+    globalThis.fetch = async () =>
+      new Response("raw google refresh error body", { status: 400 });
+
+    try {
+      await refreshAccessToken("redacted-refresh-token");
+    } catch (error) {
+      assertEqual((error as Error).message, "Token refresh failed");
+      return;
+    }
+
+    throw new Error("expected refreshAccessToken to throw");
   });
 
   console.log("\nGmail Scope Detection");
@@ -441,6 +612,11 @@ async function main() {
   } else {
     process.env.GOOGLE_CLIENT_ID = originalClientId;
   }
+  if (originalClientSecret === undefined) {
+    delete process.env.GOOGLE_CLIENT_SECRET;
+  } else {
+    process.env.GOOGLE_CLIENT_SECRET = originalClientSecret;
+  }
   globalThis.fetch = originalFetch;
 
   console.log(`\n${passed} passed, ${failed} failed`);
@@ -458,6 +634,11 @@ main().catch((error) => {
     delete process.env.GOOGLE_CLIENT_ID;
   } else {
     process.env.GOOGLE_CLIENT_ID = originalClientId;
+  }
+  if (originalClientSecret === undefined) {
+    delete process.env.GOOGLE_CLIENT_SECRET;
+  } else {
+    process.env.GOOGLE_CLIENT_SECRET = originalClientSecret;
   }
   globalThis.fetch = originalFetch;
   console.error(error);
