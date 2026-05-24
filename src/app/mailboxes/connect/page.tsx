@@ -30,7 +30,7 @@ const PROVIDER_CONFIG: Record<
     name: "Outlook",
     iconClass: "outlook-mark",
     description:
-      "Connect a Microsoft account for Exchange and Office 365 access. OAuth will be connected in a later step.",
+      "Connect a Microsoft account via OAuth. Mail sync will be added in a later step.",
   },
   mail163: {
     name: "163 Mail",
@@ -69,7 +69,11 @@ export default async function ConnectPage({ searchParams }: PageProps) {
   const gmailOAuthConfigured =
     !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET;
 
-  if (isGmail) {
+  let outlookRedirectUri: string | null = null;
+  const outlookOAuthConfigured =
+    !!process.env.MICROSOFT_CLIENT_ID && !!process.env.MICROSOFT_CLIENT_SECRET;
+
+  if (isGmail || isOutlook) {
     const headerStore = await headers();
     const host =
       headerStore.get("x-forwarded-host") ??
@@ -78,10 +82,16 @@ export default async function ConnectPage({ searchParams }: PageProps) {
     const proto =
       headerStore.get("x-forwarded-proto") ??
       (host.startsWith("localhost") ? "http" : "https");
-    const redirectUri =
-      process.env.GOOGLE_REDIRECT_URI ??
-      `${proto}://${host}/api/auth/gmail/callback`;
-    gmailRedirectUri = redirectUri;
+    if (isGmail) {
+      gmailRedirectUri =
+        process.env.GOOGLE_REDIRECT_URI ??
+        `${proto}://${host}/api/auth/gmail/callback`;
+    }
+    if (isOutlook) {
+      outlookRedirectUri =
+        process.env.MICROSOFT_REDIRECT_URI ??
+        `${proto}://${host}/api/auth/outlook/callback`;
+    }
   }
 
   return (
@@ -176,18 +186,65 @@ export default async function ConnectPage({ searchParams }: PageProps) {
                   </button>
                 )}
               </>
+            ) : isOutlook ? (
+              <>
+                {outlookOAuthConfigured ? (
+                  <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+                    You will be redirected to Microsoft to authorize access to
+                    your Microsoft account. Mail sync requires a separate
+                    permission step after connection.
+                  </div>
+                ) : (
+                  <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">
+                    <p className="font-label text-[10px] font-semibold uppercase tracking-wider text-amber-700">
+                      Microsoft setup required
+                    </p>
+                    <p className="mt-2 leading-relaxed">
+                      Register an app in the Azure portal, then add these
+                      values to <span className="font-mono">.env.local</span>{" "}
+                      and restart <span className="font-mono">pnpm dev</span>.
+                    </p>
+                    <div className="mt-3 space-y-2 rounded-md bg-white/60 p-3 text-xs text-amber-950">
+                      <p>
+                        <span className="font-semibold">Required env:</span>{" "}
+                        <span className="font-mono">MICROSOFT_CLIENT_ID</span>,{" "}
+                        <span className="font-mono">MICROSOFT_CLIENT_SECRET</span>
+                      </p>
+                      <p>
+                        <span className="font-semibold">Redirect URI:</span>{" "}
+                        <span className="break-all font-mono">
+                          {outlookRedirectUri}
+                        </span>
+                      </p>
+                      <p>
+                        Add the redirect URI above to Azure portal under
+                        Authentication &rarr; Redirect URIs.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                {outlookOAuthConfigured ? (
+                  <a
+                    className="vibrant-flux hover-lift inline-block w-full rounded-full px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                    href="/api/auth/outlook/start"
+                  >
+                    Connect with Microsoft
+                  </a>
+                ) : (
+                  <button
+                    className="w-full cursor-not-allowed rounded-full border border-slate-300 px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-400"
+                    disabled
+                    type="button"
+                  >
+                    Connect with Microsoft
+                  </button>
+                )}
+              </>
             ) : (
               <>
                 <p className="mb-8 text-sm text-slate-500">
                   Accepted domains: {domainHint}
                 </p>
-
-                {isOutlook ? (
-                  <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                    OAuth will be connected in a later step. For now, only the
-                    email address is saved.
-                  </div>
-                ) : null}
 
                 <form action={addMailboxAction}>
                   <input name="provider" type="hidden" value={provider} />

@@ -29,7 +29,7 @@ pnpm prisma:migrate
 
 ## Current stage
 
-Mailbox management is DB-backed with per-user isolation. The `/mailboxes` page reads live data from the database, and a dedicated `/mailboxes/connect?provider=...` page handles per-provider connection flows with domain-validated email input. 163 Mail app passwords are encrypted with AES-256-GCM before storage (key from `ENCRYPTION_KEY` env var). Gmail uses OAuth 2.0/OpenID Connect (`openid email profile`) with encrypted token storage for account connection. Outlook displays an OAuth placeholder and does not store any credentials yet. Server actions support add/delete of mailbox accounts with provider-specific email validation.
+Mailbox management is DB-backed with per-user isolation. The `/mailboxes` page reads live data from the database, and a dedicated `/mailboxes/connect?provider=...` page handles per-provider connection flows with domain-validated email input. 163 Mail app passwords are encrypted with AES-256-GCM before storage (key from `ENCRYPTION_KEY` env var). Gmail uses OAuth 2.0/OpenID Connect (`openid email profile`) with encrypted token storage for account connection. Outlook supports basic OAuth 2.0 connection via Microsoft identity platform (`openid profile email offline_access`). After connecting, the Outlook card shows the linked email address and a Remove button. Mail sync via Microsoft Graph is not yet implemented; the OAuth flow requests only OpenID Connect scopes for now. Token storage uses the same AES-256-GCM encryption as Gmail. Server actions support add/delete of mailbox accounts with provider-specific email validation.
 
 The `/settings` page shows the current user's email, role, connected mailbox count, and a logout button.
 
