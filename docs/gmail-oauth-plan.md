@@ -1,6 +1,6 @@
 # Gmail OAuth Integration Plan
 
-Status: Phase 1 completed, Phase 2 implemented.
+Status: Implemented for local manual sync.
 
 ## Decision: Gmail API vs IMAP XOAUTH2
 
@@ -126,10 +126,11 @@ Tokens are never:
 # Gmail OAuth
 GOOGLE_CLIENT_ID="<from GCP Console>"
 GOOGLE_CLIENT_SECRET="<from GCP Console>"
+GOOGLE_REDIRECT_URI="http://localhost:3000/api/auth/gmail/callback"
 # DO NOT commit these values. Use .env.local for development.
 ```
 
-Existing `.env.example` already has `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` entries (currently empty). No new env vars needed.
+Existing `.env.example` already has `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and optional `GOOGLE_REDIRECT_URI` entries (currently empty).
 
 The client secret must never appear in:
 - Publicly accessible files or client bundles
@@ -141,11 +142,10 @@ The client secret must never appear in:
 
 ## Phased Implementation Plan
 
-### Phase 1: OAuth config + docs (this document)
+### Phase 1: OAuth config + docs (this document) ✅
 - Write and review this plan
-- Register Gmail API in Google Cloud Console with redirect URIs
+- Register Gmail API in Google Cloud Console with redirect URIs for local testing
 - Document the consent screen verification process timeline
-- No code changes
 
 ### Phase 2: Connect/callback + encrypted token storage ✅
 - Add `/api/auth/gmail/callback` route handler
@@ -154,14 +154,21 @@ The client secret must never appear in:
 - Store access + refresh tokens encrypted via existing `saveMailboxCredential`
 - Wire the Gmail "Connect" button on `/mailboxes/connect?provider=gmail` to the Google OAuth URL (replace current placeholder)
 - Handle errors: user denies consent, invalid state, token exchange failure
-- Current implementation uses OpenID Connect scopes (`openid email profile`) for account connection only. The restricted `gmail.readonly` scope should be requested later, when manual Gmail sync is implemented.
+- Current implementation uses OpenID Connect scopes (`openid email profile`) for account connection only. The restricted `gmail.readonly` scope is requested separately through incremental sync authorization.
 
-### Phase 3: Gmail profile/account verification
+### Phase 3: Gmail profile/account verification ✅
 - After token storage, call `https://openidconnect.googleapis.com/v1/userinfo` to verify the account email
 - Display the connected Gmail address on `/mailboxes` card
 - Test connection: light API call to verify token validity
+- On 401: refresh access token and retry once
 
-### Phase 4: Manual Gmail sync (latest N messages) ✅
+### Phase 4: Incremental authorization for `gmail.readonly` ✅
+- Wire "Authorize Sync" button when the connected mailbox lacks `gmail.readonly`
+- Second authorization request adds `gmail.readonly`
+- Update `oauth_granted_scope` credential with expanded scope
+- Sync Now becomes available after scope is granted
+
+### Phase 5: Manual Gmail sync (latest N messages) ✅
 - Add Gmail sync module (`src/modules/providers/gmail.ts`)
 - Implement `listGmailMessages` (metadata: ID, threadId) via Gmail API `users.messages.list` and `getGmailMessage` (full body, headers) via `users.messages.get` with `format=full`
 - Manual Sync Now button on connected Gmail card
@@ -170,11 +177,11 @@ The client secret must never appear in:
 - Token refresh on 401, scope error detection on 403
 - SyncLog recording (no tokens in message field)
 
-### Phase 5: Refresh token handling and error UX ✅ (connection test path)
+### Phase 6: Refresh token handling and error UX ✅
 - Detect `401 Unauthorized` from OIDC userinfo → attempt token refresh → retry
 - If refresh fails: mark mailbox status as `error`, show "Reconnect Gmail" prompt
 - If token refresh succeeds: update stored access token (and refresh token if rotated), continue operation
-- Rate limit awareness: respect `Retry-After` headers from Gmail API (not yet implemented)
+- Future enhancement: respect `Retry-After` headers from Gmail API
 
 ---
 
@@ -200,21 +207,21 @@ model MailboxCredential {
 }
 ```
 
-**Current assessment: sufficient for Phase 2–3.**
+**Current assessment: sufficient for the implemented local sync flow.**
 
-For Phase 4+, consider these optional additions (not required now):
+For a future hardening pass, consider these optional additions (not required now):
 
 - **Use separate `kind` values**: `"oauth_access_token"` and `"oauth_refresh_token"` instead of a single `"oauth_token"` value. This cleanly separates short-lived and long-lived tokens. The `@@unique([mailboxId, kind])` constraint supports this naturally.
 
 - **`expiresAt`** (`DateTime?`): Stores when the access token expires, avoiding unnecessary refresh attempts. Gmail API returns `expires_in` (seconds) with each token response.
 
-- **`scopes`** (`String?`): Stores the granted scopes as a space-delimited string (`"gmail.readonly openid email profile"`). Useful during incremental authorization to check what was actually granted.
+- **`scopes`** (`String?`): Stores the granted scopes as a space-delimited string (`"gmail.readonly openid email profile"`). Current implementation stores this as encrypted `oauth_granted_scope` credential data instead of adding a schema field.
 
 - **`providerAccountId`** (`String?`): The Gmail account's unique ID from `users/me/profile`. Helps verify the account hasn't changed between reconnects.
 
 - **`lastUsedAt`** (`DateTime?`): Tracks last token use for auditing and cleanup.
 
-Example of what Phase 4 migration might look like (DO NOT RUN):
+Example of what a future migration might look like (DO NOT RUN):
 
 ```sql
 ALTER TABLE "MailboxCredential" ADD COLUMN "expiresAt" TIMESTAMPTZ;
@@ -227,30 +234,30 @@ ALTER TABLE "MailboxCredential" ADD COLUMN "lastUsedAt" TIMESTAMPTZ;
 
 ## Acceptance Checklist
 
-- [ ] OAuth consent screen configured in GCP with correct scopes
-- [ ] Redirect URI registered and exact-match verified
-- [ ] `/api/auth/gmail/callback` handles authorization code exchange
-- [ ] CSRF state parameter generated, stored, and verified on callback
-- [ ] Access token and refresh token encrypted and stored via `saveMailboxCredential`
-- [ ] Gmail profile fetched and displayed on mailbox card
-- [ ] Manual Sync Now fetches latest N messages via Gmail API
-- [ ] Dedup by `providerMessageId + mailboxId` prevents duplicate inserts
-- [ ] SyncLog records safe summary (no tokens, no email body, no secrets)
-- [ ] Token refresh works silently and updates stored access token
-- [ ] Token revocation / `invalid_grant` shows actionable error (not raw API error)
-- [ ] All service functions enforce `userId` isolation
-- [ ] No token, client secret, or auth code appears in URL, log, SyncLog, or rendered HTML
-- [ ] Lint, typecheck, and build pass at each phase
+- [x] OAuth consent screen configured in GCP with correct scopes for local testing
+- [x] Redirect URI registered and exact-match verified
+- [x] `/api/auth/gmail/callback` handles authorization code exchange
+- [x] CSRF state parameter generated, stored, and verified on callback
+- [x] Access token and refresh token encrypted and stored via `saveMailboxCredential`
+- [x] Gmail profile fetched and displayed on mailbox card
+- [x] Manual Sync Now fetches latest N messages via Gmail API
+- [x] Dedup by `providerMessageId + mailboxId` prevents duplicate inserts
+- [x] SyncLog records safe summary (no tokens, no email body, no secrets)
+- [x] Token refresh works silently and updates stored access token
+- [x] Token revocation / `invalid_grant` shows actionable error (not raw API error)
+- [x] All service functions enforce `userId` isolation
+- [x] No token, client secret, or auth code appears in URL, log, SyncLog, or rendered HTML
+- [x] Lint, typecheck, and build pass at each phase
 
 ## Security Checklist
 
-- [ ] `GOOGLE_CLIENT_SECRET` in `.env.local` only, never committed or logged
-- [ ] OAuth state parameter validated before code exchange (CSRF protection)
-- [ ] Redirect URI matches exactly (no open redirect)
-- [ ] Tokens encrypted at rest with AES-256-GCM before DB write
-- [ ] Tokens never passed as URL parameters after the initial callback exchange
-- [ ] Token plaintext never written to SyncLog, console, or error messages
-- [ ] `getMailboxCredential` enforces `userId` match before returning decrypted token
+- [x] `GOOGLE_CLIENT_SECRET` in `.env.local` only, never committed or logged
+- [x] OAuth state parameter validated before code exchange (CSRF protection)
+- [x] Redirect URI matches exactly (no open redirect)
+- [x] Tokens encrypted at rest with AES-256-GCM before DB write
+- [x] Tokens never passed as URL parameters after the initial callback exchange
+- [x] Token plaintext never written to SyncLog, console, or error messages
+- [x] `getMailboxCredential` enforces `userId` match before returning decrypted token
 - [ ] Google client secret rotated if ever committed or exposed
 - [ ] HTTPS enforced in production (Next.js + reverse proxy)
 - [ ] Consent screen text clearly explains what data the app reads and why
