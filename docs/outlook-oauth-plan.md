@@ -1,6 +1,6 @@
 # Outlook / Microsoft Graph OAuth Integration Plan
 
-Status: Planning (not implemented).
+Status: Implemented for local manual sync.
 
 ---
 
@@ -53,7 +53,7 @@ Alternative: For a business-focused deployment, use `AzureADMultipleOrgs` (work/
 ### Client secret
 
 - Created at **Certificates & secrets → New client secret**.
-- Stored in `OUTLOOK_CLIENT_SECRET` environment variable (`.env.local`) — never committed.
+- Stored in `MICROSOFT_CLIENT_SECRET` environment variable (`.env.local`) — never committed.
 - Expiration: 24 months max (Azure portal default). Rotate before expiry.
 
 ### API permissions (delegated)
@@ -94,7 +94,7 @@ Sources:
 openid profile email offline_access User.Read
 ```
 
-**Phase 5 (sync, not yet implemented):** add `Mail.Read` via incremental consent.
+**Mail sync authorization (implemented):** add `Mail.Read` via incremental consent.
 
 Each scope explained:
 
@@ -105,7 +105,7 @@ Each scope explained:
 | `email` | Primary email address | `email` | Used to identify which Outlook mailbox to create (`mailbox.address`). Note: `email` claim may be absent for some account types (e.g., Entra External Identities). Fallback to `preferred_username`, then `upn` from id_token; Graph `/me` as last resort. |
 | `offline_access` | Long-lived refresh token | — | Required on v2 endpoint to receive a `refresh_token`. Without it, the authorization code flow returns only an access token. Appears as "Maintain access to data you have given it access to." |
 | `User.Read` | Read user profile via Graph | — | Required for `GET /v1.0/me` fallback when id_token email is unavailable. Delegated permission (no admin consent needed). Appears as "Read your profile." |
-| `Mail.Read` | Read user mail (Phase 5) | — | Delegated permission to read mail via Microsoft Graph. Appears as "Read your mail." |
+| `Mail.Read` | Read user mail | — | Delegated permission to read mail via Microsoft Graph. Appears as "Read your mail." |
 
 ### Incremental authorization
 
@@ -232,10 +232,10 @@ No additional schema changes needed for multi-user isolation — existing fields
 
 ### Reconnect Outlook UX
 
-When a mailbox enters `error` status with a token-related error:
+When a mailbox enters `error` status with a token-related error, the current implementation uses safe action messages and re-authorization prompts:
 
 - The `/mailboxes` page shows the Outlook card with an **error banner**.
-- Card action: **Reconnect Outlook** button → redirects to Microsoft consent screen with the same scopes.
+- Card action: **Re-authorize Sync** redirects to Microsoft consent for `Mail.Read`.
 - After reconnection, `oauth_access_token`, `oauth_refresh_token`, and `oauth_granted_scope` are overwritten with new tokens.
 - Old `providerMessageId` values remain in DB → `skipDuplicates: true` prevents re-import of existing messages.
 
@@ -365,78 +365,77 @@ Add entries to `.env.example` with empty values.
 
 ### Phase 1: Planning (this document)
 - [x] Write and review this plan
-- [ ] Register app in Azure portal with redirect URIs and permissions
-- [ ] Document consent screen and verification timeline
-- No code changes
+- [x] Register app in Azure portal with redirect URIs and permissions for local testing
+- [x] Document consent screen and verification notes
 
 ### Phase 2: Connect/callback + encrypted token storage
-- [ ] Add `/api/auth/outlook/callback` route handler
-- [ ] Add `/api/auth/outlook/start` route handler (redirects to Microsoft consent screen)
-- [ ] Build Microsoft authorization URL with correct scopes and state
-- [ ] Exchange authorization code for tokens via raw `fetch`
-- [ ] Extract email from ID token or Graph `/me` fallback
-- [ ] Store access + refresh tokens encrypted via `saveMailboxCredential`
-- [ ] Wire Outlook "Connect" button to `/api/auth/outlook/start?scope=connect`
-- [ ] Handle errors: user denies consent, invalid state, token exchange failure, email missing from ID token
+- [x] Add `/api/auth/outlook/callback` route handler
+- [x] Add `/api/auth/outlook/start` route handler (redirects to Microsoft consent screen)
+- [x] Build Microsoft authorization URL with correct scopes and state
+- [x] Exchange authorization code for tokens via raw `fetch`
+- [x] Extract email from ID token or Graph `/me` fallback
+- [x] Store access + refresh tokens encrypted via `saveMailboxCredential`
+- [x] Wire Outlook "Connect" button to `/api/auth/outlook/start?scope=connect`
+- [x] Handle errors: user denies consent, invalid state, token exchange failure, email missing from ID token
 
 ### Phase 3: Connection test
-- [ ] Test connection via `GET /v1.0/me` (lightweight call)
-- [ ] On 401: refresh token → retry
-- [ ] Display connected Outlook address on `/mailboxes` card
+- [x] Test connection via `GET /v1.0/me` (lightweight call)
+- [x] On 401: refresh token → retry
+- [x] Display connected Outlook address on `/mailboxes` card
 
-### Phase 4: Manual sync
-- [ ] Add `syncOutlookAction` server action on connected Outlook card
-- [ ] Implement `listOutlookMessages` via `GET /me/mailFolders/inbox/messages?$top=10&$orderby=receivedDateTime DESC`
-- [ ] Implement `getOutlookMessage` for full body: `GET /me/messages/{id}`
-- [ ] Extract sender/subject/body/preview from Graph response
-- [ ] Same dedup logic: `skipDuplicates: true`
-- [ ] Extract verification codes via `extractVerificationCode`
-- [ ] Token refresh on 401 retry
-- [ ] SyncLog recording (no tokens in message)
+### Phase 4: Incremental authorization for Mail.Read
+- [x] Wire "Authorize Sync" button (when user connected without `Mail.Read`)
+- [x] Second authorization request adds `Mail.Read`
+- [x] Update `oauth_granted_scope` credential with expanded scope
+- [x] Sync Now becomes available after scope granted
 
-### Phase 5: Incremental authorization for Mail.Read
-- [ ] Wire "Authorize Sync" button (when user connected without `Mail.Read`)
-- [ ] Second authorization request adds `Mail.Read` only
-- [ ] Update `oauth_granted_scope` credential with expanded scope
-- [ ] Sync Now becomes available after scope granted
+### Phase 5: Manual sync
+- [x] Add `syncOutlookAction` server action on connected Outlook card
+- [x] Implement `listOutlookMessages` via `GET /me/mailFolders/inbox/messages?$top=10&$orderby=receivedDateTime DESC`
+- [x] Extract sender/subject/body/preview from Graph response
+- [x] Same dedup logic: `skipDuplicates: true`
+- [x] Extract verification codes via `extractVerificationCode`
+- [x] Token refresh on 401 retry
+- [x] SyncLog recording (no tokens in message)
+- [ ] Future enhancement: add rate-limit/backoff handling for Graph `Retry-After`
 
 ---
 
 ## Acceptance Checklist
 
-- [ ] Azure App Registration created with correct account type and redirect URI
-- [ ] `Mail.Read` delegated permission added and consented
-- [ ] `/api/auth/outlook/callback` handles authorization code exchange
-- [ ] CSRF state parameter generated, stored, and verified on callback
-- [ ] Access token and refresh token encrypted and stored via `saveMailboxCredential`
-- [ ] Email identified from ID token, with `/me` Graph fallback
-- [ ] Connection test (GET `/me`) succeeds with valid token
-- [ ] Manual Sync Now fetches latest 10 inbox messages via Graph API
-- [ ] Body `contentType: "html"` is stripped before storage and display
-- [ ] Dedup by `providerMessageId + mailboxId` prevents duplicate inserts
-- [ ] SyncLog records safe summary (no tokens, no email body, no secrets)
-- [ ] Token refresh works silently and updates stored access + refresh tokens
-- [ ] Token revocation / `invalid_grant` shows "Reconnect Outlook" prompt
-- [ ] All service functions enforce `userId` isolation
-- [ ] No token, client secret, or auth code appears in URL, log, SyncLog, or rendered HTML
-- [ ] Lint, typecheck, and build pass at each phase
+- [x] Azure App Registration created with correct account type and redirect URI for local testing
+- [x] `Mail.Read` delegated permission added and consented
+- [x] `/api/auth/outlook/callback` handles authorization code exchange
+- [x] CSRF state parameter generated, stored, and verified on callback
+- [x] Access token and refresh token encrypted and stored via `saveMailboxCredential`
+- [x] Email identified from ID token, with `/me` Graph fallback
+- [x] Connection test (GET `/me`) succeeds with valid token
+- [x] Manual Sync Now fetches latest 10 inbox messages via Graph API
+- [x] Body `contentType: "html"` is stripped before storage and display
+- [x] Dedup by `providerMessageId + mailboxId` prevents duplicate inserts
+- [x] SyncLog records safe summary (no tokens, no email body, no secrets)
+- [x] Token refresh works silently and updates stored access + refresh tokens
+- [x] Token revocation / `invalid_grant` shows safe reconnect or re-authorization prompt
+- [x] All service functions enforce `userId` isolation
+- [x] No token, client secret, or auth code appears in URL, log, SyncLog, or rendered HTML
+- [x] Lint, typecheck, and build pass at each phase
 
 ---
 
 ## Security Checklist
 
-- [ ] `MICROSOFT_CLIENT_SECRET` in `.env.local` only, never committed or logged
-- [ ] OAuth state parameter validated before code exchange (CSRF protection)
-- [ ] Redirect URI matches exactly the Azure portal registration (no open redirect)
-- [ ] Tokens encrypted at rest with AES-256-GCM before DB write
-- [ ] Tokens never passed as URL parameters after the initial callback exchange
-- [ ] Token plaintext never written to SyncLog, console, or error messages
-- [ ] `getMailboxCredential` enforces `userId` match before returning decrypted token
+- [x] `MICROSOFT_CLIENT_SECRET` in `.env.local` only, never committed or logged
+- [x] OAuth state parameter validated before code exchange (CSRF protection)
+- [x] Redirect URI matches exactly the Azure portal registration (no open redirect)
+- [x] Tokens encrypted at rest with AES-256-GCM before DB write
+- [x] Tokens never passed as URL parameters after the initial callback exchange
+- [x] Token plaintext never written to SyncLog, console, or error messages
+- [x] `getMailboxCredential` enforces `userId` match before returning decrypted token
 - [ ] Microsoft client secret rotated before expiry (max 24 months) and on any suspected exposure
 - [ ] HTTPS enforced in production (Next.js + reverse proxy)
 - [ ] Consent screen text clearly describes what data the app reads and why
-- [ ] `Mail.ReadWrite` and `Mail.Send` are NOT requested (read-only principle)
-- [ ] Verify `internetMessageId` is not stored or displayed in plaintext — it's an opaque identifier, not a secret
+- [x] `Mail.ReadWrite` and `Mail.Send` are NOT requested (read-only principle)
+- [x] Verify `internetMessageId` is not stored or displayed in plaintext — it's an opaque identifier, not a secret
 
 ---
 
