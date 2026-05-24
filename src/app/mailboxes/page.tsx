@@ -175,7 +175,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                       <p className="mb-1 text-sm capitalize text-slate-500">
                         Status: {mailbox.status}
                       </p>
-                      {(mailbox.provider === "mail163" || mailbox.provider === "gmail") &&
+                      {(mailbox.provider === "mail163" || mailbox.provider === "gmail" || mailbox.provider === "outlook") &&
                         recentSyncLogs.has(mailbox.id) && (
                           <div className="mb-4 w-full text-left">
                             <span className="font-label text-[10px] font-semibold uppercase tracking-wider text-slate-400">
