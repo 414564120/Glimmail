@@ -3,6 +3,8 @@ import {
   generateOAuthState,
   getGmailMessage,
   hasGmailReadonlyScope,
+  isGmailApiError,
+  listGmailMessages,
 } from "./gmail";
 
 type TestFn = () => void | Promise<void>;
@@ -27,7 +29,7 @@ function assertEqual<T>(actual: T, expected: T) {
   }
 }
 
-function assert(condition: boolean, message: string) {
+function assert(condition: boolean, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
@@ -48,6 +50,30 @@ function mockGmailMessageResponse(message: unknown) {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
+}
+
+function mockGmailErrorResponse(status: number, payload: unknown) {
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify(payload), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+}
+
+async function assertGmailApiError(
+  expectedCode: string,
+  action: () => Promise<unknown>,
+) {
+  try {
+    await action();
+  } catch (error) {
+    assert(isGmailApiError(error), "error should be a GmailApiError");
+    assertEqual(error.code, expectedCode);
+    assertEqual(error.message, expectedCode);
+    return;
+  }
+
+  throw new Error("expected Gmail API call to throw");
 }
 
 async function main() {
@@ -237,6 +263,88 @@ async function main() {
     assertEqual(message.sender, "unknown");
     assertEqual(message.subject, "(no subject)");
     assertEqual(message.bodyText, "Hello World");
+  });
+
+  console.log("\nGmail API Error Mapping");
+
+  await test("maps 401 list failures to token expired", async () => {
+    mockGmailErrorResponse(401, {
+      error: { message: "Invalid Credentials" },
+    });
+
+    await assertGmailApiError("gmail_token_expired", () =>
+      listGmailMessages("redacted-access-token"),
+    );
+  });
+
+  await test("maps insufficient scope failures to a re-authorization error", async () => {
+    mockGmailErrorResponse(403, {
+      error: {
+        message: "Request had insufficient authentication scopes.",
+        errors: [{ reason: "insufficientPermissions" }],
+      },
+    });
+
+    await assertGmailApiError("gmail_insufficient_scope", () =>
+      listGmailMessages("redacted-access-token"),
+    );
+  });
+
+  await test("maps disabled Gmail API failures to setup guidance", async () => {
+    mockGmailErrorResponse(403, {
+      error: {
+        message: "Gmail API has not been used in project before or it is disabled.",
+        errors: [{ reason: "accessNotConfigured" }],
+      },
+    });
+
+    await assertGmailApiError("gmail_api_not_enabled", () =>
+      listGmailMessages("redacted-access-token"),
+    );
+  });
+
+  await test("maps domain policy failures distinctly", async () => {
+    mockGmailErrorResponse(403, {
+      error: {
+        message: "The domain policy has disabled third-party app access.",
+        errors: [{ reason: "domainPolicy" }],
+      },
+    });
+
+    await assertGmailApiError("gmail_domain_policy", () =>
+      listGmailMessages("redacted-access-token"),
+    );
+  });
+
+  await test("maps quota and rate limit failures distinctly", async () => {
+    mockGmailErrorResponse(429, {
+      error: {
+        message: "User rate limit exceeded.",
+        errors: [{ reason: "userRateLimitExceeded" }],
+      },
+    });
+
+    await assertGmailApiError("gmail_rate_limited", () =>
+      listGmailMessages("redacted-access-token"),
+    );
+  });
+
+  await test("uses a safe fallback for unmapped Gmail API failures", async () => {
+    mockGmailErrorResponse(500, {
+      error: {
+        message: "raw upstream failure containing sensitive details",
+      },
+    });
+
+    try {
+      await listGmailMessages("redacted-access-token");
+    } catch (error) {
+      assert(!isGmailApiError(error), "unmapped 500 should use a generic Error");
+      assertEqual((error as Error).message, "Gmail list failed");
+      return;
+    }
+
+    throw new Error("expected Gmail API call to throw");
   });
 
   if (originalClientId === undefined) {
