@@ -13,11 +13,7 @@ import { hasGmailReadonlyScope } from "@/modules/providers/gmail";
 import { hasMailReadScope } from "@/modules/providers/outlook";
 import { RemoveMailboxForm } from "@/components/mailboxes/remove-mailbox-form";
 import { SyncNowButton } from "@/components/mailboxes/sync-now-button";
-import {
-  testGmailConnectionAction,
-  testMailboxConnectionAction,
-  testOutlookConnectionAction,
-} from "./actions";
+import { TestConnectionButton } from "@/components/mailboxes/test-connection-button";
 
 const PROVIDER_CARDS: Array<{
   provider: MailboxProvider;
@@ -223,19 +219,10 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                               mailboxId={mailbox.id}
                               provider={mailbox.provider}
                             />
-                            <form action={testMailboxConnectionAction}>
-                              <input
-                                name="mailboxId"
-                                type="hidden"
-                                value={mailbox.id}
-                              />
-                              <button
-                                className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
-                                type="submit"
-                              >
-                                Test Connection
-                              </button>
-                            </form>
+                            <TestConnectionButton
+                              mailboxId={mailbox.id}
+                              provider={mailbox.provider}
+                            />
                           </>
                         )}
                         {mailbox.provider === "gmail" && (
@@ -260,19 +247,10 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                                 </p>
                               </div>
                             )}
-                            <form action={testGmailConnectionAction}>
-                              <input
-                                name="mailboxId"
-                                type="hidden"
-                                value={mailbox.id}
-                              />
-                              <button
-                                className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
-                                type="submit"
-                              >
-                                Test Connection
-                              </button>
-                            </form>
+                            <TestConnectionButton
+                              mailboxId={mailbox.id}
+                              provider={mailbox.provider}
+                            />
                             <Link
                               className="block w-full rounded-full border border-slate-300 px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600 hover:bg-white/60"
                               href="/api/auth/gmail/start?scope=gmail"
@@ -305,19 +283,10 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                                 </p>
                               </div>
                             )}
-                            <form action={testOutlookConnectionAction}>
-                              <input
-                                name="mailboxId"
-                                type="hidden"
-                                value={mailbox.id}
-                              />
-                              <button
-                                className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
-                                type="submit"
-                              >
-                                Test Connection
-                              </button>
-                            </form>
+                            <TestConnectionButton
+                              mailboxId={mailbox.id}
+                              provider={mailbox.provider}
+                            />
                             <Link
                               className="block w-full rounded-full border border-slate-300 px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600 hover:bg-white/60"
                               href="/api/auth/outlook/start?scope=mail"
