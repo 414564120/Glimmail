@@ -5,6 +5,7 @@
 
 import {
   buildAuthorizationUrl,
+  getOutlookProfile,
   parseOutlookMessage,
   hasMailReadScope,
   isOutlookApiError,
@@ -60,6 +61,12 @@ function getAuthorizationHeader(headers: HeadersInit | undefined): string {
     return headers.find(([name]) => name === "Authorization")?.[1] ?? "";
   }
   return headers.Authorization ?? "";
+}
+
+function makeIdToken(payload: Record<string, unknown>): string {
+  const encodedPayload = Buffer.from(JSON.stringify(payload))
+    .toString("base64url");
+  return `header.${encodedPayload}.signature`;
 }
 
 // -- parseOutlookMessage ----------------------------------------------------
@@ -289,6 +296,31 @@ console.log("\nbuildAuthorizationUrl");
   }
 }
 
+// -- getOutlookProfile ------------------------------------------------------
+
+console.log("\ngetOutlookProfile");
+
+async function assertRejectsSafeProfileError(
+  response: Response,
+  expectedMessage: string,
+  label: string,
+) {
+  globalThis.fetch = async () => response;
+
+  try {
+    await getOutlookProfile("redacted-access-token", "malformed-token");
+  } catch (error) {
+    assertEq(
+      error instanceof Error ? error.message : "",
+      expectedMessage,
+      label,
+    );
+    return;
+  }
+
+  assert(false, `${label}: expected getOutlookProfile to throw`);
+}
+
 // -- listOutlookMessages ----------------------------------------------------
 
 console.log("\nlistOutlookMessages");
@@ -318,6 +350,98 @@ async function assertRejectsOutlookApiError(
 }
 
 async function runAsyncTests() {
+  let fetchCalls = 0;
+
+  globalThis.fetch = async () => {
+    fetchCalls++;
+    throw new Error("fetch should not be called for id_token profile");
+  };
+
+  const idTokenEmailProfile = await getOutlookProfile(
+    "redacted-access-token",
+    makeIdToken({ email: "USER@Example.COM" }),
+  );
+  assertEq(
+    idTokenEmailProfile.emailAddress,
+    "user@example.com",
+    "id_token email claim is lowercased",
+  );
+  assertEq(fetchCalls, 0, "id_token email avoids Graph /me request");
+
+  const preferredUsernameProfile = await getOutlookProfile(
+    "redacted-access-token",
+    makeIdToken({ preferred_username: "ALIAS@Example.COM" }),
+  );
+  assertEq(
+    preferredUsernameProfile.emailAddress,
+    "alias@example.com",
+    "id_token preferred_username fallback is lowercased",
+  );
+
+  let requestedProfileUrl = "";
+  let profileAuthorizationHeader = "";
+
+  globalThis.fetch = async (input, init) => {
+    requestedProfileUrl = String(input);
+    profileAuthorizationHeader = getAuthorizationHeader(init?.headers);
+
+    return new Response(JSON.stringify({ mail: "MAIL@Example.COM" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  };
+
+  const graphMailProfile = await getOutlookProfile(
+    "redacted-access-token",
+    "malformed-token",
+  );
+  assertEq(
+    graphMailProfile.emailAddress,
+    "mail@example.com",
+    "Malformed id_token falls back to Graph /me mail",
+  );
+  assertEq(
+    requestedProfileUrl,
+    "https://graph.microsoft.com/v1.0/me",
+    "Graph profile fallback targets /me",
+  );
+  assertEq(
+    profileAuthorizationHeader,
+    "Bearer redacted-access-token",
+    "Graph profile fallback sends bearer authorization header",
+  );
+
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ userPrincipalName: "UPN@Example.COM" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  const userPrincipalNameProfile = await getOutlookProfile(
+    "redacted-access-token",
+    "malformed-token",
+  );
+  assertEq(
+    userPrincipalNameProfile.emailAddress,
+    "upn@example.com",
+    "Graph /me userPrincipalName fallback is lowercased",
+  );
+
+  await assertRejectsSafeProfileError(
+    new Response(JSON.stringify({}), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }),
+    "Microsoft profile email missing",
+    "Missing Graph profile email throws safe error",
+  );
+
+  await assertRejectsSafeProfileError(
+    new Response("raw graph error body", { status: 500 }),
+    "Microsoft Graph /me request failed",
+    "Graph profile failure throws safe error",
+  );
+
   let requestedUrl = "";
   let authorizationHeader = "";
 
