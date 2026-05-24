@@ -15,6 +15,15 @@ import { RemoveMailboxForm } from "@/components/mailboxes/remove-mailbox-form";
 import { SyncNowButton } from "@/components/mailboxes/sync-now-button";
 import { TestConnectionButton } from "@/components/mailboxes/test-connection-button";
 
+function formatActivityTime(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const h = String(date.getHours()).padStart(2, "0");
+  const min = String(date.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${d} ${h}:${min}`;
+}
+
 const PROVIDER_CARDS: Array<{
   provider: MailboxProvider;
   name: string;
@@ -203,8 +212,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                                       {log.message}
                                     </p>
                                     <p className="text-[10px] text-slate-400">
-                                      {log.finishedAt?.toLocaleString() ??
-                                        log.startedAt.toLocaleString()}
+                                      {formatActivityTime(log.finishedAt ?? log.startedAt)}
                                     </p>
                                   </div>
                                 </div>
