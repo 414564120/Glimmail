@@ -266,7 +266,7 @@ export async function getGmailMessage(
 
 function extractSender(from: string): string {
   const name = from.replace(/<[^>]*>/g, "").trim();
-  if (name) return name;
+  if (name) return decodeRfc2047(name);
   const emailMatch = from.match(/<([^>]+)>/);
   if (emailMatch) return emailMatch[1];
   return from.trim() || "unknown";

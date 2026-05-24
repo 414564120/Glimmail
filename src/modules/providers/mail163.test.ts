@@ -74,6 +74,13 @@ assertEq(
   "Mixed plain and encoded text",
 );
 
+// From header with encoded display name + angle-bracket email
+assertEq(
+  decodeImapUtf8("=?UTF-8?B?5rWL6K+V?= <test@example.com>"),
+  "测试 <test@example.com>",
+  "B-encoded display name preserves trailing email",
+);
+
 // -- Message-Id Extraction --------------------------------------------------
 
 console.log("\nMessage-Id Extraction");
