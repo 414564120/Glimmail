@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { setSessionCookie, verifyPasswordCredentials } from "@/modules/auth";
 
+const ALLOWED_NEXT_PATHS = ["/inbox", "/mailboxes", "/settings"];
+
 function getSafeNextPath(value: FormDataEntryValue | null) {
   const nextPath = String(value || "");
 
@@ -10,7 +12,14 @@ function getSafeNextPath(value: FormDataEntryValue | null) {
     return "/inbox";
   }
 
-  if (!["/inbox", "/mailboxes"].some((route) => nextPath.startsWith(route))) {
+  if (
+    !ALLOWED_NEXT_PATHS.some(
+      (route) =>
+        nextPath === route ||
+        nextPath.startsWith(`${route}/`) ||
+        nextPath.startsWith(`${route}?`),
+    )
+  ) {
     return "/inbox";
   }
 

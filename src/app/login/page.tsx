@@ -12,6 +12,29 @@ type LoginPageProps = {
   }>;
 };
 
+const ALLOWED_NEXT_PATHS = ["/inbox", "/mailboxes", "/settings"];
+
+function getSafeNextPath(value: string | undefined): string {
+  const nextPath = value?.trim() ?? "";
+
+  if (!nextPath.startsWith("/") || nextPath.startsWith("//")) {
+    return "/inbox";
+  }
+
+  if (
+    !ALLOWED_NEXT_PATHS.some(
+      (route) =>
+        nextPath === route ||
+        nextPath.startsWith(`${route}/`) ||
+        nextPath.startsWith(`${route}?`),
+    )
+  ) {
+    return "/inbox";
+  }
+
+  return nextPath;
+}
+
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const user = await getCurrentUser();
 
@@ -21,7 +44,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   const params = await searchParams;
   const hasInvalidCredentials = params?.error === "invalid";
-  const nextPath = params?.next || "/inbox";
+  const nextPath = getSafeNextPath(params?.next);
 
   return (
     <main className="surface-grid relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
