@@ -10,6 +10,7 @@ import { getCurrentUser } from "@/modules/auth";
 import { getRecentSyncLogs, getUserMailboxes } from "@/modules/mailboxes";
 import { getMailboxCredential } from "@/modules/mailboxes/credentials";
 import { hasGmailReadonlyScope } from "@/modules/providers/gmail";
+import { hasMailReadScope } from "@/modules/providers/outlook";
 import {
   deleteMailboxAction,
   syncGmailAction,
@@ -75,6 +76,14 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
     if (mb.provider === "gmail") {
       const scope = await getMailboxCredential(user.id, mb.id, "oauth_granted_scope");
       gmailSyncAuthorized.set(mb.id, scope ? hasGmailReadonlyScope(scope) : false);
+    }
+  }
+
+  const outlookSyncAuthorized = new Map<string, boolean>();
+  for (const mb of mailboxes) {
+    if (mb.provider === "outlook") {
+      const scope = await getMailboxCredential(user.id, mb.id, "oauth_granted_scope");
+      outlookSyncAuthorized.set(mb.id, scope ? hasMailReadScope(scope) : false);
     }
   }
 
@@ -294,19 +303,44 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                           </>
                         )}
                         {mailbox.provider === "outlook" && (
-                          <form action={testOutlookConnectionAction}>
-                            <input
-                              name="mailboxId"
-                              type="hidden"
-                              value={mailbox.id}
-                            />
-                            <button
-                              className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
-                              type="submit"
+                          <>
+                            <div className="w-full">
+                              <button
+                                className="w-full cursor-not-allowed rounded-full border border-slate-300 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-400"
+                                disabled
+                                type="button"
+                              >
+                                Sync Now
+                              </button>
+                              {!outlookSyncAuthorized.get(mailbox.id) && (
+                                <p className="mt-1 text-[11px] leading-relaxed text-amber-600">
+                                  Outlook mail access not yet authorized. Click
+                                  Authorize Sync below, then try again.
+                                </p>
+                              )}
+                            </div>
+                            <form action={testOutlookConnectionAction}>
+                              <input
+                                name="mailboxId"
+                                type="hidden"
+                                value={mailbox.id}
+                              />
+                              <button
+                                className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5"
+                                type="submit"
+                              >
+                                Test Connection
+                              </button>
+                            </form>
+                            <Link
+                              className="block w-full rounded-full border border-slate-300 px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600 hover:bg-white/60"
+                              href="/api/auth/outlook/start?scope=mail"
                             >
-                              Test Connection
-                            </button>
-                          </form>
+                              {outlookSyncAuthorized.get(mailbox.id)
+                                ? "Re-authorize Sync"
+                                : "Authorize Sync"}
+                            </Link>
+                          </>
                         )}
                         <form action={deleteMailboxAction}>
                           <input

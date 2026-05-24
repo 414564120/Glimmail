@@ -7,11 +7,15 @@ export function generateOAuthState(): string {
 export function buildAuthorizationUrl(
   state: string,
   redirectUri: string,
+  options: { requestMailRead?: boolean } = {},
 ): string {
   const clientId = process.env.MICROSOFT_CLIENT_ID;
   if (!clientId) throw new Error("MICROSOFT_CLIENT_ID is not set");
 
   const scopes = ["openid", "profile", "email", "offline_access", "User.Read"];
+  if (options.requestMailRead) {
+    scopes.push(MAIL_READ_SCOPE);
+  }
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -23,6 +27,12 @@ export function buildAuthorizationUrl(
   });
 
   return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
+}
+
+const MAIL_READ_SCOPE = "https://graph.microsoft.com/Mail.Read";
+
+export function hasMailReadScope(scope: string | undefined): boolean {
+  return scope?.split(/\s+/).includes(MAIL_READ_SCOPE) ?? false;
 }
 
 interface TokenResponse {

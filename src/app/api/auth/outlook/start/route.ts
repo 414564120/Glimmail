@@ -27,10 +27,14 @@ export async function GET(request: NextRequest) {
 
   const state = generateOAuthState();
   const redirectUri = getRedirectUri(request);
-  const authorizationUrl = buildAuthorizationUrl(state, redirectUri);
+  const requestMailRead =
+    request.nextUrl.searchParams.get("scope") === "mail";
+  const authorizationUrl = buildAuthorizationUrl(state, redirectUri, {
+    requestMailRead,
+  });
   const response = NextResponse.redirect(authorizationUrl);
 
-  response.cookies.set(STATE_COOKIE, `${state}:${user.id}`, {
+  response.cookies.set(STATE_COOKIE, `${state}:${user.id}:${requestMailRead ? "mail" : "profile"}`, {
     httpOnly: true,
     maxAge: 600,
     path: "/",

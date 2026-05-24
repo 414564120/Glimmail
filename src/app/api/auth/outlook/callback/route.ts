@@ -6,6 +6,7 @@ import { encrypt } from "@/modules/security/crypto";
 import {
   exchangeCodeForTokens,
   getOutlookProfile,
+  hasMailReadScope,
 } from "@/modules/providers/outlook";
 
 const STATE_COOKIE = "outlook_oauth_state";
@@ -44,7 +45,8 @@ export async function GET(request: NextRequest) {
 
   const cookieStore = await cookies();
   const storedStateCookie = cookieStore.get(STATE_COOKIE)?.value;
-  const [storedState, storedUserId] = storedStateCookie?.split(":") ?? [];
+  const [storedState, storedUserId, requestedScope] =
+    storedStateCookie?.split(":") ?? [];
 
   if (
     !storedState ||
@@ -74,6 +76,18 @@ export async function GET(request: NextRequest) {
       new URL(
         "/mailboxes?error=" +
           encodeURIComponent("Outlook connection failed. Please try again."),
+        request.url,
+      ),
+    );
+  }
+
+  if (requestedScope === "mail" && !hasMailReadScope(tokens.scope)) {
+    return NextResponse.redirect(
+      new URL(
+        "/mailboxes?error=" +
+          encodeURIComponent(
+            "Outlook mail access was not granted. Reconnect Outlook and approve the Mail.Read permission.",
+          ),
         request.url,
       ),
     );
