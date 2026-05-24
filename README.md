@@ -13,7 +13,8 @@ Glimmail is a low-cost, multi-user unified inbox for Gmail, Outlook, and 163 Mai
 - Multi-agent module boundaries
 - Server-side DB-backed session cookie auth
 - First-user registration for local bootstrap
-- Mock inbox data standing in for provider integrations
+- DB-backed inbox with manual sync from 163 Mail, Gmail, and Outlook
+- Encrypted provider credentials and safe sync activity summaries
 
 ## Commands
 
@@ -33,13 +34,13 @@ Mailbox management is DB-backed with per-user isolation. The `/mailboxes` page r
 
 The `/settings` page shows the current user's email, role, connected mailbox count, and a logout button.
 
-The `/inbox` page reads messages from the local database and supports URL-based message selection (`?message=<id>`). Each message can be marked as read/unread or starred via server actions, with per-user isolation enforced on all mutations. Verification codes are extracted from message content and displayed with a Copy Code button. Messages can come from a seed script (`pnpm run db:seed-messages`) or from manual 163 Mail sync.
+The `/inbox` page reads messages from the local database and supports URL-based message selection (`?message=<id>`). Each message can be marked as read/unread or starred via server actions, with per-user isolation enforced on all mutations. Verification codes are extracted from message content and displayed with a Copy Code button. Messages can come from a seed script (`pnpm run db:seed-messages`) or from manual 163 Mail, Gmail, and Outlook sync.
 
-163 Mail connected accounts support a connection test and manual sync via IMAP (Node.js native TLS, no npm dependencies). Sync limitations: manual trigger only, fetches 10 most recent INBOX messages, simple MIME body parsing (best-effort text extraction, no HTML rendering), no attachment support, deduplicates by Message-Id (fallback to UID). Each test and sync records a SyncLog entry (status, timestamp, safe summary — never the auth code). The `/mailboxes` page shows the 3 most recent activity entries per connected 163 or Gmail mailbox. Gmail connected accounts support OAuth 2.0 authorization code flow: the `/mailboxes/connect?provider=gmail` page redirects to Google's consent screen, the callback at `/api/auth/gmail/callback` exchanges the authorization code for tokens, and access/refresh tokens are stored encrypted in `MailboxCredential`. Gmail connected accounts support a connection test via the OIDC userinfo endpoint, with automatic access token refresh when the token has expired. Gmail connected accounts support manual sync via the Gmail API (REST), fetching the 10 most recent INBOX messages. Sync uses `users.messages.list` + `users.messages.get` with `format=full`, extracts sender/subject/body from headers and MIME parts, deduplicates by provider message ID, and records SyncLog entries. Verification codes are extracted from message bodies. Outlook connected accounts support manual sync via Microsoft Graph (`Mail.Read` scope, incremental authorization — see Outlook OAuth testing step 9). Sync fetches the 10 most recent INBOX messages via `GET /me/mailFolders/inbox/messages` with `$select`, parses sender/subject/body (strips HTML), deduplicates by provider message ID, and records SyncLog entries. Verification codes are extracted from message bodies. No background tasks or attachments.
+163 Mail connected accounts support a connection test and manual sync via IMAP (Node.js native TLS, no npm dependencies). Sync limitations: manual trigger only, fetches 10 most recent INBOX messages, simple MIME body parsing (best-effort text extraction, no HTML rendering), no attachment support, deduplicates by Message-Id (fallback to UID). Each test and sync records a SyncLog entry (status, timestamp, safe summary — never the auth code). The `/mailboxes` page shows the 3 most recent activity entries per connected 163 Mail, Gmail, or Outlook mailbox. Gmail connected accounts support OAuth 2.0 authorization code flow: the `/mailboxes/connect?provider=gmail` page redirects to Google's consent screen, the callback at `/api/auth/gmail/callback` exchanges the authorization code for tokens, and access/refresh tokens are stored encrypted in `MailboxCredential`. Gmail connected accounts support a connection test via the OIDC userinfo endpoint, with automatic access token refresh when the token has expired. Gmail connected accounts support manual sync via the Gmail API (REST), fetching the 10 most recent INBOX messages. Sync uses `users.messages.list` + `users.messages.get` with `format=full`, extracts sender/subject/body from headers and MIME parts, deduplicates by provider message ID, and records SyncLog entries. Verification codes are extracted from message bodies. Outlook connected accounts support manual sync via Microsoft Graph (`Mail.Read` scope, incremental authorization — see Outlook OAuth testing step 9). Sync fetches the 10 most recent INBOX messages via `GET /me/mailFolders/inbox/messages` with `$select`, parses sender/subject/body (strips HTML), deduplicates by provider message ID, and records SyncLog entries. Verification codes are extracted from message bodies. No background tasks or attachments.
 
 ## Environment
 
-Copy `.env.example` into `.env.local` and fill the provider credentials when the integration slices begin.
+Copy `.env.example` into `.env.local` and fill the database, auth, encryption, Google, and Microsoft values needed by the provider flows you want to test.
 
 ## Gmail OAuth testing
 
@@ -100,10 +101,10 @@ You can also create the first owner from `/register`. After one user exists, sel
 
 - `docs/architecture.md`
 - `docs/agent-workstreams.md`
-- `docs/gmail-oauth-plan.md` — Gmail OAuth integration plan (draft)
-- `docs/outlook-oauth-plan.md` — Outlook / Microsoft Graph OAuth integration plan (draft)
+- `docs/gmail-oauth-plan.md` — Gmail OAuth implementation plan and testing notes
+- `docs/outlook-oauth-plan.md` — Outlook / Microsoft Graph implementation plan and testing notes
 
 ## Next implementation slices
 
-1. Wire Gmail, Outlook, and 163 mailbox connection flows
-2. Replace mock data with inbox queries and sync actions
+1. Add focused tests around provider callback failure paths
+2. Continue tightening documentation for completed OAuth and sync flows
