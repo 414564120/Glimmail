@@ -24,6 +24,10 @@ function formatActivityTime(date: Date): string {
   return `${y}-${m}-${d} ${h}:${min}`;
 }
 
+function formatActivityMessage(message: string | null): string {
+  return message?.trim() || "Activity recorded.";
+}
+
 const PROVIDER_CARDS: Array<{
   provider: MailboxProvider;
   name: string;
@@ -209,7 +213,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
                                   />
                                   <div className="min-w-0 flex-1">
                                     <p className="truncate text-slate-600">
-                                      {log.message}
+                                      {formatActivityMessage(log.message)}
                                     </p>
                                     <p className="text-[10px] text-slate-400">
                                       {formatActivityTime(log.finishedAt ?? log.startedAt)}
