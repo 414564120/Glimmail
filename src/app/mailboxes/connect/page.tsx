@@ -18,25 +18,25 @@ import { addMailboxAction } from "../actions";
 
 const PROVIDER_CONFIG: Record<
   MailboxProvider,
-  { name: string; iconClass: string; description: string }
+  { name: string; iconClass: string; description: string; accent: string }
 > = {
   gmail: {
     name: "Gmail",
     iconClass: "gmail-mark",
-    description:
-      "Connect a Google account via OAuth. Gmail inbox sync authorization is added after connection.",
+    description: "使用 Google OAuth 连接账号。读取收件箱需要后续单独授权。",
+    accent: "#87f2c5",
   },
   outlook: {
     name: "Outlook",
     iconClass: "outlook-mark",
-    description:
-      "Connect a Microsoft account via OAuth. Mail sync authorization is added after connection.",
+    description: "使用 Microsoft OAuth 连接账号。邮件同步权限会在连接后单独申请。",
+    accent: "#4fd7ff",
   },
   mail163: {
-    name: "163 Mail",
+    name: "163 邮箱",
     iconClass: "netease-mark",
-    description:
-      "Connect a NetEase 163 account using a client authorization code.",
+    description: "使用 163 邮箱客户端授权码连接 IMAP 收件箱。",
+    accent: "#ff6b57",
   },
 };
 
@@ -46,7 +46,25 @@ interface PageProps {
 
 function normalizeErrorMessage(error: string | undefined): string | null {
   const normalized = error?.trim();
-  return normalized || null;
+  if (!normalized) return null;
+
+  if (normalized === "Unknown provider.") return "未知邮箱服务商。";
+  if (normalized === "Please enter a valid email address.") {
+    return "请输入有效的邮箱地址。";
+  }
+  if (normalized.startsWith("Email must be a ")) {
+    return normalized
+      .replace("Email must be a ", "邮箱地址必须属于 ")
+      .replace(" address.", "。");
+  }
+  if (normalized === "This address is already connected.") {
+    return "这个邮箱地址已经连接。";
+  }
+  if (normalized === "Failed to add mailbox. Please try again.") {
+    return "连接邮箱失败，请稍后重试。";
+  }
+
+  return "连接失败，请检查信息后重试。";
 }
 
 export default async function ConnectPage({ searchParams }: PageProps) {
@@ -71,11 +89,11 @@ export default async function ConnectPage({ searchParams }: PageProps) {
   const isOutlook = provider === "outlook";
   const mailboxes = await getUserMailboxes(user.id);
 
-  let gmailRedirectUri: string | null = null;
+  let gmailSetupRedirectUri: string | null = null;
   const gmailOAuthConfigured =
     !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET;
 
-  let outlookRedirectUri: string | null = null;
+  let outlookSetupRedirectUri: string | null = null;
   const outlookOAuthConfigured =
     !!process.env.MICROSOFT_CLIENT_ID && !!process.env.MICROSOFT_CLIENT_SECRET;
 
@@ -89,168 +107,163 @@ export default async function ConnectPage({ searchParams }: PageProps) {
       headerStore.get("x-forwarded-proto") ??
       (host.startsWith("localhost") ? "http" : "https");
     if (isGmail) {
-      gmailRedirectUri =
-        process.env.GOOGLE_REDIRECT_URI ??
-        `${proto}://${host}/api/auth/gmail/callback`;
+      gmailSetupRedirectUri = `${proto}://${host}/api/auth/gmail/callback`;
     }
     if (isOutlook) {
-      outlookRedirectUri =
-        process.env.MICROSOFT_REDIRECT_URI ??
-        `${proto}://${host}/api/auth/outlook/callback`;
+      outlookSetupRedirectUri = `${proto}://${host}/api/auth/outlook/callback`;
     }
   }
 
   return (
-    <main className="surface-grid min-h-screen bg-background text-slate-950">
+    <main className="surface-grid min-h-[100dvh] bg-background text-[#f4f5e9]">
       <MobileTopBar />
       <AetherSidebar
         active="Accounts"
         connectedAccountCount={mailboxes.length}
       />
 
-      <section className="flex min-h-screen items-start justify-center px-4 pb-28 pt-24 md:ml-64 md:px-12 md:pt-24">
-        <div className="w-full max-w-lg">
+      <section className="flex min-h-[100dvh] items-start justify-center px-4 pb-28 pt-24 md:ml-64 md:px-12 md:pt-24">
+        <div className="w-full max-w-3xl">
           <Link
-            className="mb-8 inline-flex items-center gap-2 text-sm text-slate-600 transition hover:text-primary"
+            className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#f4f5e9]/68 transition hover:text-[#d7ff47]"
             href="/mailboxes"
           >
-            <SymbolIcon className="text-[18px]">arrow_forward</SymbolIcon>
-            Back to Accounts
+            <SymbolIcon className="rotate-180 text-[18px]">arrow_forward</SymbolIcon>
+            返回账号管理
           </Link>
 
           {errorMessage ? (
-            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
+            <div className="mb-6 rounded-2xl border border-[#ff6b57]/35 bg-[#ff6b57]/12 px-4 py-3 text-sm font-medium text-[#ffd2cb]">
               {errorMessage}
             </div>
           ) : null}
 
-          <article className="glass-card relative overflow-hidden rounded-xl p-8 text-center">
-            <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
-
-            <div className="relative z-10 mb-6 flex size-20 items-center justify-center rounded-full bg-white shadow-sm mx-auto">
-              <span className={`provider-logo ${config.iconClass}`} />
-            </div>
-
-            <h2 className="mb-2 font-display text-2xl font-bold text-slate-950">
-              Connect {config.name}
-            </h2>
-            <p className="mb-4 text-base leading-relaxed text-slate-600">
-              {config.description}
-            </p>
+          <article className="relative overflow-hidden rounded-[28px] border border-white/12 bg-[#0a1b18]/88 p-3 shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+            <div className="rounded-[22px] bg-[#f7f1df] p-6 text-[#111e1a] md:p-8">
+              <div className="mb-7 grid gap-5 border-b border-[#142a24]/14 pb-6 md:grid-cols-[auto_1fr] md:items-center">
+                <div
+                  className="flex size-20 items-center justify-center rounded-3xl border border-[#142a24]/12 bg-white shadow-[0_18px_38px_rgba(7,20,18,0.1)]"
+                  style={{ boxShadow: `0 18px 38px ${config.accent}22` }}
+                >
+                  <span className={`provider-logo ${config.iconClass}`} />
+                </div>
+                <div>
+                  <p className="mb-2 font-mono text-xs font-bold uppercase tracking-[0.16em] text-[#647069]">
+                    连接邮箱
+                  </p>
+                  <h2 className="text-3xl font-black tracking-tight">
+                    连接 {config.name}
+                  </h2>
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-[#647069]">
+                    {config.description}
+                  </p>
+                </div>
+              </div>
 
             {isGmail ? (
               <>
                 {gmailOAuthConfigured ? (
-                  <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                    You will be redirected to Google to authorize access to your
-                    Google account profile. Gmail inbox sync requires a separate
-                    read-only authorization after connection.
+                  <div className="mb-6 rounded-2xl border border-[#4fd7ff]/25 bg-[#4fd7ff]/10 px-4 py-3 text-sm leading-6 text-[#0b5551]">
+                    将跳转到 Google 授权账号资料访问。Gmail 收件箱同步需要连接后再授权只读邮件权限。
                   </div>
                 ) : (
-                  <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">
-                    <p className="font-label text-[10px] font-semibold uppercase tracking-wider text-amber-700">
-                      Google setup required
+                  <div className="mb-6 rounded-2xl border border-[#ffb35c]/35 bg-[#ffb35c]/12 px-4 py-3 text-left text-sm text-[#7a4a10]">
+                    <p className="font-label text-[10px] font-bold uppercase tracking-wider text-[#7a4a10]">
+                      需要配置 Google OAuth
                     </p>
                     <p className="mt-2 leading-relaxed">
-                      Create a Google OAuth Web application, then add these
-                      values to <span className="font-mono">.env.local</span>{" "}
-                      and restart <span className="font-mono">pnpm dev</span>.
+                      在 Google Cloud Console 创建 OAuth Web 应用，配置客户端 ID 和客户端密钥后重启服务。
                     </p>
-                    <div className="mt-3 space-y-2 rounded-md bg-white/60 p-3 text-xs text-amber-950">
+                    <div className="mt-3 space-y-2 rounded-xl bg-white/55 p-3 text-xs text-[#4c3412]">
                       <p>
-                        <span className="font-semibold">Required env:</span>{" "}
+                        <span className="font-semibold">需要配置：</span>{" "}
                         <span className="font-mono">GOOGLE_CLIENT_ID</span>,{" "}
                         <span className="font-mono">GOOGLE_CLIENT_SECRET</span>
                       </p>
                       <p>
-                        <span className="font-semibold">Redirect URI:</span>{" "}
+                        <span className="font-semibold">回调地址：</span>{" "}
                         <span className="break-all font-mono">
-                          {gmailRedirectUri}
+                          {gmailSetupRedirectUri}
                         </span>
                       </p>
                       <p>
-                        Add the redirect URI above to Google Cloud Console under
-                        Authorized redirect URIs.
+                        将上面的回调地址加入 Authorized redirect URIs。
                       </p>
                     </div>
                   </div>
                 )}
                 {gmailOAuthConfigured ? (
                   <a
-                    className="vibrant-flux hover-lift inline-block w-full rounded-full px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#071412] px-6 py-3 font-label text-sm font-black text-[#f4f5e9] transition hover:-translate-y-0.5 hover:bg-[#102621] active:translate-y-0"
                     href="/api/auth/gmail/start"
                   >
-                    Connect with Google
+                    使用 Google 连接
+                    <SymbolIcon>arrow_forward</SymbolIcon>
                   </a>
                 ) : (
                   <button
-                    className="w-full cursor-not-allowed rounded-full border border-slate-300 px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-400"
+                    className="w-full cursor-not-allowed rounded-xl border border-[#142a24]/18 px-6 py-3 font-label text-sm font-bold text-[#647069]/60"
                     disabled
                     type="button"
                   >
-                    Connect with Google
+                    Google 配置未完成
                   </button>
                 )}
               </>
             ) : isOutlook ? (
               <>
                 {outlookOAuthConfigured ? (
-                  <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-                    You will be redirected to Microsoft to authorize access to
-                    your Microsoft account profile (openid, email, profile,
-                    User.Read). Mail sync requires a separate permission step
-                    after connection.
+                  <div className="mb-6 rounded-2xl border border-[#4fd7ff]/25 bg-[#4fd7ff]/10 px-4 py-3 text-sm leading-6 text-[#0b5551]">
+                    将跳转到 Microsoft 授权账号资料访问。邮件同步需要连接后再单独授权 Mail.Read。
                   </div>
                 ) : (
-                  <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-left text-sm text-amber-900">
-                    <p className="font-label text-[10px] font-semibold uppercase tracking-wider text-amber-700">
-                      Microsoft setup required
+                  <div className="mb-6 rounded-2xl border border-[#ffb35c]/35 bg-[#ffb35c]/12 px-4 py-3 text-left text-sm text-[#7a4a10]">
+                    <p className="font-label text-[10px] font-bold uppercase tracking-wider text-[#7a4a10]">
+                      需要配置 Microsoft OAuth
                     </p>
                     <p className="mt-2 leading-relaxed">
-                      Register an app in the Azure portal, then add these
-                      values to <span className="font-mono">.env.local</span>{" "}
-                      and restart <span className="font-mono">pnpm dev</span>.
+                      在 Azure Portal 注册应用，配置客户端 ID 和客户端密钥后重启服务。
                     </p>
-                    <div className="mt-3 space-y-2 rounded-md bg-white/60 p-3 text-xs text-amber-950">
+                    <div className="mt-3 space-y-2 rounded-xl bg-white/55 p-3 text-xs text-[#4c3412]">
                       <p>
-                        <span className="font-semibold">Required env:</span>{" "}
+                        <span className="font-semibold">需要配置：</span>{" "}
                         <span className="font-mono">MICROSOFT_CLIENT_ID</span>,{" "}
                         <span className="font-mono">MICROSOFT_CLIENT_SECRET</span>
                       </p>
                       <p>
-                        <span className="font-semibold">Redirect URI:</span>{" "}
+                        <span className="font-semibold">回调地址：</span>{" "}
                         <span className="break-all font-mono">
-                          {outlookRedirectUri}
+                          {outlookSetupRedirectUri}
                         </span>
                       </p>
                       <p>
-                        Add the redirect URI above to Azure portal under
-                        Authentication &rarr; Redirect URIs.
+                        将上面的回调地址加入 Authentication 的 Redirect URIs。
                       </p>
                     </div>
                   </div>
                 )}
                 {outlookOAuthConfigured ? (
                   <a
-                    className="vibrant-flux hover-lift inline-block w-full rounded-full px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#071412] px-6 py-3 font-label text-sm font-black text-[#f4f5e9] transition hover:-translate-y-0.5 hover:bg-[#102621] active:translate-y-0"
                     href="/api/auth/outlook/start"
                   >
-                    Connect with Microsoft
+                    使用 Microsoft 连接
+                    <SymbolIcon>arrow_forward</SymbolIcon>
                   </a>
                 ) : (
                   <button
-                    className="w-full cursor-not-allowed rounded-full border border-slate-300 px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-400"
+                    className="w-full cursor-not-allowed rounded-xl border border-[#142a24]/18 px-6 py-3 font-label text-sm font-bold text-[#647069]/60"
                     disabled
                     type="button"
                   >
-                    Connect with Microsoft
+                    Microsoft 配置未完成
                   </button>
                 )}
               </>
             ) : (
               <>
-                <p className="mb-8 text-sm text-slate-500">
-                  Accepted domains: {domainHint}
+                <p className="mb-6 rounded-2xl border border-[#142a24]/12 bg-white/45 px-4 py-3 text-sm text-[#647069]">
+                  可连接域名：{domainHint}
                 </p>
 
                 <form action={addMailboxAction}>
@@ -261,9 +274,9 @@ export default async function ConnectPage({ searchParams }: PageProps) {
                     value={`/mailboxes/connect?provider=${provider}`}
                   />
                   <input
-                    className="mb-4 w-full rounded-full border border-border-glass bg-white/70 px-4 py-3 text-center text-base text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+                    className="mb-4 w-full rounded-xl border border-[#142a24]/18 bg-white/55 px-4 py-3 text-center text-base text-[#111e1a] outline-none transition placeholder:text-[#647069]/55 hover:border-[#0b5551]/35 focus:border-[#0b5551] focus:ring-2 focus:ring-[#87f2c5]/35"
                     name="address"
-                    placeholder="you@provider.com"
+                    placeholder="you@163.com"
                     required
                     type="email"
                   />
@@ -271,28 +284,27 @@ export default async function ConnectPage({ searchParams }: PageProps) {
                   {is163 ? (
                     <>
                       <input
-                        className="mb-3 w-full rounded-full border border-border-glass bg-white/70 px-4 py-3 text-center text-base text-slate-800 placeholder-slate-400 backdrop-blur-sm focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/30"
+                        className="mb-3 w-full rounded-xl border border-[#142a24]/18 bg-white/55 px-4 py-3 text-center text-base text-[#111e1a] outline-none transition placeholder:text-[#647069]/55 hover:border-[#0b5551]/35 focus:border-[#0b5551] focus:ring-2 focus:ring-[#87f2c5]/35"
                         name="authCode"
-                        placeholder="163 client authorization code"
+                        placeholder="163 客户端授权码"
                         type="password"
                       />
-                      <p className="mb-4 text-xs leading-relaxed text-slate-500">
-                        Use the client authorization code from 163 Mail
-                        settings, not your mailbox login password. The code is
-                        encrypted with AES-256-GCM before being stored.
+                      <p className="mb-4 text-xs leading-relaxed text-[#647069]">
+                        使用 163 邮箱设置中的客户端授权码，不要填写邮箱登录密码。授权码会在保存前加密。
                       </p>
                     </>
                   ) : null}
 
                   <button
-                    className="vibrant-flux hover-lift w-full rounded-full px-6 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
+                    className="w-full rounded-xl bg-[#071412] px-6 py-3 font-label text-sm font-black text-[#f4f5e9] transition hover:-translate-y-0.5 hover:bg-[#102621] active:translate-y-0"
                     type="submit"
                   >
-                    Connect Account
+                    连接账号
                   </button>
                 </form>
               </>
             )}
+            </div>
           </article>
         </div>
       </section>
@@ -300,10 +312,10 @@ export default async function ConnectPage({ searchParams }: PageProps) {
       <MobileBottomNav
         active="Accounts"
         items={[
-          ["mail", "Mail"],
-          ["hub", "Accounts"],
-          ["search", "Search"],
-          ["settings", "Settings"],
+          ["mail", "收件箱"],
+          ["hub", "账号"],
+          ["search", "搜索"],
+          ["settings", "设置"],
         ]}
       />
     </main>

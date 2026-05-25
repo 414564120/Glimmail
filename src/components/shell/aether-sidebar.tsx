@@ -1,21 +1,38 @@
 import { SymbolIcon } from "./aether-icons";
 
 const mainItems = [
-  ["inbox", "Inbox", "/inbox"],
-  ["hub", "Accounts", "/mailboxes"],
-  ["star", "Starred", "/inbox?view=starred"],
-  ["send", "Sent", "/inbox?view=sent"],
-  ["drafts", "Drafts", "/inbox?view=drafts"],
+  ["inbox", "收件箱", "/inbox"],
+  ["hub", "账号", "/mailboxes"],
+  ["star", "星标", "/inbox?view=starred"],
+  ["send", "已发送", "/inbox?view=sent"],
+  ["drafts", "草稿", "/inbox?view=drafts"],
 ] as const;
 
 const bottomItems = [
-  ["archive", "Archive", "/inbox?view=archive"],
-  ["delete", "Trash", "/inbox?view=trash"],
-  ["settings", "Settings", "/settings"],
+  ["archive", "归档", "/inbox?view=archive"],
+  ["delete", "废纸篓", "/inbox?view=trash"],
+  ["settings", "设置", "/settings"],
 ] as const;
 
+const activeLabelAliases: Record<string, string> = {
+  Accounts: "账号",
+  Archive: "归档",
+  Drafts: "草稿",
+  Inbox: "收件箱",
+  Mail: "收件箱",
+  Search: "搜索",
+  Sent: "已发送",
+  Settings: "设置",
+  Starred: "星标",
+  Trash: "废纸篓",
+};
+
+function isActiveLabel(active: string, label: string) {
+  return active === label || activeLabelAliases[active] === label;
+}
+
 export function AetherSidebar({
-  active = "Inbox",
+  active = "收件箱",
   connectedAccountCount = 0,
 }: {
   active?: string;
@@ -25,16 +42,15 @@ export function AetherSidebar({
     <aside className="glass-card fixed left-0 top-0 z-30 hidden h-screen w-64 flex-col border-r border-white/40 bg-white/35 md:flex">
       <div className="custom-scrollbar flex-1 overflow-y-auto p-6">
         <div className="mb-8 font-display text-[32px] font-extrabold leading-[1.3] tracking-tight text-primary">
-          AetherMail
+          Glimmail
         </div>
 
         <div className="mb-8 mt-4 px-4">
           <h2 className="mb-1 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600">
-            Global Inbox
+            统一收件箱
           </h2>
           <p className="text-xs text-outline">
-            {connectedAccountCount} connected account
-            {connectedAccountCount !== 1 ? "s" : ""}
+            已连接 {connectedAccountCount} 个账号
           </p>
         </div>
 
@@ -43,12 +59,12 @@ export function AetherSidebar({
           href="/inbox?compose=new"
         >
           <SymbolIcon className="text-[20px]">edit</SymbolIcon>
-          Compose
+          写邮件
         </a>
 
         <nav className="space-y-2">
           {mainItems.map(([icon, label, href]) => {
-            const isActive = active === label;
+            const isActive = isActiveLabel(active, label);
 
             return (
               <a
@@ -80,7 +96,7 @@ export function AetherSidebar({
 
       <div className="space-y-2 border-t border-white/35 p-6">
         {bottomItems.map(([icon, label, href]) => {
-          const isActive = active === label;
+          const isActive = isActiveLabel(active, label);
 
           return (
             <a
@@ -116,7 +132,7 @@ export function MobileTopBar() {
   return (
     <header className="glass-card fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/40 px-4 md:hidden">
       <div className="font-display text-[28px] font-extrabold leading-[1.3] tracking-tight text-primary">
-        AetherMail
+        Glimmail
       </div>
       <div className="flex items-center gap-4 text-slate-700">
         <SymbolIcon className="text-[24px]">search</SymbolIcon>
@@ -139,15 +155,22 @@ const mobileHrefByLabel: Record<string, string> = {
   Starred: "/inbox?view=starred",
   Sent: "/inbox?view=sent",
   Drafts: "/inbox?view=drafts",
+  账号: "/mailboxes",
+  收件箱: "/inbox",
+  搜索: "/inbox?view=search",
+  设置: "/settings",
+  星标: "/inbox?view=starred",
+  已发送: "/inbox?view=sent",
+  草稿: "/inbox?view=drafts",
 };
 
 export function MobileBottomNav({
-  active = "Inbox",
+  active = "收件箱",
   items = [
-    ["inbox", "Inbox"],
-    ["star", "Starred"],
-    ["send", "Sent"],
-    ["drafts", "Drafts"],
+    ["inbox", "收件箱"],
+    ["star", "星标"],
+    ["send", "已发送"],
+    ["drafts", "草稿"],
   ] as const,
 }: {
   active?: string;
@@ -156,7 +179,7 @@ export function MobileBottomNav({
   return (
     <nav className="glass-card fixed bottom-0 z-50 grid h-20 w-full grid-cols-4 rounded-t-xl border-t border-white/40 px-2 py-2 shadow-lg md:hidden">
       {items.map(([icon, label]) => {
-        const isActive = label === active;
+        const isActive = isActiveLabel(active, label);
 
         return (
           <a
