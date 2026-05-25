@@ -14,6 +14,7 @@ import {
   refreshOutlookToken,
   type OutlookMessageEntry,
 } from "./outlook";
+import { formatRateLimitMessage } from "./rate-limit";
 
 let passed = 0;
 let failed = 0;
@@ -731,6 +732,57 @@ async function runAsyncTests() {
     "outlook_insufficient_scope",
     "403 maps to insufficient scope",
   );
+  await assertRejectsOutlookApiError(
+    429,
+    "outlook_rate_limited",
+    "429 maps to rate limited without Retry-After",
+  );
+  assertEq(
+    formatRateLimitMessage("Outlook", null),
+    "Outlook sync is temporarily rate limited. Please try again later.",
+    "Outlook rate-limit fallback message is safe without Retry-After",
+  );
+
+  globalThis.fetch = async () =>
+    new Response("raw Graph throttling body with token-like details", {
+      status: 429,
+      headers: { "Retry-After": "17" },
+    });
+
+  let sawRateLimitError = false;
+  try {
+    await listOutlookMessages("redacted-access-token", 10);
+  } catch (error) {
+    sawRateLimitError = true;
+    assert(
+      isOutlookApiError(error) && error.code === "outlook_rate_limited",
+      "429 maps to rate limited",
+    );
+    assertEq(
+      isOutlookApiError(error) ? error.message : "",
+      "outlook_rate_limited",
+      "429 error message is fixed and safe",
+    );
+    assertEq(
+      isOutlookApiError(error) ? error.retryAfterSeconds : null,
+      17,
+      "429 captures Retry-After seconds",
+    );
+
+    const safeMessage = formatRateLimitMessage(
+      "Outlook",
+      isOutlookApiError(error) ? error.retryAfterSeconds : null,
+    );
+    assert(
+      safeMessage.includes("about 17 seconds"),
+      "Outlook safe rate-limit message uses Retry-After seconds",
+    );
+    assert(
+      !safeMessage.includes("raw Graph"),
+      "Outlook safe rate-limit message does not leak upstream body",
+    );
+  }
+  assert(sawRateLimitError, "429 response throws a rate-limit error");
 
   globalThis.fetch = async () => new Response("{}", { status: 500 });
 

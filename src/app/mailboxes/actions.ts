@@ -34,6 +34,7 @@ import {
   listGmailMessages,
   refreshAccessToken,
   testGmailConnection,
+  type GmailApiError,
 } from "@/modules/providers/gmail";
 import {
   testOutlookConnection,
@@ -47,6 +48,7 @@ import {
 } from "@/modules/providers/outlook";
 import { db } from "@/lib/db";
 import { createSyncSummary } from "@/modules/messages/sync-summary";
+import { formatRateLimitMessage } from "@/modules/providers/rate-limit";
 
 const MAIL163_CONNECTION_ERROR_MESSAGES: Record<
   Mail163ConnectionErrorCode,
@@ -68,7 +70,10 @@ const MAIL163_SYNC_ERROR_MESSAGES: Record<Mail163SyncErrorCode, string> = {
   fetch_failed: "Could not fetch messages from the server. Please try again later.",
 };
 
-const GMAIL_SYNC_ERROR_MESSAGES: Record<GmailApiErrorCode, string> = {
+const GMAIL_SYNC_ERROR_MESSAGES: Record<
+  Exclude<GmailApiErrorCode, "gmail_rate_limited">,
+  string
+> = {
   gmail_token_expired: "Google authorization expired. Reconnect Gmail.",
   gmail_insufficient_scope:
     "Gmail inbox sync not authorized. Reconnect Gmail and approve Gmail read-only access.",
@@ -76,10 +81,16 @@ const GMAIL_SYNC_ERROR_MESSAGES: Record<GmailApiErrorCode, string> = {
     "Gmail API is not enabled for this Google Cloud project. Enable Gmail API, then reconnect Gmail.",
   gmail_domain_policy:
     "Gmail sync is blocked by this Google account or Workspace policy.",
-  gmail_rate_limited:
-    "Gmail sync is temporarily rate limited. Please try again later.",
   gmail_api_failed: "Gmail sync is not allowed for this account or project.",
 };
+
+function getGmailSyncErrorMessage(error: GmailApiError): string {
+  if (error.code === "gmail_rate_limited") {
+    return formatRateLimitMessage("Gmail", error.retryAfterSeconds);
+  }
+
+  return GMAIL_SYNC_ERROR_MESSAGES[error.code];
+}
 
 export async function addMailboxAction(formData: FormData) {
   const user = await getCurrentUser();
@@ -698,7 +709,7 @@ async function recordGmailSyncError(
 ): Promise<SyncOutcome> {
   const finishedAt = new Date();
   const message = isGmailApiError(error)
-    ? GMAIL_SYNC_ERROR_MESSAGES[error.code]
+    ? getGmailSyncErrorMessage(error)
     : "Gmail sync failed. Please try again later.";
 
   await Promise.all([
@@ -813,9 +824,19 @@ const OUTLOOK_SYNC_ERROR_MESSAGES: Record<OutlookApiErrorCode, string> = {
     "Microsoft authorization expired. Reconnect Outlook.",
   outlook_insufficient_scope:
     "Outlook mail sync not authorized. Re-authorize Sync.",
+  outlook_rate_limited:
+    "Outlook sync is temporarily rate limited. Please try again later.",
   outlook_api_failed:
     "Outlook sync failed. Please try again later.",
 };
+
+function getOutlookSyncErrorMessage(error: OutlookApiError): string {
+  if (error.code === "outlook_rate_limited") {
+    return formatRateLimitMessage("Outlook", error.retryAfterSeconds);
+  }
+
+  return OUTLOOK_SYNC_ERROR_MESSAGES[error.code];
+}
 
 export async function syncOutlookAction(formData: FormData) {
   const user = await getCurrentUser();
@@ -1000,7 +1021,7 @@ async function recordOutlookSyncError(
 ): Promise<SyncOutcome> {
   const finishedAt = new Date();
   const message = isOutlookApiError(error)
-    ? OUTLOOK_SYNC_ERROR_MESSAGES[error.code]
+    ? getOutlookSyncErrorMessage(error)
     : "Outlook sync failed. Please try again later.";
 
   await Promise.all([

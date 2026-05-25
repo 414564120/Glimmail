@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { decodeRfc2047 } from "./rfc2047";
+import { getRetryAfterSeconds } from "./rate-limit";
 
 export function generateOAuthState(): string {
   return crypto.randomBytes(32).toString("hex");
@@ -285,10 +286,14 @@ function stripHtml(html: string): string {
 export type OutlookApiErrorCode =
   | "outlook_token_expired"
   | "outlook_insufficient_scope"
+  | "outlook_rate_limited"
   | "outlook_api_failed";
 
 export class OutlookApiError extends Error {
-  constructor(readonly code: OutlookApiErrorCode) {
+  constructor(
+    readonly code: OutlookApiErrorCode,
+    readonly retryAfterSeconds?: number | null,
+  ) {
     super(code);
     this.name = "OutlookApiError";
   }
@@ -309,6 +314,12 @@ async function createOutlookApiError(
   }
   if (response.status === 403) {
     return new OutlookApiError("outlook_insufficient_scope");
+  }
+  if (response.status === 429) {
+    return new OutlookApiError(
+      "outlook_rate_limited",
+      getRetryAfterSeconds(response),
+    );
   }
   return new Error(fallback);
 }

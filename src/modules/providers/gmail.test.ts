@@ -9,6 +9,7 @@ import {
   listGmailMessages,
   refreshAccessToken,
 } from "./gmail";
+import { formatRateLimitMessage } from "./rate-limit";
 
 type TestFn = () => void | Promise<void>;
 
@@ -78,11 +79,15 @@ function mockGmailMessageResponse(message: unknown) {
     });
 }
 
-function mockGmailErrorResponse(status: number, payload: unknown) {
+function mockGmailErrorResponse(
+  status: number,
+  payload: unknown,
+  headers: Record<string, string> = {},
+) {
   globalThis.fetch = async () =>
     new Response(JSON.stringify(payload), {
       status,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...headers },
     });
 }
 
@@ -587,6 +592,49 @@ async function main() {
     await assertGmailApiError("gmail_rate_limited", () =>
       listGmailMessages("redacted-access-token"),
     );
+
+    assertEqual(
+      formatRateLimitMessage("Gmail", null),
+      "Gmail sync is temporarily rate limited. Please try again later.",
+    );
+  });
+
+  await test("keeps Gmail rate limit details safe and uses Retry-After", async () => {
+    mockGmailErrorResponse(
+      429,
+      {
+        error: {
+          message: "raw upstream rate limit body with token-like details",
+          errors: [{ reason: "rateLimitExceeded" }],
+        },
+      },
+      { "Retry-After": "12" },
+    );
+
+    try {
+      await listGmailMessages("redacted-access-token");
+    } catch (error) {
+      assert(isGmailApiError(error), "429 should map to GmailApiError");
+      assertEqual(error.code, "gmail_rate_limited");
+      assertEqual(error.message, "gmail_rate_limited");
+      assertEqual(error.retryAfterSeconds, 12);
+
+      const safeMessage = formatRateLimitMessage(
+        "Gmail",
+        error.retryAfterSeconds,
+      );
+      assert(
+        safeMessage.includes("about 12 seconds"),
+        "safe message should include Retry-After seconds",
+      );
+      assert(
+        !safeMessage.includes("raw upstream"),
+        "safe message should not include upstream body",
+      );
+      return;
+    }
+
+    throw new Error("expected Gmail API call to throw");
   });
 
   await test("uses a safe fallback for unmapped Gmail API failures", async () => {

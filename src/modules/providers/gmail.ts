@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { decodeRfc2047 } from "./rfc2047";
+import { getRetryAfterSeconds } from "./rate-limit";
 
 export function generateOAuthState(): string {
   return crypto.randomBytes(32).toString("hex");
@@ -373,7 +374,10 @@ export type GmailApiErrorCode =
   | "gmail_api_failed";
 
 export class GmailApiError extends Error {
-  constructor(readonly code: GmailApiErrorCode) {
+  constructor(
+    readonly code: GmailApiErrorCode,
+    readonly retryAfterSeconds?: number | null,
+  ) {
     super(code);
     this.name = "GmailApiError";
   }
@@ -423,7 +427,10 @@ async function createGmailApiError(
     reason === "userRateLimitExceeded" ||
     response.status === 429
   ) {
-    return new GmailApiError("gmail_rate_limited");
+    return new GmailApiError(
+      "gmail_rate_limited",
+      getRetryAfterSeconds(response),
+    );
   }
 
   if (response.status === 403) {
