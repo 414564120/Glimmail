@@ -19,7 +19,7 @@ const geist = Geist({
 
 export const metadata: Metadata = {
   title: "Glimmail",
-  description: "A multi-user unified inbox for Gmail, Outlook, and 163 mail.",
+  description: "面向 Gmail、Outlook 和 163 邮箱的中文统一收件箱。",
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="zh-CN"
       className={`${sora.variable} ${jakarta.variable} ${geist.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
