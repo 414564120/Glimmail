@@ -30,6 +30,39 @@ git log --oneline -10
 
 If the result does not match the expected handoff state, stop and report it before editing.
 
+## Branch Before Work
+
+Never develop directly on `main`.
+
+Before editing tracked files, create one of these:
+
+### Same worktree branch
+
+Use this only when no other window is actively editing the same checkout:
+
+```powershell
+git switch -c ui/awwwards-app-shell
+```
+
+### Separate worktree branch
+
+Use this for parallel Codex/CLI-agent work:
+
+```powershell
+git worktree add F:\code\Glimmail-ui-shell -b ui/awwwards-app-shell main
+cd F:\code\Glimmail-ui-shell
+git status -sb
+git log --oneline -10
+```
+
+Rules:
+
+- Branch names must describe the module, for example `ui/chinese-copy`, `ui/awwwards-inbox`, `docs/development-flow`, `fix/message-delete`.
+- Do not start implementation while still on `main`.
+- Do not merge your own branch into `main` unless the user explicitly assigns that merge role.
+- If a branch depends on another branch, write that dependency in the handoff.
+- If `main` has local unpushed commits, report them before creating parallel worktrees so the coordinator can decide whether to branch from local `main` or `origin/main`.
+
 ## Mandatory Reading Order
 
 1. `docs/development-handbook.md`
@@ -56,16 +89,17 @@ If the result does not match the expected handoff state, stop and report it befo
 Use this flow for every module:
 
 1. Confirm state with `git status -sb` and `git log --oneline -10`.
-2. Read the relevant docs and existing code before planning.
-3. Define a small, verifiable task boundary.
-4. Inspect immediate callers, shared utilities, tests, and types before editing.
-5. Implement the smallest change that satisfies the task.
-6. Avoid speculative abstractions and unrelated cleanup.
-7. Run targeted tests first, then broader checks when the surface area is shared or user-facing.
-8. Review your own diff before committing.
-9. Commit one coherent module at a time.
-10. Report exact verification results and remaining risk.
-11. Wait for Codex main control or the user before push.
+2. Create a dedicated branch or worktree branch before editing tracked files.
+3. Read the relevant docs and existing code before planning.
+4. Define a small, verifiable task boundary.
+5. Inspect immediate callers, shared utilities, tests, and types before editing.
+6. Implement the smallest change that satisfies the task.
+7. Avoid speculative abstractions and unrelated cleanup.
+8. Run targeted tests first, then broader checks when the surface area is shared or user-facing.
+9. Review your own diff before committing.
+10. Commit one coherent module at a time.
+11. Report exact verification results and remaining risk.
+12. Wait for Codex main control or the user before merge or push.
 
 ## Git Rules
 
@@ -90,12 +124,33 @@ Rules:
 
 - One window owns one module at a time.
 - Avoid two windows editing the same file family.
-- If parallel work is needed, prefer `git worktree` with a clear path and branch name, for example:
+- Parallel work must use separate branches. Prefer `git worktree` when two windows are active at the same time.
+- Use clear path and branch names, for example:
   - Worktree: `F:\code\Glimmail-ui-redesign`
   - Branch: `ui/awwwards-inbox-shell`
+- Codex desktop and CLI agent may decide whether to use subagents or an agent team based on task complexity.
+- Use subagents or agent teams for research, review, broad UI audits, test triage, or multi-file implementation planning.
+- Do not use subagents as a substitute for main-worker verification.
 - Each window must write a handoff summary with files changed, tests run, commit hash, and risks.
 - Subagents or agent teams may help with review, research, or implementation, but the main worker must personally inspect the result.
-- Codex main control performs final integration verification before push.
+- Codex main control performs final integration verification before merge and push.
+
+## Merge Role
+
+Only the user-designated merge window may merge feature branches into `main`.
+
+Merge window checklist:
+
+1. Confirm the branch to merge and its worktree path.
+2. Inspect branch log and diff.
+3. Run the branch's stated verification commands.
+4. Switch to `main` only after confirming it is the designated merge window.
+5. Update `main` from the approved local baseline or remote as instructed by the user.
+6. Merge the branch.
+7. Resolve conflicts by preserving user work and documented module ownership.
+8. Run full verification required by the changed surface area.
+9. Commit merge or fast-forward result as appropriate.
+10. Report merge result. Push only after Codex main control and user approval.
 
 ## Verification Commands
 
@@ -170,8 +225,12 @@ Risk:
 Commit:
 - <hash> <message>
 
+Branch:
+- <branch name>
+- <worktree path if any>
+- merge target or dependency if any
+
 Recommendation:
 - ready for Codex main-control review
 - push only after Codex/user approval
 ```
-

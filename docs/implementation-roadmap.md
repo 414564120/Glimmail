@@ -28,6 +28,7 @@ pnpm typecheck
 
 ## Phase 1 Chinese UX Copy
 
+- [ ] Create a dedicated branch or worktree branch before editing UI copy.
 - [ ] App shell copy.
 - [ ] Inbox copy.
 - [ ] Mailboxes copy.
@@ -43,6 +44,7 @@ Acceptance:
 
 ## Phase 2 Design System Foundation
 
+- [ ] Create a dedicated branch or worktree branch before editing design system code.
 - [ ] Replace old glass/neon globals.
 - [ ] Define color tokens from `docs/awwwards-design-system.md`.
 - [ ] Define button styles.
@@ -59,6 +61,7 @@ Acceptance:
 
 ## Phase 3 App Shell
 
+- [ ] Create a dedicated branch or worktree branch before editing shell files.
 - [ ] Rail navigation.
 - [ ] Active route states.
 - [ ] Account summary.
@@ -72,6 +75,7 @@ Acceptance:
 
 ## Phase 4 Inbox Redesign
 
+- [ ] Create a dedicated branch or worktree branch before editing inbox files.
 - [ ] Split inbox layout.
 - [ ] Account filters.
 - [ ] Mail list source badges.
@@ -89,6 +93,7 @@ Acceptance:
 
 ## Phase 5 Accounts And Settings
 
+- [ ] Create a dedicated branch or worktree branch before editing account/settings files.
 - [ ] Accounts list or table.
 - [ ] Provider status.
 - [ ] Sync authorization states.
@@ -103,6 +108,7 @@ Acceptance:
 
 ## Phase 6 Real Mail Actions
 
+- [ ] Create a dedicated branch or worktree branch before editing message mutation code.
 - [ ] Archive action.
 - [ ] Delete action.
 - [ ] User isolation tests.

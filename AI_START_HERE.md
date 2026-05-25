@@ -15,7 +15,8 @@ git status -sb
 git log --oneline -10
 ```
 
+Do not develop directly on `main`. Before editing tracked files, create a dedicated branch or a separate `git worktree` branch as described in `docs/development-handbook.md`.
+
 Do not guess when provider, OAuth, Microsoft Graph, Gmail, or IMAP behavior is uncertain. Use official documentation or report the uncertainty before editing.
 
 Do not print, paste, log, document, or expose secrets, tokens, authorization codes, app passwords, encrypted credentials, or local environment values.
-
