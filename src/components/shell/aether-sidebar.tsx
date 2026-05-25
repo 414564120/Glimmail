@@ -1,30 +1,34 @@
-import { SymbolIcon } from "./aether-icons";
-
 const mainItems = [
-  ["inbox", "收件箱", "IN", "/inbox"],
-  ["hub", "账号", "AC", "/mailboxes"],
-  ["star", "星标", "ST", "/inbox?view=starred"],
-  ["send", "已发送", "SE", "/inbox?view=sent"],
-  ["drafts", "草稿", "DR", "/inbox?view=drafts"],
+  ["统一收件箱", "IN", "/inbox"],
+  ["重要", "P1", "/inbox?view=important"],
+  ["验证码", "VC", "/inbox?view=codes"],
+  ["通知", "NT", "/inbox?view=notifications"],
+  ["订阅", "RD", "/inbox?view=subscriptions"],
+  ["星标", "ST", "/inbox?view=starred"],
 ] as const;
 
 const bottomItems = [
-  ["archive", "归档", "AR", "/inbox?view=archive"],
-  ["delete", "废纸篓", "TR", "/inbox?view=trash"],
-  ["settings", "设置", "SG", "/settings"],
+  ["账号", "AC", "/mailboxes"],
+  ["设置", "SG", "/settings"],
 ] as const;
 
 const activeLabelAliases: Record<string, string> = {
   Accounts: "账号",
   Archive: "归档",
+  Codes: "验证码",
   Drafts: "草稿",
-  Inbox: "收件箱",
-  Mail: "收件箱",
+  Inbox: "统一收件箱",
+  Important: "重要",
+  Mail: "统一收件箱",
+  Notifications: "通知",
+  Read: "订阅",
   Search: "搜索",
   Sent: "已发送",
   Settings: "设置",
   Starred: "星标",
+  Subscriptions: "订阅",
   Trash: "废纸篓",
+  收件箱: "统一收件箱",
 };
 
 function isActiveLabel(active: string, label: string) {
@@ -32,76 +36,47 @@ function isActiveLabel(active: string, label: string) {
 }
 
 export function AetherSidebar({
-  active = "收件箱",
-  connectedAccountCount = 0,
+  active = "统一收件箱",
 }: {
   active?: string;
   connectedAccountCount?: number;
 }) {
   return (
-    <aside className="group/sidebar fixed bottom-3 left-3 top-3 z-40 hidden w-[92px] flex-col overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/96 text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:w-[240px] md:flex">
-      <div className="custom-scrollbar flex-1 overflow-y-auto px-5 py-4">
-        <a className="mb-8 flex h-14 items-center gap-3" href="/inbox">
+    <aside className="group/sidebar fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden w-[92px] flex-col items-center overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/75 px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] transition-[width,background-color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:w-[236px] hover:bg-[#071412]/92 md:flex">
+      <a className="flex h-[54px] w-full items-center justify-center gap-3 group-hover/sidebar:justify-start" href="/inbox">
           <span className="grid size-14 shrink-0 place-items-center rounded-[18px] border border-[#d7ff47]/35 bg-[#d7ff47] text-sm font-black text-[#071412] shadow-[0_18px_42px_rgba(215,255,71,0.16)]">
             GL
           </span>
-          <span className="max-w-0 overflow-hidden whitespace-nowrap font-display text-[26px] font-extrabold leading-[1.2] tracking-tight opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-36 group-hover/sidebar:opacity-100">
+          <span className="max-w-0 overflow-hidden whitespace-nowrap text-[15px] font-black tracking-[-0.04em] opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-32 group-hover/sidebar:opacity-100">
             Glimmail
           </span>
         </a>
 
-        <div className="mb-8 mt-4 max-h-0 overflow-hidden rounded-2xl border border-transparent bg-white/[0.04] px-3 py-0 opacity-0 transition-[max-height,opacity,padding,border-color] duration-300 group-hover/sidebar:max-h-24 group-hover/sidebar:border-white/10 group-hover/sidebar:py-3 group-hover/sidebar:opacity-100">
-          <h2 className="mb-1 whitespace-nowrap font-label text-xs font-bold uppercase tracking-[0.1em] text-[#d7ff47]">
-            统一收件箱
-          </h2>
-          <p className="whitespace-nowrap text-xs text-[#f4f5e9]/58">
-            已连接 {connectedAccountCount} 个账号
-          </p>
-        </div>
-
-        <a
-          className="mb-8 flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-[#d7ff47] px-0 font-label text-xs font-black uppercase tracking-[0.1em] text-[#071412] transition hover:-translate-y-0.5 hover:bg-[#e4ff77] active:translate-y-0 group-hover/sidebar:justify-start group-hover/sidebar:px-4"
-          href="/inbox?compose=new"
-          title="写邮件"
-        >
-          <SymbolIcon className="shrink-0 text-[20px]">edit</SymbolIcon>
-          <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-20 group-hover/sidebar:opacity-100">
-            写邮件
-          </span>
-        </a>
-
-        <nav className="space-y-2">
-          {mainItems.map(([icon, label, shortLabel, href]) => {
+      <nav className="mt-7 grid w-full gap-[10px]">
+          {mainItems.map(([label, shortLabel, href]) => {
             const isActive = isActiveLabel(active, label);
 
             return (
               <a
-                className={`flex h-12 items-center justify-center gap-3 rounded-2xl px-0 transition group-hover/sidebar:justify-start group-hover/sidebar:px-4 ${
+                className={`grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
                   isActive
-                    ? "bg-[#f7f1df] text-[#111e1a]"
-                    : "text-[#f4f5e9]/62 hover:bg-white/[0.06] hover:text-[#f4f5e9]"
+                    ? "border-transparent bg-[#f7f1df] text-[#111e1a] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
+                    : "border-transparent bg-transparent text-[#f4f5e9]/68 hover:border-white/15 hover:bg-white/[0.06] hover:text-[#f4f5e9]"
                 }`}
                 href={href}
                 key={label}
                 title={label}
               >
-                <SymbolIcon className="shrink-0 text-[22px]" fill={isActive}>
-                  {icon}
-                </SymbolIcon>
                 <span
-                  className={
-                    isActive
-                      ? "font-label text-xs font-black uppercase tracking-[0.1em] transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-0 group-hover/sidebar:opacity-0"
-                      : "font-label text-xs font-bold uppercase tracking-[0.1em] transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-0 group-hover/sidebar:opacity-0"
-                  }
+                  className="grid place-items-center"
                 >
                   {shortLabel}
                 </span>
                 <span
                   className={
                     isActive
-                      ? "max-w-0 overflow-hidden whitespace-nowrap font-label text-xs font-black uppercase tracking-[0.1em] opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-24 group-hover/sidebar:opacity-100"
-                      : "max-w-0 overflow-hidden whitespace-nowrap text-sm opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-24 group-hover/sidebar:opacity-100"
+                      ? "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
+                      : "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
                   }
                 >
                   {label}
@@ -110,40 +85,32 @@ export function AetherSidebar({
             );
           })}
         </nav>
-      </div>
 
-      <div className="space-y-2 border-t border-white/10 px-5 py-4">
-        {bottomItems.map(([icon, label, shortLabel, href]) => {
+      <div className="mt-auto grid w-full gap-[10px]">
+        {bottomItems.map(([label, shortLabel, href]) => {
           const isActive = isActiveLabel(active, label);
 
           return (
             <a
-              className={`flex h-12 items-center justify-center gap-3 rounded-2xl px-0 transition group-hover/sidebar:justify-start group-hover/sidebar:px-4 ${
+              className={`grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
                 isActive
-                  ? "bg-[#f7f1df] text-[#111e1a]"
-                  : "text-[#f4f5e9]/62 hover:bg-white/[0.06] hover:text-[#f4f5e9]"
+                  ? "border-transparent bg-[#f7f1df] text-[#111e1a] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
+                  : "border-transparent bg-transparent text-[#f4f5e9]/68 hover:border-white/15 hover:bg-white/[0.06] hover:text-[#f4f5e9]"
               }`}
               href={href}
               key={label}
               title={label}
             >
-              <SymbolIcon className="shrink-0 text-[22px]" fill={isActive}>
-                {icon}
-              </SymbolIcon>
               <span
-                className={
-                  isActive
-                    ? "font-label text-xs font-black uppercase tracking-[0.1em] transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-0 group-hover/sidebar:opacity-0"
-                    : "font-label text-xs font-bold uppercase tracking-[0.1em] transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-0 group-hover/sidebar:opacity-0"
-                }
+                className="grid place-items-center"
               >
                 {shortLabel}
               </span>
               <span
                 className={
                   isActive
-                    ? "max-w-0 overflow-hidden whitespace-nowrap font-label text-xs font-black uppercase tracking-[0.1em] opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-24 group-hover/sidebar:opacity-100"
-                    : "max-w-0 overflow-hidden whitespace-nowrap text-sm opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-24 group-hover/sidebar:opacity-100"
+                    ? "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
+                    : "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
                 }
               >
                 {label}
@@ -169,10 +136,10 @@ export function MobileTopBar() {
       </a>
       <a
         aria-label="搜索邮件"
-        className="grid size-10 place-items-center rounded-full border border-white/10 text-[#f4f5e9]/68 transition hover:text-[#d7ff47]"
+        className="grid h-10 place-items-center rounded-full border border-white/10 px-3 text-[11px] font-black tracking-[0.04em] text-[#f4f5e9]/68 transition hover:text-[#d7ff47]"
         href="/inbox?view=search"
       >
-        <SymbolIcon className="text-[22px]">search</SymbolIcon>
+        搜索
       </a>
     </header>
   );
@@ -190,6 +157,7 @@ const mobileHrefByLabel: Record<string, string> = {
   Sent: "/inbox?view=sent",
   Drafts: "/inbox?view=drafts",
   账号: "/mailboxes",
+  统一收件箱: "/inbox",
   收件箱: "/inbox",
   搜索: "/inbox?view=search",
   设置: "/settings",
@@ -212,7 +180,7 @@ export function MobileBottomNav({
 }) {
   return (
     <nav className="fixed bottom-0 z-50 grid h-20 w-full grid-cols-4 rounded-t-3xl border-t border-white/10 bg-[#071412]/96 px-2 py-2 text-[#f4f5e9] shadow-[0_-18px_42px_rgba(0,0,0,0.28)] md:hidden">
-      {items.map(([icon, label]) => {
+      {items.map(([, label]) => {
         const isActive = isActiveLabel(active, label);
 
         return (
@@ -225,9 +193,6 @@ export function MobileBottomNav({
             href={mobileHrefByLabel[label] ?? "/inbox"}
             key={label}
           >
-            <SymbolIcon className="text-[22px]" fill={isActive}>
-              {icon}
-            </SymbolIcon>
             {label}
           </a>
         );
