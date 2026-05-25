@@ -125,13 +125,13 @@ export default async function InboxPage({ searchParams }: PageProps) {
       <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-64 md:pb-0 md:pt-0">
         <header className="glass-card sticky top-0 z-20 hidden h-16 items-center justify-between border-b border-white/40 px-12 md:flex">
           <label className="group relative w-96">
-            <span className="sr-only">Search mail</span>
+            <span className="sr-only">搜索邮件</span>
             <SymbolIcon className="absolute left-3 top-1/2 -translate-y-1/2 text-[22px] text-slate-600">
               search
             </SymbolIcon>
             <input
               className="w-full rounded-full border border-white/40 bg-surface-container-highest py-2 pl-10 pr-4 text-base outline-none transition-shadow duration-300 focus:ring-2 focus:ring-secondary-container"
-              placeholder="Search mail, people, or settings..."
+              placeholder="搜索邮件、联系人或设置"
               type="text"
             />
           </label>
@@ -179,7 +179,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
 
             {composeOpen ? (
               <div className="m-4 rounded-xl border border-white/40 bg-white/60 p-4 text-sm text-slate-600 shadow-sm backdrop-blur-md">
-                Compose is not connected yet.
+                写邮件功能暂未接入。
               </div>
             ) : null}
 
@@ -407,7 +407,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
       </section>
 
       <button
-        className="vibrant-flux hover-lift fixed bottom-24 right-4 z-40 flex size-14 items-center justify-center rounded-full text-white shadow-[0_0_20px_rgba(168,0,170,0.3)] md:hidden"
+        className="fixed bottom-24 right-4 z-40 flex size-14 items-center justify-center rounded-full bg-[#d7ff47] text-[#071412] shadow-[0_18px_42px_rgba(0,0,0,0.24)] transition hover:-translate-y-0.5 active:translate-y-0 md:hidden"
         type="button"
       >
         <SymbolIcon className="text-[24px]">edit</SymbolIcon>

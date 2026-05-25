@@ -127,7 +127,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
               Connect Your World
             </h1>
             <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              Bind your external email providers to AetherMail to experience a
+              Bind your external email providers to Glimmail to experience a
               unified, weightless inbox.
             </p>
           </header>
@@ -356,10 +356,10 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
       <MobileBottomNav
         active="Accounts"
         items={[
-          ["mail", "Mail"],
-          ["hub", "Accounts"],
-          ["search", "Search"],
-          ["settings", "Settings"],
+          ["mail", "收件箱"],
+          ["hub", "账号"],
+          ["search", "搜索"],
+          ["settings", "设置"],
         ]}
       />
     </main>

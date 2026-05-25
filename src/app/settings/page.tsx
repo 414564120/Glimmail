@@ -105,10 +105,10 @@ export default async function SettingsPage() {
       <MobileBottomNav
         active="Settings"
         items={[
-          ["mail", "Mail"],
-          ["hub", "Accounts"],
-          ["search", "Search"],
-          ["settings", "Settings"],
+          ["mail", "收件箱"],
+          ["hub", "账号"],
+          ["search", "搜索"],
+          ["settings", "设置"],
         ]}
       />
     </main>
