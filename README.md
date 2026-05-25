@@ -103,6 +103,9 @@ You can also create the first owner from `/register`. After one user exists, sel
 - `docs/agent-workstreams.md`
 - `docs/gmail-oauth-plan.md` — Gmail OAuth implementation plan and testing notes
 - `docs/outlook-oauth-plan.md` — Outlook / Microsoft Graph implementation plan and testing notes
+- `docs/operator-runbook.md` — local operation, sync testing, troubleshooting, and pre-production checks
+- `docs/oauth-production-checklist.md` — Gmail and Outlook OAuth production release checklist
+- `docs/real-sync-smoke-test.md` — manual real-provider sync smoke test checklist
 
 ## Next implementation slices
 
