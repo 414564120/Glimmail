@@ -4,7 +4,8 @@
 
 - Single Next.js application with App Router
 - Multi-user data isolation from day one
-- Visual source of truth: Stitch `Glass Mail Aggregator / AetherMail`
+- Visual source of truth: `design-preview-zh.html` and `docs/awwwards-design-system.md`
+- Chinese-first, Awwwards-inspired unified inbox UI
 - Providers: Gmail, Outlook, 163 Mail
 - Deployment target: single VPS with PostgreSQL
 

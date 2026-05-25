@@ -1,0 +1,1721 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Glimmail Awwwards 风格聚合收件箱预览</title>
+    <link rel="stylesheet" href="https://unpkg.com/lenis@1.3.23/dist/lenis.css" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #071412;
+        --ink-2: #0a1b18;
+        --ink-3: #102621;
+        --paper: #f7f1df;
+        --paper-2: #efe7d2;
+        --paper-3: #e5ddca;
+        --line-dark: rgba(196, 255, 226, 0.13);
+        --line-paper: rgba(20, 42, 36, 0.14);
+        --text: #f4f5e9;
+        --text-dim: rgba(244, 245, 233, 0.68);
+        --paper-text: #111e1a;
+        --paper-muted: #647069;
+        --acid: #d7ff47;
+        --cyan: #4fd7ff;
+        --coral: #ff6b57;
+        --mint: #87f2c5;
+        --violet: #9b8cff;
+        --shadow-dark: 0 28px 90px rgba(0, 0, 0, 0.42);
+        --shadow-paper: 0 28px 80px rgba(7, 20, 18, 0.18);
+        --ease: cubic-bezier(0.16, 1, 0.3, 1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        height: 100%;
+        overflow: hidden;
+      }
+
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at 18% 12%, rgba(215, 255, 71, 0.18), transparent 28vw),
+          radial-gradient(circle at 88% 6%, rgba(79, 215, 255, 0.2), transparent 24vw),
+          linear-gradient(135deg, #071412 0%, #0b1a17 48%, #050b0a 100%);
+        color: var(--text);
+        font-family:
+          "Satoshi", "Geist", "PingFang SC", "Microsoft YaHei",
+          "Noto Sans CJK SC", system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+      }
+
+      body::before {
+        content: "";
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+        background-size: 44px 44px;
+        mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), transparent 86%);
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      button {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .app {
+        position: relative;
+        display: grid;
+        height: 100dvh;
+        grid-template-columns: 92px minmax(360px, 430px) minmax(540px, 1fr) 330px;
+        gap: 14px;
+        padding: 14px;
+      }
+
+      .rail,
+      .split,
+      .reader,
+      .context {
+        animation: rise 720ms var(--ease) both;
+      }
+
+      .split {
+        animation-delay: 70ms;
+      }
+
+      .reader {
+        animation-delay: 140ms;
+      }
+
+      .context {
+        animation-delay: 210ms;
+      }
+
+      @keyframes rise {
+        from {
+          opacity: 0;
+          transform: translateY(18px) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .rail {
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+        min-width: 0;
+        border: 1px solid var(--line-dark);
+        border-radius: 22px;
+        background: rgba(7, 20, 18, 0.74);
+        box-shadow: var(--shadow-dark);
+        padding: 14px 10px;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 54px;
+        height: 54px;
+        place-items: center;
+        border: 1px solid rgba(215, 255, 71, 0.38);
+        border-radius: 18px;
+        background:
+          linear-gradient(145deg, rgba(215, 255, 71, 0.95), rgba(135, 242, 197, 0.88)),
+          var(--acid);
+        color: #071412;
+        font-size: 15px;
+        font-weight: 950;
+        letter-spacing: -0.04em;
+        box-shadow:
+          0 18px 40px rgba(215, 255, 71, 0.18),
+          inset 0 1px 0 rgba(255, 255, 255, 0.45);
+      }
+
+      .rail-nav {
+        display: grid;
+        gap: 10px;
+        margin-top: 28px;
+      }
+
+      .rail-button {
+        display: grid;
+        width: 48px;
+        height: 48px;
+        place-items: center;
+        border: 1px solid transparent;
+        border-radius: 16px;
+        background: transparent;
+        color: var(--text-dim);
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        transition:
+          transform 220ms var(--ease),
+          border-color 220ms var(--ease),
+          background-color 220ms var(--ease),
+          color 220ms var(--ease);
+      }
+
+      .rail-button:hover {
+        border-color: rgba(255, 255, 255, 0.16);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        transform: translateY(-2px);
+      }
+
+      .rail-button.active {
+        background: var(--paper);
+        color: var(--paper-text);
+        box-shadow: 0 16px 38px rgba(247, 241, 223, 0.14);
+      }
+
+      .rail-bottom {
+        display: grid;
+        gap: 10px;
+        margin-top: auto;
+      }
+
+      .split {
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--line-dark);
+        border-radius: 26px;
+        background: rgba(10, 27, 24, 0.82);
+        box-shadow: var(--shadow-dark);
+      }
+
+      .split-scroll,
+      .reader-scroll {
+        min-height: 0;
+        overflow: auto;
+        scrollbar-color: rgba(215, 255, 71, 0.45) transparent;
+        scrollbar-width: thin;
+      }
+
+      .split-scroll::-webkit-scrollbar,
+      .reader-scroll::-webkit-scrollbar {
+        width: 9px;
+      }
+
+      .split-scroll::-webkit-scrollbar-track,
+      .reader-scroll::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .split-scroll::-webkit-scrollbar-thumb,
+      .reader-scroll::-webkit-scrollbar-thumb {
+        border: 3px solid transparent;
+        border-radius: 999px;
+        background: rgba(215, 255, 71, 0.52);
+        background-clip: padding-box;
+      }
+
+      .split-scroll {
+        flex: 1;
+      }
+
+      .split-content {
+        min-height: calc(100dvh + 180px);
+        padding-bottom: 18px;
+      }
+
+      .split-sticky {
+        position: sticky;
+        top: 0;
+        z-index: 5;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background:
+          linear-gradient(180deg, rgba(10, 27, 24, 0.96), rgba(10, 27, 24, 0.84)),
+          rgba(10, 27, 24, 0.92);
+        backdrop-filter: blur(18px);
+      }
+
+      .split-hero {
+        position: relative;
+        padding: 22px 22px 12px;
+      }
+
+      .split-hero::after {
+        content: "";
+        position: absolute;
+        right: 20px;
+        top: 20px;
+        width: 82px;
+        height: 82px;
+        border-radius: 50%;
+        background:
+          linear-gradient(135deg, transparent 0 44%, rgba(215, 255, 71, 0.95) 45% 56%, transparent 57%),
+          radial-gradient(circle at 50% 50%, rgba(79, 215, 255, 0.55), transparent 64%);
+        opacity: 0.72;
+        animation: drift 7s ease-in-out infinite;
+      }
+
+      @keyframes drift {
+        0%,
+        100% {
+          transform: translate3d(0, 0, 0) rotate(0deg);
+        }
+        50% {
+          transform: translate3d(-8px, 10px, 0) rotate(16deg);
+        }
+      }
+
+      .eyebrow {
+        color: var(--acid);
+        font-size: 11px;
+        font-weight: 950;
+        letter-spacing: 0.16em;
+        margin: 0 0 10px;
+        text-transform: uppercase;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+
+      .split-title {
+        max-width: 280px;
+        font-size: 42px;
+        font-weight: 950;
+        letter-spacing: -0.08em;
+        line-height: 0.96;
+      }
+
+      .split-title span {
+        color: var(--acid);
+      }
+
+      .split-subtitle {
+        max-width: 270px;
+        color: var(--text-dim);
+        font-size: 13px;
+        line-height: 1.55;
+        margin-top: 14px;
+      }
+
+      .command-bar {
+        position: relative;
+        margin: 18px 22px 0;
+      }
+
+      .command-bar input {
+        width: 100%;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.07);
+        color: var(--text);
+        outline: 0;
+        padding: 14px 58px 14px 18px;
+        transition:
+          border-color 180ms var(--ease),
+          background-color 180ms var(--ease),
+          box-shadow 180ms var(--ease);
+      }
+
+      .command-bar input::placeholder {
+        color: rgba(244, 245, 233, 0.42);
+      }
+
+      .command-bar input:focus {
+        border-color: rgba(215, 255, 71, 0.56);
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 0 4px rgba(215, 255, 71, 0.1);
+      }
+
+      .kbd {
+        position: absolute;
+        right: 10px;
+        top: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        border-radius: 999px;
+        color: var(--text-dim);
+        font-size: 11px;
+        font-weight: 850;
+        padding: 5px 9px;
+        transform: translateY(-50%);
+      }
+
+      .chips {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 18px 22px 10px;
+        scrollbar-width: none;
+      }
+
+      .chips::-webkit-scrollbar {
+        display: none;
+      }
+
+      .chip {
+        position: relative;
+        flex: none;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-dim);
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 850;
+        padding: 9px 12px;
+        transition:
+          color 200ms var(--ease),
+          background-color 200ms var(--ease),
+          border-color 200ms var(--ease),
+          transform 200ms var(--ease);
+      }
+
+      .chip:hover {
+        transform: translateY(-1px);
+        color: var(--text);
+      }
+
+      .chip.active {
+        border-color: rgba(215, 255, 71, 0.52);
+        background: rgba(215, 255, 71, 0.12);
+        color: var(--acid);
+      }
+
+      .chip.active::after {
+        content: "";
+        position: absolute;
+        inset: auto 12px -7px;
+        height: 2px;
+        border-radius: 999px;
+        background: var(--acid);
+      }
+
+      .account-filter {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding: 4px 22px 16px;
+        scrollbar-width: none;
+      }
+
+      .account-filter::-webkit-scrollbar {
+        display: none;
+      }
+
+      .account-chip {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--mint);
+      }
+
+      .dot.gmail {
+        background: #5df08f;
+      }
+
+      .dot.outlook {
+        background: var(--cyan);
+      }
+
+      .dot.mail163 {
+        background: var(--coral);
+      }
+
+      .mail-list {
+        border-top: 1px solid var(--line-dark);
+        padding: 10px;
+      }
+
+      .mail-item {
+        position: relative;
+        display: block;
+        overflow: hidden;
+        border: 1px solid transparent;
+        border-radius: 18px;
+        color: var(--text);
+        padding: 15px 14px 14px;
+        transition:
+          transform 220ms var(--ease),
+          border-color 220ms var(--ease),
+          background-color 220ms var(--ease);
+      }
+
+      .mail-item::before {
+        content: "";
+        position: absolute;
+        bottom: 13px;
+        left: 0;
+        top: 13px;
+        width: 3px;
+        border-radius: 999px;
+        background: var(--mint);
+        opacity: 0.8;
+      }
+
+      .mail-item.outlook::before {
+        background: var(--cyan);
+      }
+
+      .mail-item.mail163::before {
+        background: var(--coral);
+      }
+
+      .mail-item:hover {
+        border-color: rgba(255, 255, 255, 0.13);
+        background: rgba(255, 255, 255, 0.06);
+        transform: translateX(5px);
+      }
+
+      .mail-item.active {
+        border-color: rgba(215, 255, 71, 0.36);
+        background:
+          linear-gradient(135deg, rgba(215, 255, 71, 0.1), rgba(79, 215, 255, 0.05)),
+          rgba(255, 255, 255, 0.06);
+      }
+
+      .mail-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .sender {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .time {
+        flex: none;
+        color: rgba(244, 245, 233, 0.48);
+        font-family:
+          "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono",
+          monospace;
+        font-size: 11px;
+      }
+
+      .subject {
+        margin-top: 7px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 15px;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+      }
+
+      .preview {
+        display: -webkit-box;
+        overflow: hidden;
+        margin-top: 6px;
+        color: var(--text-dim);
+        font-size: 12px;
+        line-height: 1.5;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+
+      .mail-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .badges {
+        display: flex;
+        min-width: 0;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .badge {
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text-dim);
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.03em;
+        padding: 4px 7px;
+      }
+
+      .badge.hot {
+        border-color: rgba(215, 255, 71, 0.32);
+        background: rgba(215, 255, 71, 0.12);
+        color: var(--acid);
+      }
+
+      .badge.warn {
+        border-color: rgba(255, 107, 87, 0.34);
+        background: rgba(255, 107, 87, 0.11);
+        color: #ffb0a4;
+      }
+
+      .mail-actions {
+        display: flex;
+        flex: none;
+        gap: 5px;
+        opacity: 0;
+        transform: translateX(8px);
+        transition:
+          opacity 180ms var(--ease),
+          transform 180ms var(--ease);
+      }
+
+      .mail-item:hover .mail-actions,
+      .mail-item.active .mail-actions {
+        opacity: 1;
+        transform: translateX(0);
+      }
+
+      .small-action,
+      .reader-action {
+        display: grid;
+        place-items: center;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text-dim);
+        cursor: pointer;
+        font-size: 10px;
+        font-weight: 900;
+        transition:
+          background-color 180ms var(--ease),
+          border-color 180ms var(--ease),
+          color 180ms var(--ease),
+          transform 180ms var(--ease);
+      }
+
+      .small-action {
+        width: 28px;
+        height: 28px;
+      }
+
+      .small-action:hover,
+      .reader-action:hover {
+        border-color: rgba(215, 255, 71, 0.34);
+        background: rgba(215, 255, 71, 0.12);
+        color: var(--acid);
+        transform: translateY(-1px);
+      }
+
+      .danger-action:hover {
+        border-color: rgba(255, 107, 87, 0.42);
+        background: rgba(255, 107, 87, 0.13);
+        color: #ffb0a4;
+      }
+
+      .loading-card {
+        margin: 8px 0 0;
+        border: 1px solid rgba(255, 255, 255, 0.09);
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.045);
+        padding: 14px;
+      }
+
+      .loading-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-dim);
+        font-size: 12px;
+        font-weight: 850;
+        margin-bottom: 12px;
+      }
+
+      .breathing-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--acid);
+        box-shadow: 0 0 0 0 rgba(215, 255, 71, 0.52);
+        animation: breathe 1.7s ease-in-out infinite;
+      }
+
+      @keyframes breathe {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(215, 255, 71, 0.42);
+          transform: scale(1);
+        }
+        50% {
+          box-shadow: 0 0 0 8px rgba(215, 255, 71, 0);
+          transform: scale(0.82);
+        }
+      }
+
+      .skeleton {
+        position: relative;
+        overflow: hidden;
+        height: 10px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .skeleton + .skeleton {
+        margin-top: 8px;
+      }
+
+      .skeleton.short {
+        width: 62%;
+      }
+
+      .skeleton::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.18), transparent);
+        transform: translateX(-100%);
+        animation: shimmer 1.6s var(--ease) infinite;
+      }
+
+      @keyframes shimmer {
+        to {
+          transform: translateX(100%);
+        }
+      }
+
+      .reader {
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex-direction: column;
+        overflow: hidden;
+        border-radius: 30px;
+        background: var(--paper);
+        color: var(--paper-text);
+        box-shadow: var(--shadow-paper);
+      }
+
+      .reader-scroll {
+        flex: 1;
+        color: var(--paper-text);
+        scrollbar-color: rgba(17, 30, 26, 0.42) transparent;
+      }
+
+      .reader-scroll::-webkit-scrollbar-thumb {
+        background: rgba(17, 30, 26, 0.42);
+        background-clip: padding-box;
+      }
+
+      .reader-content {
+        min-height: calc(100dvh + 260px);
+      }
+
+      .reader-toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 8;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        min-height: 72px;
+        border-bottom: 1px solid var(--line-paper);
+        background: rgba(247, 241, 223, 0.88);
+        backdrop-filter: blur(18px);
+        padding: 16px 22px;
+      }
+
+      .reader-toolbar.is-scrolled {
+        box-shadow: 0 18px 34px rgba(17, 30, 26, 0.08);
+      }
+
+      .reader-route {
+        color: var(--paper-muted);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .reader-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .reader-action {
+        min-width: 38px;
+        height: 38px;
+        border-color: rgba(17, 30, 26, 0.12);
+        background: rgba(17, 30, 26, 0.04);
+        color: #30433d;
+        padding: 0 12px;
+      }
+
+      .reader-action:hover {
+        border-color: rgba(17, 107, 102, 0.35);
+        background: rgba(17, 107, 102, 0.1);
+        color: #0b5551;
+      }
+
+      .reader-action.danger-action:hover {
+        border-color: rgba(255, 107, 87, 0.5);
+        background: rgba(255, 107, 87, 0.14);
+        color: #b33125;
+      }
+
+      .reader-head {
+        position: relative;
+        border-bottom: 1px solid var(--line-paper);
+        padding: 32px 34px 28px;
+      }
+
+      .reader-head::after {
+        content: "";
+        position: absolute;
+        right: 34px;
+        top: 34px;
+        width: 120px;
+        height: 120px;
+        border: 1px solid rgba(17, 30, 26, 0.12);
+        border-radius: 50%;
+        background:
+          linear-gradient(135deg, transparent 0 44%, rgba(255, 107, 87, 0.64) 45% 55%, transparent 56%),
+          radial-gradient(circle, rgba(79, 215, 255, 0.32), transparent 66%);
+      }
+
+      .reader-kicker {
+        color: var(--accent-strong);
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: 0.14em;
+        margin-bottom: 14px;
+      }
+
+      .reader-title {
+        position: relative;
+        z-index: 1;
+        max-width: 760px;
+        font-size: clamp(38px, 5vw, 74px);
+        font-weight: 950;
+        letter-spacing: -0.08em;
+        line-height: 0.94;
+      }
+
+      .sender-line {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 24px;
+      }
+
+      .sender-avatar {
+        display: grid;
+        width: 44px;
+        height: 44px;
+        place-items: center;
+        border-radius: 50%;
+        background: #111e1a;
+        color: var(--paper);
+        font-weight: 950;
+      }
+
+      .sender-name {
+        font-weight: 950;
+      }
+
+      .sender-detail {
+        margin-top: 3px;
+        color: var(--paper-muted);
+        font-size: 13px;
+      }
+
+      .reader-body {
+        padding: 28px 34px 42px;
+      }
+
+      .summary-strip {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 18px;
+        max-width: 830px;
+        margin-bottom: 18px;
+        border: 1px solid rgba(17, 30, 26, 0.12);
+        border-radius: 18px;
+        background:
+          linear-gradient(135deg, rgba(215, 255, 71, 0.38), rgba(79, 215, 255, 0.16)),
+          rgba(255, 255, 255, 0.36);
+        padding: 18px;
+      }
+
+      .summary-label {
+        color: var(--accent-strong);
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: 0.12em;
+      }
+
+      .summary-copy {
+        margin-top: 7px;
+        color: #20352f;
+        font-size: 14px;
+        line-height: 1.55;
+      }
+
+      .mail-paper {
+        max-width: 830px;
+        border: 1px solid var(--line-paper);
+        border-radius: 22px;
+        background: #fff8e8;
+        box-shadow: 0 22px 60px rgba(17, 30, 26, 0.08);
+        padding: 30px;
+      }
+
+      .mail-paper p {
+        color: #26352f;
+        font-size: 16px;
+        line-height: 1.9;
+      }
+
+      .mail-paper p + p {
+        margin-top: 16px;
+      }
+
+      .code-module {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 18px;
+        margin-top: 26px;
+        border-radius: 18px;
+        background: #101d19;
+        color: var(--text);
+        padding: 20px;
+      }
+
+      .code-label {
+        color: rgba(244, 245, 233, 0.64);
+        font-size: 12px;
+        font-weight: 850;
+        letter-spacing: 0.08em;
+      }
+
+      .code-value {
+        margin-top: 6px;
+        color: var(--acid);
+        font-family:
+          "SFMono-Regular", "Cascadia Mono", Consolas, "Liberation Mono",
+          monospace;
+        font-size: 38px;
+        font-weight: 950;
+        letter-spacing: 0.16em;
+        text-shadow: 0 0 22px rgba(215, 255, 71, 0.22);
+      }
+
+      .copy-button,
+      .primary-button,
+      .ghost-button {
+        border-radius: 999px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 950;
+        letter-spacing: 0.02em;
+        padding: 11px 14px;
+        transition:
+          transform 180ms var(--ease),
+          background-color 180ms var(--ease),
+          color 180ms var(--ease),
+          border-color 180ms var(--ease);
+      }
+
+      .copy-button,
+      .primary-button {
+        border: 0;
+        background: var(--acid);
+        color: var(--ink);
+      }
+
+      .copy-button:hover,
+      .primary-button:hover {
+        transform: translateY(-1px);
+        background: #ecff8a;
+      }
+
+      .ghost-button {
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+      }
+
+      .ghost-button:hover {
+        border-color: rgba(215, 255, 71, 0.36);
+        color: var(--acid);
+      }
+
+      .context {
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        overflow: auto;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .context-card {
+        border: 1px solid var(--line-dark);
+        border-radius: 24px;
+        background: rgba(10, 27, 24, 0.78);
+        box-shadow: var(--shadow-dark);
+        padding: 17px;
+      }
+
+      .context-card.featured {
+        background:
+          linear-gradient(135deg, rgba(79, 215, 255, 0.12), rgba(215, 255, 71, 0.08)),
+          rgba(10, 27, 24, 0.78);
+      }
+
+      .context-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .context-head h2 {
+        font-size: 15px;
+        font-weight: 950;
+        letter-spacing: -0.03em;
+      }
+
+      .micro-link {
+        color: var(--acid);
+        font-size: 12px;
+        font-weight: 850;
+      }
+
+      .metric {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        padding: 9px 0;
+      }
+
+      .metric + .metric {
+        border-top: 1px solid var(--line-dark);
+      }
+
+      .metric-label {
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+
+      .metric-value {
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 900;
+        text-align: right;
+      }
+
+      .account-row {
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr);
+        gap: 10px;
+        padding: 10px 0;
+      }
+
+      .account-row + .account-row {
+        border-top: 1px solid var(--line-dark);
+      }
+
+      .provider-mark {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        border-radius: 13px;
+        background: rgba(255, 255, 255, 0.07);
+        color: var(--acid);
+        font-size: 11px;
+        font-weight: 950;
+      }
+
+      .account-name {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .account-state {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-top: 4px;
+        color: var(--text-dim);
+        font-size: 12px;
+      }
+
+      .context-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 14px;
+      }
+
+      .context-actions .ghost-button:last-child {
+        grid-column: 1 / -1;
+      }
+
+      .activity-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .activity {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.045);
+        color: var(--text-dim);
+        font-size: 12px;
+        line-height: 1.48;
+        padding: 11px;
+      }
+
+      .activity strong {
+        color: var(--text);
+      }
+
+      .mobile-note {
+        display: none;
+        border: 1px solid var(--line-dark);
+        border-radius: 20px;
+        background: rgba(10, 27, 24, 0.82);
+        margin: 14px;
+        padding: 16px;
+      }
+
+      @media (max-width: 1320px) {
+        .app {
+          grid-template-columns: 84px 400px minmax(540px, 1fr);
+        }
+
+        .context {
+          display: none;
+        }
+      }
+
+      @media (max-width: 960px) {
+        .app {
+          grid-template-columns: 78px minmax(340px, 420px) minmax(460px, 1fr);
+          gap: 10px;
+          padding: 10px;
+        }
+
+        .split-title {
+          font-size: 35px;
+        }
+
+        .reader-title {
+          font-size: 42px;
+        }
+      }
+
+      @media (max-width: 760px) {
+        html,
+        body {
+          height: auto;
+          min-height: 100%;
+          overflow: auto;
+        }
+
+        .app {
+          display: block;
+          padding: 0;
+          height: auto;
+          min-height: 100vh;
+        }
+
+        .rail,
+        .reader,
+        .context {
+          display: none;
+        }
+
+        .mobile-note {
+          display: block;
+        }
+
+        .split {
+          min-height: 100vh;
+          border: 0;
+          border-radius: 0;
+        }
+
+        .split-scroll,
+        .reader-scroll {
+          overflow: visible;
+        }
+
+        .split-content,
+        .reader-content {
+          min-height: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <aside class="rail" aria-label="主导航">
+        <div class="brand-mark">GM</div>
+        <nav class="rail-nav" aria-label="聚合视图">
+          <button class="rail-button active" type="button" title="统一收件箱">
+            IN
+          </button>
+          <button class="rail-button" type="button" title="重要">P1</button>
+          <button class="rail-button" type="button" title="验证码">VC</button>
+          <button class="rail-button" type="button" title="通知">NT</button>
+          <button class="rail-button" type="button" title="订阅">RD</button>
+          <button class="rail-button" type="button" title="星标">ST</button>
+        </nav>
+        <div class="rail-bottom">
+          <button class="rail-button" type="button" title="账号">AC</button>
+          <button class="rail-button" type="button" title="设置">SG</button>
+        </div>
+      </aside>
+
+      <section class="split" aria-label="聚合邮件列表">
+        <div class="split-scroll" data-lenis-wrapper="split">
+          <div class="split-content" data-lenis-content="split">
+            <div class="mobile-note">
+              <strong>Glimmail 聚合收件箱</strong>
+              <p>移动端预览展示邮件列表。正式版会进入阅读详情。</p>
+            </div>
+
+            <header class="split-hero">
+              <p class="eyebrow">Glimmail Unified Inbox</p>
+              <h1 class="split-title">今日处理 <span>18</span></h1>
+              <p class="split-subtitle">
+                三个账号进入一个高能邮件流。按重要、验证码、通知和订阅分层处理。
+              </p>
+            </header>
+
+            <div class="split-sticky">
+              <label class="command-bar">
+                <input type="search" placeholder="搜索邮件、验证码、联系人，或输入命令" />
+                <span class="kbd">Ctrl K</span>
+              </label>
+
+              <div class="chips" aria-label="邮件分区">
+                <button class="chip active" type="button">全部 42</button>
+                <button class="chip" type="button">重要 6</button>
+                <button class="chip" type="button">验证码 3</button>
+                <button class="chip" type="button">通知 14</button>
+                <button class="chip" type="button">订阅 9</button>
+                <button class="chip" type="button">未读 18</button>
+              </div>
+
+              <div class="account-filter" aria-label="账号筛选">
+                <button class="chip account-chip active" type="button">
+                  <span class="dot"></span>
+                  全部账号
+                </button>
+                <button class="chip account-chip" type="button">
+                  <span class="dot gmail"></span>
+                  Gmail
+                </button>
+                <button class="chip account-chip" type="button">
+                  <span class="dot outlook"></span>
+                  Outlook
+                </button>
+                <button class="chip account-chip" type="button">
+                  <span class="dot mail163"></span>
+                  163 邮箱
+                </button>
+              </div>
+            </div>
+
+            <div class="mail-list">
+          <a class="mail-item outlook active" href="#">
+            <div class="mail-row">
+              <div class="sender">Microsoft 账号团队</div>
+              <div class="time">昨天</div>
+            </div>
+            <div class="subject">连接到 Microsoft 账号的新应用</div>
+            <div class="preview">
+              Glimmail 已连接到你的 Microsoft 账号。若这不是你的操作，请及时检查授权。
+            </div>
+            <div class="mail-footer">
+              <div class="badges">
+                <span class="badge">Outlook</span>
+                <span class="badge hot">安全通知</span>
+              </div>
+              <div class="mail-actions" aria-label="邮件快捷操作">
+                <button class="small-action" type="button" title="星标">ST</button>
+                <button class="small-action" type="button" title="归档">AR</button>
+                <button class="small-action danger-action" type="button" title="删除">
+                  DE
+                </button>
+              </div>
+            </div>
+          </a>
+
+          <a class="mail-item gmail" href="#">
+            <div class="mail-row">
+              <div class="sender">Google</div>
+              <div class="time">昨天</div>
+            </div>
+            <div class="subject">安全提醒</div>
+            <div class="preview">
+              我们发现你的 Google 账号在 Windows 设备上有新的登录活动。
+            </div>
+            <div class="mail-footer">
+              <div class="badges">
+                <span class="badge">Gmail</span>
+                <span class="badge warn">验证码</span>
+              </div>
+              <div class="mail-actions" aria-label="邮件快捷操作">
+                <button class="small-action" type="button" title="星标">ST</button>
+                <button class="small-action" type="button" title="归档">AR</button>
+                <button class="small-action danger-action" type="button" title="删除">
+                  DE
+                </button>
+              </div>
+            </div>
+          </a>
+
+          <a class="mail-item mail163" href="#">
+            <div class="mail-row">
+              <div class="sender">网易邮箱中心</div>
+              <div class="time">周日</div>
+            </div>
+            <div class="subject">客户端授权码已启用</div>
+            <div class="preview">
+              你的 163 邮箱已开启客户端授权码，可用于 IMAP 客户端收取邮件。
+            </div>
+            <div class="mail-footer">
+              <div class="badges">
+                <span class="badge">163 邮箱</span>
+                <span class="badge">账号设置</span>
+              </div>
+              <div class="mail-actions" aria-label="邮件快捷操作">
+                <button class="small-action" type="button" title="星标">ST</button>
+                <button class="small-action" type="button" title="归档">AR</button>
+                <button class="small-action danger-action" type="button" title="删除">
+                  DE
+                </button>
+              </div>
+            </div>
+          </a>
+
+          <a class="mail-item gmail" href="#">
+            <div class="mail-row">
+              <div class="sender">Glimmail 系统</div>
+              <div class="time">5月24日</div>
+            </div>
+            <div class="subject">同步完成摘要</div>
+            <div class="preview">
+              Gmail 获取 10 封邮件，导入 0 封新邮件。重复同步不会重复导入。
+            </div>
+            <div class="mail-footer">
+              <div class="badges">
+                <span class="badge">同步日志</span>
+              </div>
+              <div class="mail-actions" aria-label="邮件快捷操作">
+                <button class="small-action" type="button" title="星标">ST</button>
+                <button class="small-action" type="button" title="归档">AR</button>
+                <button class="small-action danger-action" type="button" title="删除">
+                  DE
+                </button>
+              </div>
+            </div>
+          </a>
+
+          <section class="loading-card" aria-label="加载邮件">
+            <div class="loading-title">
+              <span class="breathing-dot"></span>
+              正在同步，加载邮件
+            </div>
+            <div class="skeleton"></div>
+            <div class="skeleton short"></div>
+          </section>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <article class="reader" aria-label="邮件阅读区">
+        <div class="reader-scroll" data-lenis-wrapper="reader">
+          <div class="reader-content" data-lenis-content="reader">
+            <div class="reader-toolbar">
+              <div class="reader-route">统一收件箱 / Outlook / 安全通知</div>
+              <div class="reader-actions" aria-label="邮件操作">
+                <button class="reader-action" type="button" title="星标">ST</button>
+                <button class="reader-action" type="button" title="标为未读">
+                  标为未读
+                </button>
+                <button class="reader-action" type="button" title="归档">
+                  归档
+                </button>
+                <button
+                  class="reader-action danger-action"
+                  type="button"
+                  title="删除"
+                >
+                  删除
+                </button>
+                <button class="reader-action" type="button" title="更多">MO</button>
+              </div>
+            </div>
+
+            <header class="reader-head">
+              <p class="reader-kicker">邮件摘要 / 来源 Outlook</p>
+              <h2 class="reader-title">连接到 Microsoft 账号的新应用</h2>
+              <div class="sender-line">
+                <div class="sender-avatar">微</div>
+                <div>
+                  <div class="sender-name">Microsoft 账号团队</div>
+                  <div class="sender-detail">
+                    sazhaoyang@outlook.com · 昨天 10:43 · Outlook
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            <div class="reader-body">
+          <section class="summary-strip">
+            <div>
+              <div class="summary-label">邮件摘要</div>
+              <div class="summary-copy">
+                Microsoft 提醒你 Glimmail 已连接账号。如非本人操作，应移除授权并更新密码。
+              </div>
+            </div>
+            <span class="badge hot">重要</span>
+          </section>
+
+          <section class="mail-paper">
+            <p>你好，</p>
+            <p>
+              Glimmail 已连接到你的 Microsoft 账号。这个应用现在可以读取你授权范围内的账号资料，并在你授权邮件同步后读取最近的收件箱邮件。
+            </p>
+            <p>
+              如果这不是你的操作，请前往 Microsoft 账号安全页面移除该应用，并更新账号密码。
+            </p>
+
+            <div class="code-module">
+              <div>
+                <div class="code-label">识别到的验证码</div>
+                <div class="code-value">482913</div>
+              </div>
+              <button class="copy-button" type="button">复制验证码</button>
+            </div>
+          </section>
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <aside class="context" aria-label="上下文面板">
+        <section class="context-card featured">
+          <div class="context-head">
+            <h2>当前邮件</h2>
+            <a class="micro-link" href="#">查看来源</a>
+          </div>
+          <div class="metric">
+            <span class="metric-label">来源账号</span>
+            <span class="metric-value">Outlook</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">同步时间</span>
+            <span class="metric-value">00:21</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">分类</span>
+            <span class="metric-value">安全通知</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">发件人历史</span>
+            <span class="metric-value">12 封</span>
+          </div>
+        </section>
+
+        <section class="context-card">
+          <div class="context-head">
+            <h2>连接账号</h2>
+            <a class="micro-link" href="#">管理</a>
+          </div>
+
+          <div class="account-row">
+            <div class="provider-mark">G</div>
+            <div>
+              <div class="account-name">dongfangyufan@gmail.com</div>
+              <div class="account-state">
+                <span class="breathing-dot"></span>
+                已连接，已授权同步
+              </div>
+            </div>
+          </div>
+
+          <div class="account-row">
+            <div class="provider-mark">O</div>
+            <div>
+              <div class="account-name">sazhaoyang@outlook.com</div>
+              <div class="account-state">
+                <span class="breathing-dot"></span>
+                已连接，已授权同步
+              </div>
+            </div>
+          </div>
+
+          <div class="account-row">
+            <div class="provider-mark">163</div>
+            <div>
+              <div class="account-name">sayangyangly@163.com</div>
+              <div class="account-state">
+                <span class="breathing-dot"></span>
+                IMAP 可用
+              </div>
+            </div>
+          </div>
+
+          <div class="context-actions">
+            <button class="primary-button" type="button">立即同步</button>
+            <button class="ghost-button" type="button">测试连接</button>
+            <button class="ghost-button" type="button">重新授权</button>
+          </div>
+        </section>
+
+        <section class="context-card">
+          <div class="context-head">
+            <h2>最近同步</h2>
+          </div>
+          <div class="activity-list">
+            <div class="activity">
+              <strong>Outlook</strong><br />
+              获取 10 封邮件，导入 0 封新邮件。
+            </div>
+            <div class="activity">
+              <strong>Gmail</strong><br />
+              账号验证成功，连接状态正常。
+            </div>
+            <div class="activity">
+              <strong>163 邮箱</strong><br />
+              当前收件箱没有新邮件。
+            </div>
+          </div>
+        </section>
+      </aside>
+    </main>
+    <script src="https://unpkg.com/lenis@1.3.23/dist/lenis.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script>
+      (() => {
+        const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+        const compactViewport = window.matchMedia("(max-width: 760px)");
+        const splitScroll = document.querySelector(".split-scroll");
+        const splitContent = document.querySelector(".split-content");
+        const readerScroll = document.querySelector(".reader-scroll");
+        const readerContent = document.querySelector(".reader-content");
+        const readerToolbar = document.querySelector(".reader-toolbar");
+        let splitLenis = null;
+        let readerLenis = null;
+
+        const canAnimate =
+          !reduceMotion.matches &&
+          !compactViewport.matches &&
+          window.Lenis &&
+          splitScroll &&
+          splitContent &&
+          readerScroll &&
+          readerContent;
+
+        if (canAnimate) {
+          splitLenis = new Lenis({
+            wrapper: splitScroll,
+            content: splitContent,
+            eventsTarget: splitScroll,
+            lerp: 0.12,
+            smoothWheel: true,
+            wheelMultiplier: 0.92,
+            overscroll: false,
+          });
+
+          readerLenis = new Lenis({
+            wrapper: readerScroll,
+            content: readerContent,
+            eventsTarget: readerScroll,
+            lerp: 0.1,
+            smoothWheel: true,
+            wheelMultiplier: 0.88,
+            overscroll: false,
+          });
+
+          const raf = (time) => {
+            splitLenis.raf(time);
+            readerLenis.raf(time);
+            requestAnimationFrame(raf);
+          };
+
+          requestAnimationFrame(raf);
+        }
+
+        if (window.gsap) {
+          const gsap = window.gsap;
+          const ScrollTrigger = window.ScrollTrigger;
+
+          if (ScrollTrigger) {
+            gsap.registerPlugin(ScrollTrigger);
+          }
+
+          gsap.from(".rail, .split, .reader, .context", {
+            autoAlpha: 0,
+            y: 26,
+            scale: 0.985,
+            duration: 0.9,
+            stagger: 0.08,
+            ease: "expo.out",
+            clearProps: "transform",
+          });
+
+          gsap.from(".brand-mark, .rail-button", {
+            autoAlpha: 0,
+            y: 14,
+            duration: 0.7,
+            stagger: 0.035,
+            delay: 0.2,
+            ease: "expo.out",
+            clearProps: "transform",
+          });
+
+          if (ScrollTrigger && splitScroll && readerScroll) {
+            const wireLenisScroller = (lenis, scroller) => {
+              if (!lenis || !scroller) return;
+
+              ScrollTrigger.scrollerProxy(scroller, {
+                scrollTop(value) {
+                  if (arguments.length) {
+                    lenis.scrollTo(value, { immediate: true });
+                  }
+                  return lenis.scroll;
+                },
+                getBoundingClientRect() {
+                  return {
+                    top: 0,
+                    left: 0,
+                    width: scroller.clientWidth,
+                    height: scroller.clientHeight,
+                  };
+                },
+              });
+
+              lenis.on("scroll", ScrollTrigger.update);
+            };
+
+            wireLenisScroller(splitLenis, splitScroll);
+            wireLenisScroller(readerLenis, readerScroll);
+
+            gsap.to(".split-title", {
+              scale: 0.92,
+              y: -18,
+              opacity: 0.54,
+              ease: "none",
+              scrollTrigger: {
+                trigger: ".split-hero",
+                scroller: splitScroll,
+                start: "top top",
+                end: "bottom top",
+                scrub: true,
+              },
+            });
+
+            gsap.utils.toArray(".mail-item").forEach((item) => {
+              gsap.from(item, {
+                autoAlpha: 0,
+                y: 22,
+                duration: 0.72,
+                ease: "expo.out",
+                scrollTrigger: {
+                  trigger: item,
+                  scroller: splitScroll,
+                  start: "top 88%",
+                  once: true,
+                },
+              });
+            });
+
+            gsap.to(".reader-title", {
+              scale: 0.94,
+              y: -16,
+              transformOrigin: "left top",
+              ease: "none",
+              scrollTrigger: {
+                trigger: ".reader-head",
+                scroller: readerScroll,
+                start: "top top",
+                end: "bottom top",
+                scrub: true,
+              },
+            });
+
+            gsap.from(".code-module", {
+              autoAlpha: 0,
+              y: 28,
+              scale: 0.97,
+              duration: 0.8,
+              ease: "expo.out",
+              scrollTrigger: {
+                trigger: ".code-module",
+                scroller: readerScroll,
+                start: "top 78%",
+                once: true,
+              },
+            });
+
+            ScrollTrigger.create({
+              scroller: readerScroll,
+              start: 18,
+              end: 99999,
+              onToggle: (self) => {
+                readerToolbar?.classList.toggle("is-scrolled", self.isActive);
+              },
+            });
+
+            ScrollTrigger.refresh();
+          }
+        }
+
+        window.GlimmailPreview = {
+          splitLenis,
+          readerLenis,
+        };
+      })();
+    </script>
+  </body>
+</html>

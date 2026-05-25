@@ -2,10 +2,33 @@
 
 Glimmail is a low-cost, multi-user unified inbox for Gmail, Outlook, and 163 Mail. The product direction is enterprise-leaning in structure and safety, while deployment stays intentionally simple enough for a single VPS.
 
+## Start Here For Development
+
+Every new AI or human coding window must read `docs/development-handbook.md` before making changes.
+
+Required first commands:
+
+```powershell
+cd F:\code\Glimmail
+git status -sb
+git log --oneline -10
+```
+
+Required reading order:
+
+1. `docs/development-handbook.md`
+2. `docs/implementation-roadmap.md`
+3. `docs/project-structure-snapshot.md`
+4. `docs/awwwards-design-system.md` for UI work
+5. Provider-specific docs for Gmail, Outlook, 163 Mail, OAuth, Graph, or real sync work
+
+Do not guess when provider, OAuth, Microsoft Graph, Gmail, or IMAP behavior is uncertain. Use official documentation or stop and report the uncertainty.
+
 ## Current scope
 
 - Next.js App Router foundation
-- Stitch-aligned visual shell for:
+- Current Awwwards-inspired visual baseline in `design-preview-zh.html`
+- Existing protected visual shell for:
   - `/login`
   - `/mailboxes`
   - `/inbox`
@@ -89,7 +112,7 @@ pnpm db:seed-messages
 `pnpm db:seed` creates the default owner user from `GLIMMAIL_ADMIN_EMAIL` and `GLIMMAIL_ADMIN_PASSWORD`. For local dev without an `.env.local`, the defaults are:
 
 ```text
-owner@aethermail.local
+owner@glimmail.local
 glimmail-dev-password
 ```
 
@@ -97,15 +120,25 @@ Set `AUTH_SECRET`, `GLIMMAIL_ADMIN_EMAIL`, and `GLIMMAIL_ADMIN_PASSWORD` before 
 
 You can also create the first owner from `/register`. After one user exists, self-registration is closed unless `GLIMMAIL_ALLOW_REGISTRATION=true`.
 
-## Architecture docs
+## Development Docs
 
+- `docs/development-handbook.md` — first document for all new coding windows
+- `docs/implementation-roadmap.md` — checkbox implementation plan and completion tracking
+- `docs/project-structure-snapshot.md` — module map to reduce repeated repository scanning
+- `docs/awwwards-design-system.md` — Awwwards-inspired UI direction, layout, motion, and component rules
 - `docs/architecture.md`
-- `docs/agent-workstreams.md`
+- `docs/agent-workstreams.md` — multi-window ownership and conflict rules
 - `docs/gmail-oauth-plan.md` — Gmail OAuth implementation plan and testing notes
 - `docs/outlook-oauth-plan.md` — Outlook / Microsoft Graph implementation plan and testing notes
 - `docs/operator-runbook.md` — local operation, sync testing, troubleshooting, and pre-production checks
 - `docs/oauth-production-checklist.md` — Gmail and Outlook OAuth production release checklist
 - `docs/real-sync-smoke-test.md` — manual real-provider sync smoke test checklist
+
+## Design Baseline
+
+`design-preview-zh.html` is the current Awwwards-inspired visual baseline for the Chinese unified inbox redesign. It demonstrates the target direction: dark shell, bright reader island, fixed rail and context areas, independent Split and Reader scroll panes, Lenis-style smooth scrolling, GSAP-style motion, direct archive/delete actions, verification code presentation, loading skeletons, and sync status motion.
+
+Production Next.js code must not use CDN scripts. If Lenis or GSAP is implemented in the app, first check `package.json`, add dependencies deliberately, isolate animated client components, and respect `prefers-reduced-motion`.
 
 ## Production readiness
 
