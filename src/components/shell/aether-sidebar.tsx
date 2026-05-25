@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 const mainItems = [
   ["统一收件箱", "IN", "/inbox"],
   ["重要", "P1", "/inbox?view=important"],
@@ -35,6 +37,60 @@ function isActiveLabel(active: string, label: string) {
   return active === label || activeLabelAliases[active] === label;
 }
 
+type RailItemProps = {
+  href: string;
+  index: number;
+  isActive: boolean;
+  label: string;
+  shortLabel: string;
+};
+
+function RailItem({
+  href,
+  index,
+  isActive,
+  label,
+  shortLabel,
+}: RailItemProps) {
+  return (
+    <a
+      className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
+        isActive
+          ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
+          : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
+      }`}
+      href={href}
+      style={
+        {
+          "--rail-hover-ink": isActive ? "#111e1a" : "#f4f5e9",
+          "--rail-ink": isActive ? "#111e1a" : "rgba(244,245,233,0.68)",
+          "--rail-item-index": index,
+        } as CSSProperties
+      }
+      title={label}
+    >
+      <span className="rail-short grid place-items-center">{shortLabel}</span>
+      <span className="rail-label min-w-0 overflow-hidden whitespace-nowrap pr-3 text-xs font-black tracking-normal opacity-0 transition-[opacity] duration-200 group-hover/sidebar:opacity-100">
+        {Array.from(label).map((character, characterIndex) => (
+          <span
+            aria-hidden="true"
+            className="rail-letter inline-block"
+            key={`${label}-${characterIndex}`}
+            style={
+              {
+                "--rail-letter-index": characterIndex,
+              } as CSSProperties
+            }
+          >
+            {character}
+          </span>
+        ))}
+        <span className="sr-only">{label}</span>
+      </span>
+    </a>
+  );
+}
+
 export function AetherSidebar({
   active = "统一收件箱",
 }: {
@@ -42,61 +98,64 @@ export function AetherSidebar({
   connectedAccountCount?: number;
 }) {
   return (
-    <aside className="fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden w-[92px] flex-col items-center overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/75 px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] md:flex">
+    <aside className="rail-shell group/sidebar fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden w-[92px] flex-col items-center overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/75 px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] transition-[width,background-color,border-color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:w-[236px] hover:border-white/15 hover:bg-[#071412]/92 md:flex">
       <a
-        className="grid h-[54px] w-[54px] place-items-center"
+        className="grid h-[54px] w-full grid-cols-[54px_minmax(0,1fr)] items-center gap-3"
         href="/inbox"
         title="Glimmail"
       >
-        <span className="grid size-14 shrink-0 place-items-center rounded-[18px] border border-[#d7ff47]/35 bg-[#d7ff47] text-sm font-black text-[#071412] shadow-[0_18px_42px_rgba(215,255,71,0.16)]">
+        <span className="rail-welcome-mark grid size-14 shrink-0 place-items-center rounded-[18px] border border-[#d7ff47]/35 bg-[#d7ff47] text-sm font-black text-[#071412] shadow-[0_18px_42px_rgba(215,255,71,0.16)]">
           GM
+        </span>
+        <span className="rail-brand-label overflow-hidden whitespace-nowrap text-[15px] font-black tracking-[-0.04em] text-[#f4f5e9] opacity-0 transition-[opacity] duration-200 group-hover/sidebar:opacity-100">
+          {Array.from("Glimmail").map((character, characterIndex) => (
+            <span
+              aria-hidden="true"
+              className="rail-letter inline-block"
+              key={`${character}-${characterIndex}`}
+              style={
+                {
+                  "--rail-letter-index": characterIndex,
+                } as CSSProperties
+              }
+            >
+              {character}
+            </span>
+          ))}
+          <span className="sr-only">Glimmail</span>
         </span>
       </a>
 
-      <nav className="mt-7 grid gap-[10px]">
-        {mainItems.map(([label, shortLabel, href]) => {
+      <nav className="mt-7 grid w-full gap-[10px]">
+        {mainItems.map(([label, shortLabel, href], index) => {
           const isActive = isActiveLabel(active, label);
 
           return (
-            <a
-              className={`grid h-12 w-12 place-items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
-                isActive
-                  ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
-                  : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
-              }`}
+            <RailItem
               href={href}
+              index={index}
+              isActive={isActive}
               key={label}
-              style={{
-                color: isActive ? "#111e1a" : "rgba(244,245,233,0.68)",
-              }}
-              title={label}
-            >
-              {shortLabel}
-            </a>
+              label={label}
+              shortLabel={shortLabel}
+            />
           );
         })}
       </nav>
 
-      <div className="mt-auto grid gap-[10px]">
-        {bottomItems.map(([label, shortLabel, href]) => {
+      <div className="mt-auto grid w-full gap-[10px]">
+        {bottomItems.map(([label, shortLabel, href], index) => {
           const isActive = isActiveLabel(active, label);
 
           return (
-            <a
-              className={`grid h-12 w-12 place-items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
-                isActive
-                  ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
-                  : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
-              }`}
+            <RailItem
               href={href}
+              index={mainItems.length + index}
+              isActive={isActive}
               key={label}
-              style={{
-                color: isActive ? "#111e1a" : "rgba(244,245,233,0.68)",
-              }}
-              title={label}
-            >
-              {shortLabel}
-            </a>
+              label={label}
+              shortLabel={shortLabel}
+            />
           );
         })}
       </div>
