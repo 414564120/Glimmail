@@ -6,6 +6,10 @@ export function getSafeNextPath(
 ) {
   const nextPath = String(value || "").trim();
 
+  if (/[\u0000-\u001F\u007F]/.test(nextPath)) {
+    return DEFAULT_NEXT_PATH;
+  }
+
   if (!nextPath.startsWith("/") || nextPath.startsWith("//")) {
     return DEFAULT_NEXT_PATH;
   }

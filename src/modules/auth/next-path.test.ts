@@ -38,6 +38,11 @@ const testCases: TestCase[] = [
     expected: "/inbox",
   },
   {
+    name: "rejects control characters in query",
+    input: "/inbox?mailbox=abc\nSet-Cookie: secret",
+    expected: "/inbox",
+  },
+  {
     name: "trims allowed path",
     input: " /settings ",
     expected: "/settings",
