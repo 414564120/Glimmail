@@ -10,7 +10,7 @@ Glimmail is a low-cost, multi-user unified inbox for Gmail, Outlook, and 163 Mai
   - `/mailboxes`
   - `/inbox`
   - `/settings`
-- Multi-agent module boundaries
+- Module boundaries for auth, mailboxes, providers, messages, and sync logs
 - Server-side DB-backed session cookie auth
 - First-user registration for local bootstrap
 - DB-backed inbox with manual sync from 163 Mail, Gmail, and Outlook
@@ -107,7 +107,6 @@ You can also create the first owner from `/register`. After one user exists, sel
 - `docs/oauth-production-checklist.md` — Gmail and Outlook OAuth production release checklist
 - `docs/real-sync-smoke-test.md` — manual real-provider sync smoke test checklist
 
-## Next implementation slices
+## Production readiness
 
-1. Add focused tests around provider callback failure paths
-2. Continue tightening documentation for completed OAuth and sync flows
+Before production launch, follow `docs/operator-runbook.md`, `docs/oauth-production-checklist.md`, and `docs/real-sync-smoke-test.md`. Rotate OAuth secrets before real deployment, use HTTPS redirect URIs, and run real-provider smoke tests for 163 Mail, Gmail, and Outlook.

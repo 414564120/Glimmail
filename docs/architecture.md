@@ -20,12 +20,12 @@
   - Mailbox ownership, connection flows, and provider metadata
 - `src/modules/providers`
   - Gmail, Outlook, and 163 integration adapters
-- `src/modules/sync`
-  - Manual sync orchestration and audit logging
 - `src/modules/messages`
   - Message queries, detail shaping, verification extraction
-- `src/modules/workstreams`
-  - Coordination metadata for parallel implementation
+- `src/modules/synclogs`
+  - Sync activity retrieval for mailbox dashboards
+
+Manual sync orchestration currently lives in `src/app/mailboxes/actions.ts`, with provider parsing and safe summary helpers kept under `src/modules/providers` and `src/modules/messages`.
 
 ## Implemented sync boundary
 
@@ -40,7 +40,6 @@
 
 ## Current production hardening backlog
 
-1. Add provider rate-limit handling where APIs expose retry guidance.
-2. Rotate OAuth client secrets before production use and on any suspected exposure.
-3. Enforce HTTPS and production redirect URIs behind the deployment reverse proxy.
-4. Add consent copy and operator runbooks for Gmail and Outlook setup.
+1. Rotate OAuth client secrets before production use and on any suspected exposure.
+2. Enforce HTTPS and production redirect URIs behind the deployment reverse proxy.
+3. Run the real-provider smoke test checklist before release.
