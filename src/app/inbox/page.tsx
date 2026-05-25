@@ -122,7 +122,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
         connectedAccountCount={mailboxes.length}
       />
 
-      <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-64 md:pb-0 md:pt-0">
+      <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-[106px] md:pb-0 md:pt-0">
         <header className="glass-card sticky top-0 z-20 hidden h-16 items-center justify-between border-b border-white/40 px-12 md:flex">
           <label className="group relative w-96">
             <span className="sr-only">搜索邮件</span>

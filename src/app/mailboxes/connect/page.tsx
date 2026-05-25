@@ -122,7 +122,7 @@ export default async function ConnectPage({ searchParams }: PageProps) {
         connectedAccountCount={mailboxes.length}
       />
 
-      <section className="flex min-h-[100dvh] items-start justify-center px-4 pb-28 pt-24 md:ml-64 md:px-12 md:pt-24">
+      <section className="flex min-h-[100dvh] items-start justify-center px-4 pb-28 pt-24 md:ml-[106px] md:px-12 md:pt-24">
         <div className="w-full max-w-3xl">
           <Link
             className="mb-8 inline-flex items-center gap-2 text-sm font-bold text-[#f4f5e9]/68 transition hover:text-[#d7ff47]"

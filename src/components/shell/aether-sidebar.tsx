@@ -1,17 +1,17 @@
 import { SymbolIcon } from "./aether-icons";
 
 const mainItems = [
-  ["inbox", "收件箱", "/inbox"],
-  ["hub", "账号", "/mailboxes"],
-  ["star", "星标", "/inbox?view=starred"],
-  ["send", "已发送", "/inbox?view=sent"],
-  ["drafts", "草稿", "/inbox?view=drafts"],
+  ["inbox", "收件箱", "IN", "/inbox"],
+  ["hub", "账号", "AC", "/mailboxes"],
+  ["star", "星标", "ST", "/inbox?view=starred"],
+  ["send", "已发送", "SE", "/inbox?view=sent"],
+  ["drafts", "草稿", "DR", "/inbox?view=drafts"],
 ] as const;
 
 const bottomItems = [
-  ["archive", "归档", "/inbox?view=archive"],
-  ["delete", "废纸篓", "/inbox?view=trash"],
-  ["settings", "设置", "/settings"],
+  ["archive", "归档", "AR", "/inbox?view=archive"],
+  ["delete", "废纸篓", "TR", "/inbox?view=trash"],
+  ["settings", "设置", "SG", "/settings"],
 ] as const;
 
 const activeLabelAliases: Record<string, string> = {
@@ -39,56 +39,69 @@ export function AetherSidebar({
   connectedAccountCount?: number;
 }) {
   return (
-    <aside className="fixed left-0 top-0 z-30 hidden h-screen w-64 flex-col border-r border-white/10 bg-[#071412] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] md:flex">
-      <div className="custom-scrollbar flex-1 overflow-y-auto p-6">
-        <a className="mb-8 flex items-center gap-3" href="/inbox">
-          <span className="grid size-11 place-items-center rounded-2xl border border-[#d7ff47]/35 bg-[#d7ff47] text-sm font-black text-[#071412]">
+    <aside className="group/sidebar fixed bottom-3 left-3 top-3 z-40 hidden w-[92px] flex-col overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/96 text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] transition-[width] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:w-[240px] md:flex">
+      <div className="custom-scrollbar flex-1 overflow-y-auto px-5 py-4">
+        <a className="mb-8 flex h-14 items-center gap-3" href="/inbox">
+          <span className="grid size-14 shrink-0 place-items-center rounded-[18px] border border-[#d7ff47]/35 bg-[#d7ff47] text-sm font-black text-[#071412] shadow-[0_18px_42px_rgba(215,255,71,0.16)]">
             GL
           </span>
-          <span className="font-display text-[28px] font-extrabold leading-[1.2] tracking-tight">
+          <span className="max-w-0 overflow-hidden whitespace-nowrap font-display text-[26px] font-extrabold leading-[1.2] tracking-tight opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-36 group-hover/sidebar:opacity-100">
             Glimmail
           </span>
         </a>
 
-        <div className="mb-8 mt-4 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
-          <h2 className="mb-1 font-label text-xs font-bold uppercase tracking-[0.1em] text-[#d7ff47]">
+        <div className="mb-8 mt-4 max-h-0 overflow-hidden rounded-2xl border border-transparent bg-white/[0.04] px-3 py-0 opacity-0 transition-[max-height,opacity,padding,border-color] duration-300 group-hover/sidebar:max-h-24 group-hover/sidebar:border-white/10 group-hover/sidebar:py-3 group-hover/sidebar:opacity-100">
+          <h2 className="mb-1 whitespace-nowrap font-label text-xs font-bold uppercase tracking-[0.1em] text-[#d7ff47]">
             统一收件箱
           </h2>
-          <p className="text-xs text-[#f4f5e9]/58">
+          <p className="whitespace-nowrap text-xs text-[#f4f5e9]/58">
             已连接 {connectedAccountCount} 个账号
           </p>
         </div>
 
         <a
-          className="mb-8 flex w-full items-center justify-center gap-2 rounded-xl bg-[#d7ff47] px-4 py-3 font-label text-xs font-black uppercase tracking-[0.1em] text-[#071412] transition hover:-translate-y-0.5 hover:bg-[#e4ff77] active:translate-y-0"
+          className="mb-8 flex h-12 w-full items-center justify-center gap-3 rounded-2xl bg-[#d7ff47] px-0 font-label text-xs font-black uppercase tracking-[0.1em] text-[#071412] transition hover:-translate-y-0.5 hover:bg-[#e4ff77] active:translate-y-0 group-hover/sidebar:justify-start group-hover/sidebar:px-4"
           href="/inbox?compose=new"
+          title="写邮件"
         >
-          <SymbolIcon className="text-[20px]">edit</SymbolIcon>
-          写邮件
+          <SymbolIcon className="shrink-0 text-[20px]">edit</SymbolIcon>
+          <span className="max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-20 group-hover/sidebar:opacity-100">
+            写邮件
+          </span>
         </a>
 
         <nav className="space-y-2">
-          {mainItems.map(([icon, label, href]) => {
+          {mainItems.map(([icon, label, shortLabel, href]) => {
             const isActive = isActiveLabel(active, label);
 
             return (
               <a
-                className={`flex items-center gap-4 rounded-xl px-4 py-3 transition ${
+                className={`flex h-12 items-center justify-center gap-3 rounded-2xl px-0 transition group-hover/sidebar:justify-start group-hover/sidebar:px-4 ${
                   isActive
                     ? "bg-[#f7f1df] text-[#111e1a]"
                     : "text-[#f4f5e9]/62 hover:bg-white/[0.06] hover:text-[#f4f5e9]"
                 }`}
                 href={href}
                 key={label}
+                title={label}
               >
-                <SymbolIcon className="text-[22px]" fill={isActive}>
+                <SymbolIcon className="shrink-0 text-[22px]" fill={isActive}>
                   {icon}
                 </SymbolIcon>
                 <span
                   className={
                     isActive
-                      ? "font-label text-xs font-black uppercase tracking-[0.1em]"
-                      : "text-base"
+                      ? "font-label text-xs font-black uppercase tracking-[0.1em] transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-0 group-hover/sidebar:opacity-0"
+                      : "font-label text-xs font-bold uppercase tracking-[0.1em] transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-0 group-hover/sidebar:opacity-0"
+                  }
+                >
+                  {shortLabel}
+                </span>
+                <span
+                  className={
+                    isActive
+                      ? "max-w-0 overflow-hidden whitespace-nowrap font-label text-xs font-black uppercase tracking-[0.1em] opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-24 group-hover/sidebar:opacity-100"
+                      : "max-w-0 overflow-hidden whitespace-nowrap text-sm opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-24 group-hover/sidebar:opacity-100"
                   }
                 >
                   {label}
@@ -99,28 +112,38 @@ export function AetherSidebar({
         </nav>
       </div>
 
-      <div className="space-y-2 border-t border-white/10 p-6">
-        {bottomItems.map(([icon, label, href]) => {
+      <div className="space-y-2 border-t border-white/10 px-5 py-4">
+        {bottomItems.map(([icon, label, shortLabel, href]) => {
           const isActive = isActiveLabel(active, label);
 
           return (
             <a
-              className={`flex items-center gap-4 rounded-xl px-4 py-3 transition ${
+              className={`flex h-12 items-center justify-center gap-3 rounded-2xl px-0 transition group-hover/sidebar:justify-start group-hover/sidebar:px-4 ${
                 isActive
                   ? "bg-[#f7f1df] text-[#111e1a]"
                   : "text-[#f4f5e9]/62 hover:bg-white/[0.06] hover:text-[#f4f5e9]"
               }`}
               href={href}
               key={label}
+              title={label}
             >
-              <SymbolIcon className="text-[22px]" fill={isActive}>
+              <SymbolIcon className="shrink-0 text-[22px]" fill={isActive}>
                 {icon}
               </SymbolIcon>
               <span
                 className={
                   isActive
-                    ? "font-label text-xs font-black uppercase tracking-[0.1em]"
-                    : "text-base"
+                    ? "font-label text-xs font-black uppercase tracking-[0.1em] transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-0 group-hover/sidebar:opacity-0"
+                    : "font-label text-xs font-bold uppercase tracking-[0.1em] transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-0 group-hover/sidebar:opacity-0"
+                }
+              >
+                {shortLabel}
+              </span>
+              <span
+                className={
+                  isActive
+                    ? "max-w-0 overflow-hidden whitespace-nowrap font-label text-xs font-black uppercase tracking-[0.1em] opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-24 group-hover/sidebar:opacity-100"
+                    : "max-w-0 overflow-hidden whitespace-nowrap text-sm opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-24 group-hover/sidebar:opacity-100"
                 }
               >
                 {label}

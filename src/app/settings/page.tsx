@@ -25,7 +25,7 @@ export default async function SettingsPage() {
         connectedAccountCount={mailboxes.length}
       />
 
-      <section className="flex min-h-screen items-start justify-center px-4 pb-28 pt-24 md:ml-64 md:px-12 md:pt-24">
+      <section className="flex min-h-screen items-start justify-center px-4 pb-28 pt-24 md:ml-[106px] md:px-12 md:pt-24">
         <div className="w-full max-w-lg">
           <header className="mb-10 text-center">
             <h1 className="gradient-text font-display text-[44px] font-extrabold leading-[1.2] md:text-[56px] md:leading-[1.1]">
