@@ -1,3 +1,7 @@
+"use client";
+
+import gsap from "gsap";
+import { useEffect, useRef } from "react";
 import type { CSSProperties } from "react";
 
 const mainItems = [
@@ -39,7 +43,6 @@ function isActiveLabel(active: string, label: string) {
 
 type RailItemProps = {
   href: string;
-  index: number;
   isActive: boolean;
   label: string;
   shortLabel: string;
@@ -47,7 +50,6 @@ type RailItemProps = {
 
 function RailItem({
   href,
-  index,
   isActive,
   label,
   shortLabel,
@@ -64,28 +66,25 @@ function RailItem({
         {
           "--rail-hover-ink": isActive ? "#111e1a" : "#f4f5e9",
           "--rail-ink": isActive ? "#111e1a" : "rgba(244,245,233,0.68)",
-          "--rail-item-index": index,
         } as CSSProperties
       }
       title={label}
+      aria-label={label}
     >
-      <span className="rail-short grid place-items-center">{shortLabel}</span>
-      <span className="rail-label min-w-0 overflow-hidden whitespace-nowrap pr-3 text-xs font-black tracking-normal opacity-0 transition-[opacity] duration-200 group-hover/sidebar:opacity-100">
+      <span className="rail-short grid place-items-center" data-rail-pop>
+        {shortLabel}
+      </span>
+      <span className="rail-label min-w-0 overflow-hidden whitespace-nowrap pr-3 text-xs font-black tracking-normal">
         {Array.from(label).map((character, characterIndex) => (
           <span
             aria-hidden="true"
             className="rail-letter inline-block"
+            data-rail-letter
             key={`${label}-${characterIndex}`}
-            style={
-              {
-                "--rail-letter-index": characterIndex,
-              } as CSSProperties
-            }
           >
             {character}
           </span>
         ))}
-        <span className="sr-only">{label}</span>
       </span>
     </a>
   );
@@ -97,43 +96,190 @@ export function AetherSidebar({
   active?: string;
   connectedAccountCount?: number;
 }) {
+  const railRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    const links = gsap.utils.toArray<HTMLElement>(".rail-link", rail);
+    const labels = gsap.utils.toArray<HTMLElement>(
+      ".rail-label, .rail-brand-label",
+      rail,
+    );
+    const letters = gsap.utils.toArray<HTMLElement>("[data-rail-letter]", rail);
+    const popTargets = gsap.utils.toArray<HTMLElement>("[data-rail-pop]", rail);
+    const brandLink = rail.querySelector<HTMLElement>(".rail-brand-link");
+
+    const setCollapsed = () => {
+      gsap.set(rail, {
+        backgroundColor: "rgba(7,20,18,0.75)",
+        borderColor: "rgba(255,255,255,0.1)",
+        width: 92,
+      });
+      gsap.set(links, { width: 48 });
+      gsap.set(brandLink, { width: 54 });
+      gsap.set(labels, { autoAlpha: 0 });
+      gsap.set(letters, { autoAlpha: 0, x: -8 });
+      gsap.set(popTargets, { clearProps: "transform" });
+    };
+
+    const signalLetters = (timeline: gsap.core.Timeline, startAt: number) => {
+      letters.forEach((letter, letterIndex) => {
+        timeline.fromTo(
+          letter,
+          { autoAlpha: 0, x: -8 },
+          {
+            keyframes: [
+              { autoAlpha: 0.56, x: -3, duration: 0.045 },
+              { autoAlpha: 0.08, x: 1, duration: 0.035 },
+              { autoAlpha: 1, x: 0, duration: 0.24 },
+            ],
+            ease: "expo.out",
+          },
+          startAt + letterIndex * 0.026,
+        );
+      });
+    };
+
+    const expandRail = () => {
+      gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
+
+      if (reduceMotion.matches) {
+        gsap.set(rail, {
+          backgroundColor: "rgba(7,20,18,0.92)",
+          borderColor: "rgba(255,255,255,0.15)",
+          width: 236,
+        });
+        gsap.set(links, { width: "100%" });
+        gsap.set(brandLink, { width: "100%" });
+        gsap.set(labels, { autoAlpha: 1 });
+        gsap.set(letters, { autoAlpha: 1, x: 0 });
+        return;
+      }
+
+      const timeline = gsap.timeline();
+
+      timeline
+        .to(rail, {
+          backgroundColor: "rgba(7,20,18,0.92)",
+          borderColor: "rgba(255,255,255,0.15)",
+          duration: 0.95,
+          ease: "power3.out",
+          width: 236,
+        })
+        .to(
+          [brandLink, ...links],
+          {
+            duration: 0.82,
+            ease: "power3.out",
+            stagger: 0.015,
+            width: "100%",
+          },
+          0.05,
+        )
+        .set(labels, { autoAlpha: 1 }, 0.14)
+        .fromTo(
+          popTargets,
+          { rotation: 0, scale: 1, x: 0, y: 0 },
+          {
+            duration: 0.7,
+            ease: "expo.out",
+            keyframes: [
+              { rotation: -4, scaleX: 1.08, scaleY: 0.92, y: -5 },
+              { rotation: 5, scaleX: 0.96, scaleY: 1.06, x: 4, y: 1 },
+              { rotation: -3, scaleX: 1.03, scaleY: 0.98, x: -3, y: -1 },
+              { rotation: 1, scaleX: 0.99, scaleY: 1.01, x: 1, y: 0 },
+              { rotation: 0, scale: 1, x: 0, y: 0 },
+            ],
+            stagger: 0.035,
+          },
+          0.08,
+        );
+
+      signalLetters(timeline, 0.18);
+    };
+
+    const collapseRail = () => {
+      gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
+
+      if (reduceMotion.matches) {
+        setCollapsed();
+        return;
+      }
+
+      gsap
+        .timeline()
+        .to(labels, { autoAlpha: 0, duration: 0.12, ease: "power2.out" }, 0)
+        .to(letters, { autoAlpha: 0, duration: 0.12, ease: "power2.out", x: -8 }, 0)
+        .to([brandLink, ...links], { duration: 0.36, ease: "expo.out", width: 48 }, 0)
+        .to(brandLink, { duration: 0.36, ease: "expo.out", width: 54 }, 0)
+        .to(
+          rail,
+          {
+            backgroundColor: "rgba(7,20,18,0.75)",
+            borderColor: "rgba(255,255,255,0.1)",
+            duration: 0.58,
+            ease: "power3.out",
+            width: 92,
+          },
+          0,
+        )
+        .set(popTargets, { clearProps: "transform" });
+    };
+
+    setCollapsed();
+    rail.addEventListener("pointerenter", expandRail);
+    rail.addEventListener("pointerleave", collapseRail);
+    rail.addEventListener("focusin", expandRail);
+    rail.addEventListener("focusout", collapseRail);
+
+    return () => {
+      rail.removeEventListener("pointerenter", expandRail);
+      rail.removeEventListener("pointerleave", collapseRail);
+      rail.removeEventListener("focusin", expandRail);
+      rail.removeEventListener("focusout", collapseRail);
+      gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
+    };
+  }, []);
+
   return (
-    <aside className="rail-shell group/sidebar fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden w-[92px] flex-col items-center overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/75 px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] transition-[width,background-color,border-color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:w-[236px] hover:border-white/15 hover:bg-[#071412]/92 md:flex">
+    <aside
+      className="rail-shell fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden w-[92px] flex-col items-center overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/75 px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] md:flex"
+      ref={railRef}
+    >
       <a
-        className="grid h-[54px] w-full grid-cols-[54px_minmax(0,1fr)] items-center gap-3"
+        className="rail-brand-link grid h-[54px] w-[54px] grid-cols-[54px_minmax(0,1fr)] items-center gap-3 overflow-hidden"
         href="/inbox"
         title="Glimmail"
+        aria-label="Glimmail"
       >
-        <span className="rail-welcome-mark grid size-14 shrink-0 place-items-center rounded-[18px] border border-[#d7ff47]/35 bg-[#d7ff47] text-sm font-black text-[#071412] shadow-[0_18px_42px_rgba(215,255,71,0.16)]">
+        <span className="rail-welcome-mark grid shrink-0 place-items-center" data-rail-pop>
           GM
         </span>
-        <span className="rail-brand-label overflow-hidden whitespace-nowrap text-[15px] font-black tracking-[-0.04em] text-[#f4f5e9] opacity-0 transition-[opacity] duration-200 group-hover/sidebar:opacity-100">
+        <span className="rail-brand-label overflow-hidden whitespace-nowrap text-[15px] font-black tracking-[-0.04em] text-[#f4f5e9]">
           {Array.from("Glimmail").map((character, characterIndex) => (
             <span
               aria-hidden="true"
               className="rail-letter inline-block"
+              data-rail-letter
               key={`${character}-${characterIndex}`}
-              style={
-                {
-                  "--rail-letter-index": characterIndex,
-                } as CSSProperties
-              }
             >
               {character}
             </span>
           ))}
-          <span className="sr-only">Glimmail</span>
         </span>
       </a>
 
       <nav className="mt-7 grid w-full gap-[10px]">
-        {mainItems.map(([label, shortLabel, href], index) => {
+        {mainItems.map(([label, shortLabel, href]) => {
           const isActive = isActiveLabel(active, label);
 
           return (
             <RailItem
               href={href}
-              index={index}
               isActive={isActive}
               key={label}
               label={label}
@@ -144,13 +290,12 @@ export function AetherSidebar({
       </nav>
 
       <div className="mt-auto grid w-full gap-[10px]">
-        {bottomItems.map(([label, shortLabel, href], index) => {
+        {bottomItems.map(([label, shortLabel, href]) => {
           const isActive = isActiveLabel(active, label);
 
           return (
             <RailItem
               href={href}
-              index={mainItems.length + index}
               isActive={isActive}
               key={label}
               label={label}
