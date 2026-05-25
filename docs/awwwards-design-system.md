@@ -33,6 +33,45 @@ Rules:
 - `.context` provides metadata, account status, and sync activity without becoming the primary surface.
 - Mobile falls back to message-list-first navigation.
 
+## Public And Auth Pages
+
+### Home Page
+
+- Route: `/`.
+- The final design must be a real Chinese home page, not only a redirect.
+- Use the same dark editorial shell as the app, but with a clearer product introduction.
+- First viewport must show `Glimmail`, the unified inbox value, supported providers, and a visible `登录` action.
+- If registration is available for first-owner bootstrap, show `创建首个账号` as a secondary action.
+- Do not turn the page into a generic SaaS landing page with repetitive feature cards.
+
+### Login Page
+
+- Route: `/login`.
+- Replace old `AetherMail` branding with `Glimmail`.
+- Keep the form focused and fast.
+- Use Chinese labels, errors, and actions.
+- Keep safe `next` redirect behavior.
+- Do not include non-functional UI controls.
+
+### Register Page
+
+- Route: `/register`.
+- Present it as first-owner bootstrap, not open public signup.
+- Explain in Chinese that registration closes after the first account unless enabled.
+- Keep security copy concise.
+
+### Connect Mailbox Page
+
+- Route: `/mailboxes/connect?provider=...`.
+- Keep a dedicated page for now instead of forcing a modal.
+- Design it as a focused provider connection flow:
+  - provider identity
+  - permission explanation
+  - setup warning if configuration is missing
+  - primary connect action
+  - safe 163 authorization-code form
+- Do not expose environment values or raw OAuth errors.
+
 ## Color System
 
 Use a bold but controlled palette:
@@ -189,4 +228,3 @@ Errors:
 - Focus states must remain visible.
 - Reduced motion must be respected.
 - Small screens must remain readable even if advanced motion is disabled.
-

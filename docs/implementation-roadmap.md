@@ -29,6 +29,8 @@ pnpm typecheck
 ## Phase 1 Chinese UX Copy
 
 - [ ] Create a dedicated branch or worktree branch before editing UI copy.
+- [ ] Read `docs/page-information-architecture.md`.
+- [ ] Replace user-facing `AetherMail` naming with `Glimmail`.
 - [ ] App shell copy.
 - [ ] Inbox copy.
 - [ ] Mailboxes copy.
@@ -45,6 +47,7 @@ Acceptance:
 ## Phase 2 Design System Foundation
 
 - [ ] Create a dedicated branch or worktree branch before editing design system code.
+- [ ] Preserve the page structure defined in `docs/page-information-architecture.md`.
 - [ ] Replace old glass/neon globals.
 - [ ] Define color tokens from `docs/awwwards-design-system.md`.
 - [ ] Define button styles.
@@ -132,3 +135,20 @@ Acceptance:
 Acceptance:
 
 - `docs/operator-runbook.md`, `docs/oauth-production-checklist.md`, and `docs/real-sync-smoke-test.md` have been followed.
+
+## Phase 8 Home, Login, And Connect UX
+
+- [ ] Create a dedicated branch or worktree branch before editing route files.
+- [ ] Implement `/` as a real Chinese home page instead of a final redirect-only route.
+- [ ] Redesign `/login` with Glimmail branding and safe Chinese auth copy.
+- [ ] Keep `/register` as first-owner bootstrap and clarify its purpose in Chinese.
+- [ ] Keep `/mailboxes/connect?provider=...` as the focused provider connection page for now.
+- [ ] Redesign mailbox connect states for Gmail, Outlook, and 163 Mail.
+- [ ] Remove obsolete AetherMail/glass/neon assets after proving they are unreferenced.
+
+Acceptance:
+
+- Public users can understand the product from `/`.
+- Existing users can sign in from `/login`.
+- Authenticated users still reach `/inbox`.
+- Provider connection remains safe and does not expose secrets.

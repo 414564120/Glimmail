@@ -19,8 +19,9 @@ Required reading order:
 1. `docs/development-handbook.md`
 2. `docs/implementation-roadmap.md`
 3. `docs/project-structure-snapshot.md`
-4. `docs/awwwards-design-system.md` for UI work
-5. Provider-specific docs for Gmail, Outlook, 163 Mail, OAuth, Graph, or real sync work
+4. `docs/page-information-architecture.md` for page or UX structure work
+5. `docs/awwwards-design-system.md` for UI work
+6. Provider-specific docs for Gmail, Outlook, 163 Mail, OAuth, Graph, or real sync work
 
 Do not guess when provider, OAuth, Microsoft Graph, Gmail, or IMAP behavior is uncertain. Use official documentation or stop and report the uncertainty.
 
@@ -125,6 +126,7 @@ You can also create the first owner from `/register`. After one user exists, sel
 - `docs/development-handbook.md` — first document for all new coding windows
 - `docs/implementation-roadmap.md` — checkbox implementation plan and completion tracking
 - `docs/project-structure-snapshot.md` — module map to reduce repeated repository scanning
+- `docs/page-information-architecture.md` — target route and page structure for home, login, inbox, accounts, connect, and settings
 - `docs/awwwards-design-system.md` — Awwwards-inspired UI direction, layout, motion, and component rules
 - `docs/architecture.md`
 - `docs/agent-workstreams.md` — multi-window ownership and conflict rules

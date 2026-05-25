@@ -5,7 +5,8 @@ Before making any change in this repository, read:
 1. `docs/development-handbook.md`
 2. `docs/implementation-roadmap.md`
 3. `docs/project-structure-snapshot.md`
-4. `docs/awwwards-design-system.md` for UI work
+4. `docs/page-information-architecture.md` for page or UX structure work
+5. `docs/awwwards-design-system.md` for UI work
 
 Then run:
 

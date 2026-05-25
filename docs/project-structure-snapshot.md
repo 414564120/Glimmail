@@ -14,7 +14,7 @@ Use this snapshot before searching the whole repository. Update it whenever impo
 ## Application Routes
 
 - `src/app/layout.tsx`: root layout, fonts, metadata.
-- `src/app/page.tsx`: root route.
+- `src/app/page.tsx`: root route. Current implementation redirects to `/login`; target implementation should become the real home page described in `docs/page-information-architecture.md`.
 - `src/app/login/page.tsx`: login UI.
 - `src/app/login/actions.ts`: login server action.
 - `src/app/register/page.tsx`: first-owner registration UI.
@@ -104,6 +104,7 @@ Do not add migrations unless the task explicitly requires schema changes.
 
 - `docs/development-handbook.md`: first document for all new windows.
 - `docs/implementation-roadmap.md`: checkbox implementation plan.
+- `docs/page-information-architecture.md`: target page and route structure.
 - `docs/awwwards-design-system.md`: visual system and motion rules.
 - `docs/project-structure-snapshot.md`: this file.
 - `docs/architecture.md`: implementation architecture summary.
@@ -112,4 +113,3 @@ Do not add migrations unless the task explicitly requires schema changes.
 - `docs/real-sync-smoke-test.md`: real-provider smoke test checklist.
 - `docs/gmail-oauth-plan.md`: Gmail OAuth details.
 - `docs/outlook-oauth-plan.md`: Outlook and Microsoft Graph details.
-

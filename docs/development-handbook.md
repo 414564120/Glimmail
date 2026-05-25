@@ -68,9 +68,10 @@ Rules:
 1. `docs/development-handbook.md`
 2. `docs/implementation-roadmap.md`
 3. `docs/project-structure-snapshot.md`
-4. `docs/awwwards-design-system.md` for UI work
-5. Provider-specific docs when working on Gmail, Outlook, 163 Mail, OAuth, Graph, or real sync
-6. `design-preview-zh.html` when working on the Awwwards-inspired UI
+4. `docs/page-information-architecture.md` for page, route, or UX structure work
+5. `docs/awwwards-design-system.md` for UI work
+6. Provider-specific docs when working on Gmail, Outlook, 163 Mail, OAuth, Graph, or real sync
+7. `design-preview-zh.html` when working on the Awwwards-inspired UI
 
 ## Non-Negotiable Safety Rules
 
@@ -195,11 +196,13 @@ Matches inside safety rules are acceptable. Real secret values are not acceptabl
 
 - The current visual baseline is `design-preview-zh.html`.
 - The design system is `docs/awwwards-design-system.md`.
+- Page and route structure must follow `docs/page-information-architecture.md`.
 - UI copy must be Chinese-first unless a provider brand or protocol name requires English.
 - Do not reintroduce the old purple neon glass style.
 - Do not use CDN scripts in production Next.js code. Check `package.json` first and add proper dependencies only when the implementation task calls for it.
 - Respect `prefers-reduced-motion`.
 - Mobile must degrade gracefully and remain usable.
+- Implement with existing project pages and components where possible. Delete obsolete files only after `rg` proves they are unreferenced and the deletion belongs to the current task.
 
 ## Handoff Template
 
