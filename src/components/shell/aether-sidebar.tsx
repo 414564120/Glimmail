@@ -42,79 +42,60 @@ export function AetherSidebar({
   connectedAccountCount?: number;
 }) {
   return (
-    <aside className="group/sidebar fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden w-[92px] flex-col items-center overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/75 px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] transition-[width,background-color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:w-[236px] hover:bg-[#071412]/92 md:flex">
-      <a className="flex h-[54px] w-full items-center justify-center gap-3 group-hover/sidebar:justify-start" href="/inbox">
-          <span className="grid size-14 shrink-0 place-items-center rounded-[18px] border border-[#d7ff47]/35 bg-[#d7ff47] text-sm font-black text-[#071412] shadow-[0_18px_42px_rgba(215,255,71,0.16)]">
-            GL
-          </span>
-          <span className="max-w-0 overflow-hidden whitespace-nowrap text-[15px] font-black tracking-[-0.04em] opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-32 group-hover/sidebar:opacity-100">
-            Glimmail
-          </span>
-        </a>
+    <aside className="fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden w-[92px] flex-col items-center overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/75 px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] md:flex">
+      <a
+        className="grid h-[54px] w-[54px] place-items-center"
+        href="/inbox"
+        title="Glimmail"
+      >
+        <span className="grid size-14 shrink-0 place-items-center rounded-[18px] border border-[#d7ff47]/35 bg-[#d7ff47] text-sm font-black text-[#071412] shadow-[0_18px_42px_rgba(215,255,71,0.16)]">
+          GM
+        </span>
+      </a>
 
-      <nav className="mt-7 grid w-full gap-[10px]">
-          {mainItems.map(([label, shortLabel, href]) => {
-            const isActive = isActiveLabel(active, label);
+      <nav className="mt-7 grid gap-[10px]">
+        {mainItems.map(([label, shortLabel, href]) => {
+          const isActive = isActiveLabel(active, label);
 
-            return (
-              <a
-                className={`grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
-                  isActive
-                    ? "border-transparent bg-[#f7f1df] text-[#111e1a] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
-                    : "border-transparent bg-transparent text-[#f4f5e9]/68 hover:border-white/15 hover:bg-white/[0.06] hover:text-[#f4f5e9]"
-                }`}
-                href={href}
-                key={label}
-                title={label}
-              >
-                <span
-                  className="grid place-items-center"
-                >
-                  {shortLabel}
-                </span>
-                <span
-                  className={
-                    isActive
-                      ? "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
-                      : "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
-                  }
-                >
-                  {label}
-                </span>
-              </a>
-            );
-          })}
-        </nav>
+          return (
+            <a
+              className={`grid h-12 w-12 place-items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
+                isActive
+                  ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
+                  : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
+              }`}
+              href={href}
+              key={label}
+              style={{
+                color: isActive ? "#111e1a" : "rgba(244,245,233,0.68)",
+              }}
+              title={label}
+            >
+              {shortLabel}
+            </a>
+          );
+        })}
+      </nav>
 
-      <div className="mt-auto grid w-full gap-[10px]">
+      <div className="mt-auto grid gap-[10px]">
         {bottomItems.map(([label, shortLabel, href]) => {
           const isActive = isActiveLabel(active, label);
 
           return (
             <a
-              className={`grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
+              className={`grid h-12 w-12 place-items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
                 isActive
-                  ? "border-transparent bg-[#f7f1df] text-[#111e1a] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
-                  : "border-transparent bg-transparent text-[#f4f5e9]/68 hover:border-white/15 hover:bg-white/[0.06] hover:text-[#f4f5e9]"
+                  ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
+                  : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
               }`}
               href={href}
               key={label}
+              style={{
+                color: isActive ? "#111e1a" : "rgba(244,245,233,0.68)",
+              }}
               title={label}
             >
-              <span
-                className="grid place-items-center"
-              >
-                {shortLabel}
-              </span>
-              <span
-                className={
-                  isActive
-                    ? "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
-                    : "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
-                }
-              >
-                {label}
-              </span>
+              {shortLabel}
             </a>
           );
         })}
@@ -128,7 +109,7 @@ export function MobileTopBar() {
     <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/10 bg-[#071412]/94 px-4 text-[#f4f5e9] shadow-[0_18px_42px_rgba(0,0,0,0.26)] md:hidden">
       <a className="flex items-center gap-2" href="/inbox">
         <span className="grid size-9 place-items-center rounded-xl bg-[#d7ff47] text-xs font-black text-[#071412]">
-          GL
+          GM
         </span>
         <span className="font-display text-[24px] font-extrabold leading-[1.2] tracking-tight">
           Glimmail
