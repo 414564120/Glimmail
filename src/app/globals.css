@@ -263,6 +263,9 @@ a {
   width: 48px;
   overflow: hidden;
   color: var(--rail-ink);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
 }
 
 .rail-link:hover {
@@ -290,6 +293,18 @@ a {
 .rail-brand-label {
   visibility: hidden;
   opacity: 0;
+}
+
+.rail-label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.rail-brand-label {
+  font-size: 15px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
 }
 
 .rail-letter {

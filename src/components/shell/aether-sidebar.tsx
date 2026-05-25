@@ -56,7 +56,7 @@ function RailItem({
 }: RailItemProps) {
   return (
     <a
-      className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
+      className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
         isActive
           ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
           : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
@@ -74,7 +74,7 @@ function RailItem({
       <span className="rail-short grid place-items-center" data-rail-pop>
         {shortLabel}
       </span>
-      <span className="rail-label min-w-0 overflow-hidden whitespace-nowrap pr-3 text-xs font-black tracking-normal">
+      <span className="rail-label min-w-0 overflow-hidden whitespace-nowrap pr-3">
         {Array.from(label).map((character, characterIndex) => (
           <span
             aria-hidden="true"
@@ -122,25 +122,45 @@ export function AetherSidebar({
       gsap.set(links, { width: 48 });
       gsap.set(brandLink, { width: 54 });
       gsap.set(labels, { autoAlpha: 0 });
-      gsap.set(letters, { autoAlpha: 0, x: -8 });
+      gsap.set(letters, { autoAlpha: 0, clearProps: "color,filter", x: -8 });
       gsap.set(popTargets, { clearProps: "transform" });
     };
 
     const signalLetters = (timeline: gsap.core.Timeline, startAt: number) => {
-      letters.forEach((letter, letterIndex) => {
-        timeline.fromTo(
-          letter,
-          { autoAlpha: 0, x: -8 },
-          {
-            keyframes: [
-              { autoAlpha: 0.56, x: -3, duration: 0.045 },
-              { autoAlpha: 0.08, x: 1, duration: 0.035 },
-              { autoAlpha: 1, x: 0, duration: 0.24 },
-            ],
-            ease: "expo.out",
-          },
-          startAt + letterIndex * 0.026,
+      labels.forEach((label, labelIndex) => {
+        const labelLetters = gsap.utils.toArray<HTMLElement>(
+          "[data-rail-letter]",
+          label,
         );
+
+        labelLetters.forEach((letter, letterIndex) => {
+          timeline.fromTo(
+            letter,
+            { autoAlpha: 0, color: "#d7ff47", filter: "blur(2px)", x: -10 },
+            {
+              keyframes: [
+                {
+                  autoAlpha: 1,
+                  color: "#d7ff47",
+                  duration: 0.06,
+                  filter: "blur(0px)",
+                  x: -5,
+                },
+                { autoAlpha: 0.12, color: "#f4f5e9", duration: 0.05, x: 1 },
+                { autoAlpha: 1, color: "#4fd7ff", duration: 0.055, x: -1 },
+                { autoAlpha: 0.28, color: "#d7ff47", duration: 0.045, x: 0 },
+                {
+                  autoAlpha: 1,
+                  clearProps: "color,filter",
+                  duration: 0.24,
+                  x: 0,
+                },
+              ],
+              ease: "expo.out",
+            },
+            startAt + labelIndex * 0.075 + letterIndex * 0.065,
+          );
+        });
       });
     };
 
@@ -185,21 +205,21 @@ export function AetherSidebar({
           popTargets,
           { rotation: 0, scale: 1, x: 0, y: 0 },
           {
-            duration: 0.7,
+            duration: 0.86,
             ease: "expo.out",
             keyframes: [
-              { rotation: -4, scaleX: 1.08, scaleY: 0.92, y: -5 },
-              { rotation: 5, scaleX: 0.96, scaleY: 1.06, x: 4, y: 1 },
-              { rotation: -3, scaleX: 1.03, scaleY: 0.98, x: -3, y: -1 },
-              { rotation: 1, scaleX: 0.99, scaleY: 1.01, x: 1, y: 0 },
+              { rotation: -7, scaleX: 1.12, scaleY: 0.88, y: -7 },
+              { rotation: 7, scaleX: 0.92, scaleY: 1.12, x: 5, y: 2 },
+              { rotation: -5, scaleX: 1.06, scaleY: 0.96, x: -4, y: -2 },
+              { rotation: 2, scaleX: 0.98, scaleY: 1.02, x: 2, y: 0 },
               { rotation: 0, scale: 1, x: 0, y: 0 },
             ],
-            stagger: 0.035,
+            stagger: 0.055,
           },
           0.08,
         );
 
-      signalLetters(timeline, 0.18);
+      signalLetters(timeline, 0.28);
     };
 
     const collapseRail = () => {
@@ -213,7 +233,17 @@ export function AetherSidebar({
       gsap
         .timeline()
         .to(labels, { autoAlpha: 0, duration: 0.12, ease: "power2.out" }, 0)
-        .to(letters, { autoAlpha: 0, duration: 0.12, ease: "power2.out", x: -8 }, 0)
+        .to(
+          letters,
+          {
+            autoAlpha: 0,
+            clearProps: "color,filter",
+            duration: 0.12,
+            ease: "power2.out",
+            x: -8,
+          },
+          0,
+        )
         .to([brandLink, ...links], { duration: 0.36, ease: "expo.out", width: 48 }, 0)
         .to(brandLink, { duration: 0.36, ease: "expo.out", width: 54 }, 0)
         .to(
@@ -259,7 +289,7 @@ export function AetherSidebar({
         <span className="rail-welcome-mark grid shrink-0 place-items-center" data-rail-pop>
           GM
         </span>
-        <span className="rail-brand-label overflow-hidden whitespace-nowrap text-[15px] font-black tracking-[-0.04em] text-[#f4f5e9]">
+        <span className="rail-brand-label overflow-hidden whitespace-nowrap text-[#f4f5e9]">
           {Array.from("Glimmail").map((character, characterIndex) => (
             <span
               aria-hidden="true"
