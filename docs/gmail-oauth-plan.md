@@ -2,6 +2,8 @@
 
 Status: Implemented for local manual sync.
 
+For production release checks, see [OAuth Production Checklist](./oauth-production-checklist.md).
+
 ## Decision: Gmail API vs IMAP XOAUTH2
 
 **Choice: Gmail API (REST), not IMAP XOAUTH2.**

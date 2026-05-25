@@ -2,6 +2,8 @@
 
 Status: Implemented for local manual sync.
 
+For production release checks, see [OAuth Production Checklist](./oauth-production-checklist.md).
+
 ---
 
 ## Decision: Microsoft Graph API vs IMAP XOAUTH2
