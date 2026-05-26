@@ -23,9 +23,9 @@ const bottomItems = [
 ] as const;
 
 const COLLAPSED_RAIL_WIDTH = 92;
-const EXPANDED_RAIL_WIDTH = 260;
-const PIXEL_COLUMNS = 10;
-const PIXEL_ROWS = 30;
+const EXPANDED_RAIL_WIDTH = 590;
+const PIXEL_COLUMNS = 21;
+const PIXEL_ROWS = 41;
 const PIXEL_COLOR = "#ffffff";
 const PIXEL_FILL_DURATION = 0.9;
 const PIXEL_HOLD_DURATION = 0.5;
@@ -188,14 +188,13 @@ export function AetherSidebar({
       ...cells,
     ]);
 
-    setDetailsOpen(false);
-
     /**
      * 收起逻辑：不用 pixel，直接收起。
      */
     if (isExpanded || isAnimating) {
       setIsAnimating(false);
       setIsExpanded(false);
+      setDetailsOpen(false);
 
       gsap.set(pixelLayer, {
         opacity: 0,
@@ -243,6 +242,7 @@ export function AetherSidebar({
      */
     setIsAnimating(true);
     setIsExpanded(false);
+    setDetailsOpen(Boolean(details));
 
     const fillOrder = gsap.utils.shuffle([...cells]);
     const clearOrder = gsap.utils.shuffle([...cells]);
@@ -387,7 +387,7 @@ export function AetherSidebar({
       data-expanded={isExpanded ? "true" : "false"}
       className={`rail-shell fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden flex-col items-center overflow-hidden rounded-[22px] border px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] transition-[background-color,border-color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex ${
         isOpen
-          ? "w-[260px] border-white/15 bg-[#071412]/[.92]"
+          ? "w-[590px] border-white/15 bg-[#071412]/[.92] items-start"
           : "w-[92px] border-white/10 bg-[#071412]/75"
       }`}
     >
@@ -417,28 +417,26 @@ export function AetherSidebar({
       </div>
       <a
         data-rail-content
-        className={`rail-brand-link relative z-20 [height:54px]  grid-cols-[54px_minmax(0,1fr)] items-center overflow-hidden rounded-[18px] text-left transition-[opacity,width] duration-300 ${
-          isExpanded ? "w-full opacity-100" : "[width:54px] opacity-100"
+        className={`rail-brand-link relative z-20 max-w-[180px] grid [height:54px] grid-cols-[54px_minmax(0,1fr)] items-center overflow-hidden rounded-[18px] text-left transition-[opacity,width] duration-300 ${
+          isExpanded
+            ? "w-full opacity-100 [margin-left:17px]"
+            : "[width:54px] opacity-100"
         }`}
         href="/inbox"
         title="Glimmail"
         aria-label="Glimmail"
       >
-        <div className={`w-full ${isOpen ? "[margin-left:15px] flex items-center" : "flex"}`}>
-          <span
-            className={`rail-welcome-mark grid shrink-0 place-items-center`}
-          >
-            GM
-          </span>
-          <span className="rail-brand-label block max-w-full overflow-hidden whitespace-nowrap pr-3 text-left text-[#f4f5e9] [margin-left:14px]">
-            Glimmail
-          </span>
-        </div>
+        <span className="rail-welcome-mark grid shrink-0 place-items-center">
+          GM
+        </span>
+        <span className="rail-brand-label block max-w-full overflow-hidden whitespace-nowrap pr-3 text-left text-[#f4f5e9] [margin-left:14px]">
+          Glimmail
+        </span>
       </a>
 
       <nav
         data-rail-content
-        className={`relative z-20 mt-5 grid w-full gap-[6px] transition-opacity duration-300 ${"opacity-100"}`}
+        className={`relative z-20 mt-5 grid w-full gap-[6px] transition-opacity duration-300 ${"opacity-100"} ${isOpen ? "max-w-[180px]" : ""}`}
       >
         {mainItems.map(([label, shortLabel, href]) => {
           const isActive = isActiveLabel(active, label);
@@ -458,72 +456,41 @@ export function AetherSidebar({
 
       <div
         data-rail-content
-        className={`relative z-20 flex w-full flex-1 items-center cursor-pointer py-4 transition-opacity duration-300 ${isOpen ? "justify-start [padding-left:15px]" : "justify-center"} ${"opacity-100"}`}
+        className={`relative z-20 mt-auto grid max-w-[180px] w-full gap-[6px] transition-opacity duration-300 ${"opacity-100"}`}
       >
         <button
+          aria-expanded={details ? detailsOpen : isOpen}
           aria-label={isOpen ? "收起左侧栏" : "展开左侧栏"}
           aria-pressed={isOpen}
-          className={`"rail-toggle grid size-11 place-items-center cursor-pointer rounded-[8px] border border-[#8b5cf6]/70 bg-[#8b5cf6]/12 text-[#a78bfa] shadow-[0_0_28px_rgba(139,92,246,0.2)] transition hover:border-[#a78bfa] hover:bg-[#8b5cf6]/20`}
+          className={`rail-link group grid border-none cursor-pointer h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border border-transparent bg-transparent text-left transition-[border-color,background-color,color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 hover:border-white/15 hover:bg-white/[0.06] ${
+            isOpen ? "ml-[15px]" : ""
+          }`}
           onClick={toggleRail}
+          style={
+            {
+              "--rail-hover-ink": "#f4f5e9",
+              "--rail-ink": "rgba(244,245,233,0.68)",
+            } as CSSProperties
+          }
+          title={isOpen ? "收起左侧栏" : "展开左侧栏"}
           type="button"
         >
-          <span className="grid gap-[5px]" aria-hidden="true">
-            <span className="block h-[2px] w-5 rounded-full bg-current" />
-            <span className="block h-[2px] w-5 rounded-full bg-current" />
-            <span className="block h-[2px] w-5 rounded-full bg-current" />
+          <span className="grid place-items-center">
+            <span className="rail-toggle grid size-11 place-items-center rounded-[8px] border border-[#8b5cf6]/70 bg-[#8b5cf6]/12 text-[#a78bfa] shadow-[0_0_28px_rgba(139,92,246,0.2)] transition group-hover:border-[#a78bfa] group-hover:bg-[#8b5cf6]/20">
+              <span className="grid gap-[5px]" aria-hidden="true">
+                <span className="block h-[2px] w-5 rounded-full bg-current" />
+                <span className="block h-[2px] w-5 rounded-full bg-current" />
+                <span className="block h-[2px] w-5 rounded-full bg-current" />
+              </span>
+            </span>
           </span>
         </button>
-      </div>
-
-      <div
-        data-rail-content
-        className={`relative z-20 grid w-full gap-[6px] transition-opacity duration-300 ${"opacity-100"}`}
-      >
-        {details ? (
-          <>
-            <button
-              aria-expanded={detailsOpen}
-              className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] cursor-pointer items-center rounded-2xl border text-left transition-[border-color,background-color,color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
-                detailsOpen
-                  ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
-                  : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
-              }`}
-              onClick={() => setDetailsOpen((open) => !open)}
-              style={
-                {
-                  "--rail-hover-ink": detailsOpen ? "#111e1a" : "#f4f5e9",
-                  "--rail-ink": detailsOpen
-                    ? "#111e1a"
-                    : "rgba(244,245,233,0.68)",
-                } as CSSProperties
-              }
-              title="更多"
-              type="button"
-            >
-              <span
-                className="rail-short grid place-items-center"
-                data-rail-pop
-              >
-                MO
-              </span>
-              <span
-                className={`rail-label min-w-0 justify-self-start overflow-hidden whitespace-nowrap pr-3 text-left transition-[opacity,filter,transform] duration-500 ${
-                  isExpanded
-                    ? "translate-x-0 opacity-100 blur-0"
-                    : "-translate-x-2 opacity-0 blur-md"
-                }`}
-              >
-                更多
-              </span>
-            </button>
-            {detailsOpen ? (
-              <div className={`custom-scrollbar fixed bottom-[14px] top-[14px] z-30 hidden w-[330px] overflow-y-auto rounded-[24px] md:block ${
-                isOpen ? "left-[288px]" : "left-[120px]"
-              }`}>
-                {details}
-              </div>
-            ) : null}
-          </>
+        {details && detailsOpen ? (
+          <div className="custom-scrollbar fixed bottom-[14px] left-[274px] top-[14px] z-30 hidden w-[330px] overflow-y-auto  rounded-[24px] md:block">
+            <div className="custom-scrollbar h-full overflow-y-auto overscroll-contain p-[14px] pr-[10px]">
+              {details}
+            </div>
+          </div>
         ) : null}
         {bottomItems.map(([label, shortLabel, href]) => {
           const isActive = isActiveLabel(active, label);
