@@ -202,6 +202,83 @@ a {
   border-radius: 999px;
 }
 
+.preview-glass-border {
+  border-color: rgb(196 255 226 / 0.13);
+}
+
+.preview-surface-82 {
+  background-color: rgb(10 27 24 / 0.82);
+}
+
+.preview-split-header-bg {
+  background: linear-gradient(
+    180deg,
+    rgb(10 27 24 / 0.96),
+    rgb(10 27 24 / 0.84)
+  );
+}
+
+.preview-split-mark-bg {
+  background:
+    linear-gradient(
+      135deg,
+      transparent 0 44%,
+      rgb(215 255 71 / 0.95) 45% 56%,
+      transparent 57%
+    ),
+    radial-gradient(
+      circle at 50% 50%,
+      rgb(79 215 255 / 0.55),
+      transparent 64%
+    );
+}
+
+.mail-list-item-active {
+  border-color: rgb(215 255 71 / 0.36);
+  background:
+    linear-gradient(
+      135deg,
+      rgb(215 255 71 / 0.1),
+      rgb(79 215 255 / 0.05)
+    ),
+    rgb(255 255 255 / 0.06);
+}
+
+.mail-summary-strip {
+  border-color: rgb(17 30 26 / 0.12);
+  background:
+    linear-gradient(
+      135deg,
+      rgb(215 255 71 / 0.38),
+      rgb(79 215 255 / 0.16)
+    ),
+    rgb(255 255 255 / 0.36);
+}
+
+.context-panel {
+  border-color: rgb(196 255 226 / 0.13);
+  background-color: rgb(10 27 24 / 0.78);
+}
+
+.context-panel-featured {
+  border-color: rgb(196 255 226 / 0.13);
+  background:
+    linear-gradient(
+      135deg,
+      rgb(79 215 255 / 0.12),
+      rgb(215 255 71 / 0.08)
+    ),
+    rgb(10 27 24 / 0.78);
+}
+
+.context-muted-link {
+  color: rgb(196 255 226 / 0.72);
+}
+
+.context-muted-link:hover {
+  color: #d7ff47;
+}
+
 .login-shape {
   position: absolute;
   z-index: 0;

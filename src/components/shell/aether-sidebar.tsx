@@ -1,8 +1,11 @@
 "use client";
 
 import gsap from "gsap";
-import { useEffect, useRef } from "react";
+import { useGSAP } from "@gsap/react";
+import { useRef } from "react";
 import type { CSSProperties } from "react";
+
+gsap.registerPlugin(useGSAP);
 
 const mainItems = [
   ["统一收件箱", "IN", "/inbox"],
@@ -74,7 +77,7 @@ function RailItem({
 
   return (
     <a
-      className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
+      className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border transition-[border-color,background-color,color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
         isActive
           ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
           : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
@@ -119,9 +122,12 @@ export function AetherSidebar({
   const railRef = useRef<HTMLElement>(null);
   const brandCharacters = Array.from("Glimmail");
 
-  useEffect(() => {
+  useGSAP((_, contextSafe) => {
     const rail = railRef.current;
     if (!rail) return;
+    const safe =
+      contextSafe ??
+      (<T extends (...args: never[]) => unknown>(callback: T) => callback);
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -168,74 +174,106 @@ export function AetherSidebar({
           "[data-rail-letter]",
           label,
         );
+        const finalLetters = labelLetters.filter(
+          (letter) => letter.dataset.final,
+        );
+        const extraLetters = labelLetters.filter(
+          (letter) => !letter.dataset.final,
+        );
+        const seedText =
+          finalLetters.map((letter) => letter.dataset.final ?? "").join("") ||
+          label.textContent ||
+          "";
+        const labelStart = startAt + labelIndex * 0.075;
+        const stepCount = Math.max(finalLetters.length + 7, 10);
+        const stepDuration = 0.065;
 
-        labelLetters.forEach((letter, letterIndex) => {
-          const finalCharacter = letter.dataset.final ?? "";
-          const slotStart = startAt + labelIndex * 0.08 + letterIndex * 0.045;
+        timeline
+          .set(
+            labelLetters,
+            {
+              autoAlpha: 1,
+              color: "#4fd7ff",
+              filter: "blur(0.4px)",
+              width: "auto",
+              x: -4,
+            },
+            labelStart,
+          )
+          .to(
+            labelLetters,
+            {
+              color: "#d7ff47",
+              duration: 0.16,
+              stagger: 0.012,
+            },
+            labelStart + 0.1,
+          );
 
-          timeline
-            .call(
-              () => {
-                letter.textContent = cipherGlyph(
-                  finalCharacter || label.textContent || "",
-                  letterIndex,
-                  1,
-                );
-              },
-              undefined,
-              slotStart,
-            )
-            .to(
-              letter,
-              {
-                autoAlpha: 1,
-                color: "#d7ff47",
-                duration: 0.08,
-                filter: "blur(0px)",
-                x: -3,
-              },
-              slotStart,
-            )
-            .call(
-              () => {
-                letter.textContent = cipherGlyph(
-                  finalCharacter || label.textContent || "",
-                  letterIndex,
-                  2,
-                );
-              },
-              undefined,
-              slotStart + 0.1,
-            )
-            .to(
-              letter,
-              { color: "#4fd7ff", duration: 0.1, x: 1 },
-              slotStart + 0.1,
-            )
-            .call(
-              () => {
-                letter.textContent = finalCharacter;
-              },
-              undefined,
-              slotStart + 0.24,
-            )
-            .to(
-              letter,
-              {
-                autoAlpha: finalCharacter ? 1 : 0,
-                clearProps: "color,filter",
-                duration: finalCharacter ? 0.34 : 0.48,
-                ease: "expo.out",
-                width: finalCharacter ? "auto" : 0,
-                x: 0,
-              },
-              slotStart + 0.24,
-            );
+        Array.from({ length: stepCount + 1 }).forEach((_, step) => {
+          const stepAt = labelStart + step * stepDuration;
+
+          timeline.call(
+            () => {
+              const lockedCount = Math.min(
+                finalLetters.length,
+                Math.floor((step / stepCount) * (finalLetters.length + 1)),
+              );
+
+              labelLetters.forEach((letter, letterIndex) => {
+                const finalCharacter = letter.dataset.final ?? "";
+
+                if (finalCharacter && letterIndex < lockedCount) {
+                  letter.textContent = finalCharacter;
+                  return;
+                }
+
+                letter.textContent = cipherGlyph(seedText, letterIndex, step);
+              });
+            },
+            undefined,
+            stepAt,
+          );
         });
+
+        const finishAt = labelStart + stepCount * stepDuration;
+
+        timeline
+          .to(
+            extraLetters,
+            {
+              autoAlpha: 0,
+              duration: 0.32,
+              ease: "power3.inOut",
+              width: 0,
+              x: -3,
+            },
+            finishAt - 0.18,
+          )
+          .call(
+            () => {
+              labelLetters.forEach((letter) => {
+                letter.textContent = letter.dataset.final ?? "";
+              });
+            },
+            undefined,
+            finishAt + 0.04,
+          )
+          .to(
+            finalLetters,
+            {
+              clearProps: "color,filter,width",
+              duration: 0.36,
+              ease: "expo.out",
+              stagger: 0.018,
+              x: 0,
+            },
+            finishAt,
+          );
       });
     };
 
-    const expandRail = () => {
+    const expandRail = safe(() => {
       gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
 
       if (reduceMotion.matches) {
@@ -260,25 +298,25 @@ export function AetherSidebar({
         .to(rail, {
           backgroundColor: "rgba(7,20,18,0.92)",
           borderColor: "rgba(255,255,255,0.15)",
-          duration: 1.35,
-          ease: "sine.inOut",
+          duration: 1.55,
+          ease: "power4.inOut",
           width: 236,
         })
         .to(
           [brandLink, ...links],
           {
-            duration: 1.12,
-            ease: "sine.inOut",
+            duration: 1.38,
+            ease: "power4.inOut",
             stagger: 0.015,
             width: "100%",
           },
           0.05,
         )
-        .set(labels, { autoAlpha: 1 }, 0.18)
+        .set(labels, { autoAlpha: 1 }, 0.85)
         .set(
           letters,
           { autoAlpha: 1, clearProps: "color,filter", x: -6, width: "auto" },
-          0.18,
+          0.85,
         )
         .fromTo(
           popTargets,
@@ -298,10 +336,10 @@ export function AetherSidebar({
           0.08,
         );
 
-      decryptLabels(timeline, 0.3);
-    };
+      decryptLabels(timeline, 0.85);
+    });
 
-    const collapseRail = () => {
+    const collapseRail = safe(() => {
       gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
 
       if (reduceMotion.matches) {
@@ -338,7 +376,7 @@ export function AetherSidebar({
         )
         .set(popTargets, { clearProps: "transform" })
         .call(resetCipherText);
-    };
+    });
 
     setCollapsed();
     rail.addEventListener("pointerenter", expandRail);
@@ -353,7 +391,7 @@ export function AetherSidebar({
       rail.removeEventListener("focusout", collapseRail);
       gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
     };
-  }, []);
+  }, { scope: railRef });
 
   return (
     <aside
@@ -427,7 +465,7 @@ export function AetherSidebar({
 
 export function MobileTopBar() {
   return (
-    <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/10 bg-[#071412]/94 px-4 text-[#f4f5e9] shadow-[0_18px_42px_rgba(0,0,0,0.26)] md:hidden">
+    <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/10 bg-[#071412]/[.94] px-4 text-[#f4f5e9] shadow-[0_18px_42px_rgba(0,0,0,0.26)] md:hidden">
       <a className="flex items-center gap-2" href="/inbox">
         <span className="grid size-9 place-items-center rounded-xl bg-[#d7ff47] text-xs font-black text-[#071412]">
           GM
@@ -438,7 +476,7 @@ export function MobileTopBar() {
       </a>
       <a
         aria-label="搜索邮件"
-        className="grid h-10 place-items-center rounded-full border border-white/10 px-3 text-[11px] font-black tracking-[0.04em] text-[#f4f5e9]/68 transition hover:text-[#d7ff47]"
+        className="grid h-10 place-items-center rounded-full border border-white/10 px-3 text-[11px] font-black tracking-[0.04em] text-[#f4f5e9]/[.68] transition hover:text-[#d7ff47]"
         href="/inbox?view=search"
       >
         搜索
@@ -481,7 +519,7 @@ export function MobileBottomNav({
   items?: readonly MobileNavItem[];
 }) {
   return (
-    <nav className="fixed bottom-0 z-50 grid h-20 w-full grid-cols-4 rounded-t-3xl border-t border-white/10 bg-[#071412]/96 px-2 py-2 text-[#f4f5e9] shadow-[0_-18px_42px_rgba(0,0,0,0.28)] md:hidden">
+    <nav className="fixed bottom-0 z-50 grid h-20 w-full grid-cols-4 rounded-t-3xl border-t border-white/10 bg-[#071412]/[.96] px-2 py-2 text-[#f4f5e9] shadow-[0_-18px_42px_rgba(0,0,0,0.28)] md:hidden">
       {items.map(([, label]) => {
         const isActive = isActiveLabel(active, label);
 
@@ -490,7 +528,7 @@ export function MobileBottomNav({
             className={`mx-auto flex h-16 min-w-16 flex-col items-center justify-center gap-1 rounded-full px-3 font-label text-[10px] font-semibold uppercase tracking-[0.08em] transition ${
               isActive
                 ? "scale-105 bg-[#f7f1df] text-[#111e1a]"
-                : "text-[#f4f5e9]/58 hover:text-[#d7ff47]"
+                : "text-[#f4f5e9]/[.58] hover:text-[#d7ff47]"
             }`}
             href={mobileHrefByLabel[label] ?? "/inbox"}
             key={label}
