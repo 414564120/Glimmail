@@ -724,6 +724,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
     viewMessages,
     activePartition,
   );
+  const accountFilterMessages = getPartitionMessages(messages, activePartition);
   const visibleMessages =
     activeAccount === "all"
       ? partitionedMessages
@@ -888,13 +889,16 @@ export default async function InboxPage({ searchParams }: PageProps) {
                     >
                       <span className="size-2 rounded-full bg-[#87f2c5]" />
                       全部账号
+                      <span className="font-mono text-[10px] opacity-60">
+                        {accountFilterMessages.length}
+                      </span>
                     </Link>
                   );
                 })()}
 
                 {mailboxes.map((mailbox) => {
                   const isActive = activeAccount === mailbox.id;
-                  const mailboxCount = partitionedMessages.filter(
+                  const mailboxCount = accountFilterMessages.filter(
                     (msg) => msg.mailboxId === mailbox.id,
                   ).length;
 
