@@ -18,6 +18,21 @@ const bottomItems = [
   ["设置", "SG", "/settings"],
 ] as const;
 
+const cipherChars = "01AEIMNPRSTVXZ#*:/[]{}<>+=~";
+
+function cipherSlotCount(label: string) {
+  return Math.max(Array.from(label).length + 4, 7);
+}
+
+function cipherGlyph(label: string, index: number, phase = 0) {
+  const seed = Array.from(label).reduce(
+    (sum, character) => sum + character.charCodeAt(0),
+    0,
+  );
+
+  return cipherChars[(seed + index * 7 + phase * 11) % cipherChars.length];
+}
+
 const activeLabelAliases: Record<string, string> = {
   Accounts: "账号",
   Archive: "归档",
@@ -54,6 +69,9 @@ function RailItem({
   label,
   shortLabel,
 }: RailItemProps) {
+  const labelCharacters = Array.from(label);
+  const letterSlots = Array.from({ length: cipherSlotCount(label) });
+
   return (
     <a
       className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
@@ -75,14 +93,16 @@ function RailItem({
         {shortLabel}
       </span>
       <span className="rail-label min-w-0 overflow-hidden whitespace-nowrap pr-3">
-        {Array.from(label).map((character, characterIndex) => (
+        {letterSlots.map((_, characterIndex) => (
           <span
             aria-hidden="true"
             className="rail-letter inline-block"
             data-rail-letter
+            data-cipher={cipherGlyph(label, characterIndex)}
+            data-final={labelCharacters[characterIndex] ?? ""}
             key={`${label}-${characterIndex}`}
           >
-            {character}
+            {cipherGlyph(label, characterIndex)}
           </span>
         ))}
       </span>
@@ -97,6 +117,7 @@ export function AetherSidebar({
   connectedAccountCount?: number;
 }) {
   const railRef = useRef<HTMLElement>(null);
+  const brandCharacters = Array.from("Glimmail");
 
   useEffect(() => {
     const rail = railRef.current;
@@ -113,7 +134,18 @@ export function AetherSidebar({
     const popTargets = gsap.utils.toArray<HTMLElement>("[data-rail-pop]", rail);
     const brandLink = rail.querySelector<HTMLElement>(".rail-brand-link");
 
+    const resetCipherText = () => {
+      labels.forEach((label) => {
+        gsap.utils
+          .toArray<HTMLElement>("[data-rail-letter]", label)
+          .forEach((letter) => {
+            letter.textContent = letter.dataset.cipher ?? "";
+          });
+      });
+    };
+
     const setCollapsed = () => {
+      resetCipherText();
       gsap.set(rail, {
         backgroundColor: "rgba(7,20,18,0.75)",
         borderColor: "rgba(255,255,255,0.1)",
@@ -122,11 +154,15 @@ export function AetherSidebar({
       gsap.set(links, { width: 48 });
       gsap.set(brandLink, { width: 54 });
       gsap.set(labels, { autoAlpha: 0 });
-      gsap.set(letters, { autoAlpha: 0, clearProps: "color,filter", x: -8 });
+      gsap.set(letters, {
+        autoAlpha: 0,
+        clearProps: "color,filter,width",
+        x: -8,
+      });
       gsap.set(popTargets, { clearProps: "transform" });
     };
 
-    const signalLetters = (timeline: gsap.core.Timeline, startAt: number) => {
+    const decryptLabels = (timeline: gsap.core.Timeline, startAt: number) => {
       labels.forEach((label, labelIndex) => {
         const labelLetters = gsap.utils.toArray<HTMLElement>(
           "[data-rail-letter]",
@@ -134,32 +170,67 @@ export function AetherSidebar({
         );
 
         labelLetters.forEach((letter, letterIndex) => {
-          timeline.fromTo(
-            letter,
-            { autoAlpha: 0, color: "#d7ff47", filter: "blur(2px)", x: -10 },
-            {
-              keyframes: [
-                {
-                  autoAlpha: 1,
-                  color: "#d7ff47",
-                  duration: 0.06,
-                  filter: "blur(0px)",
-                  x: -5,
-                },
-                { autoAlpha: 0.12, color: "#f4f5e9", duration: 0.05, x: 1 },
-                { autoAlpha: 1, color: "#4fd7ff", duration: 0.055, x: -1 },
-                { autoAlpha: 0.28, color: "#d7ff47", duration: 0.045, x: 0 },
-                {
-                  autoAlpha: 1,
-                  clearProps: "color,filter",
-                  duration: 0.24,
-                  x: 0,
-                },
-              ],
-              ease: "expo.out",
-            },
-            startAt + labelIndex * 0.075 + letterIndex * 0.065,
-          );
+          const finalCharacter = letter.dataset.final ?? "";
+          const slotStart = startAt + labelIndex * 0.08 + letterIndex * 0.045;
+
+          timeline
+            .call(
+              () => {
+                letter.textContent = cipherGlyph(
+                  finalCharacter || label.textContent || "",
+                  letterIndex,
+                  1,
+                );
+              },
+              undefined,
+              slotStart,
+            )
+            .to(
+              letter,
+              {
+                autoAlpha: 1,
+                color: "#d7ff47",
+                duration: 0.08,
+                filter: "blur(0px)",
+                x: -3,
+              },
+              slotStart,
+            )
+            .call(
+              () => {
+                letter.textContent = cipherGlyph(
+                  finalCharacter || label.textContent || "",
+                  letterIndex,
+                  2,
+                );
+              },
+              undefined,
+              slotStart + 0.1,
+            )
+            .to(
+              letter,
+              { color: "#4fd7ff", duration: 0.1, x: 1 },
+              slotStart + 0.1,
+            )
+            .call(
+              () => {
+                letter.textContent = finalCharacter;
+              },
+              undefined,
+              slotStart + 0.24,
+            )
+            .to(
+              letter,
+              {
+                autoAlpha: finalCharacter ? 1 : 0,
+                clearProps: "color,filter",
+                duration: finalCharacter ? 0.34 : 0.48,
+                ease: "expo.out",
+                width: finalCharacter ? "auto" : 0,
+                x: 0,
+              },
+              slotStart + 0.24,
+            );
         });
       });
     };
@@ -176,6 +247,9 @@ export function AetherSidebar({
         gsap.set(links, { width: "100%" });
         gsap.set(brandLink, { width: "100%" });
         gsap.set(labels, { autoAlpha: 1 });
+        letters.forEach((letter) => {
+          letter.textContent = letter.dataset.final ?? "";
+        });
         gsap.set(letters, { autoAlpha: 1, x: 0 });
         return;
       }
@@ -186,21 +260,26 @@ export function AetherSidebar({
         .to(rail, {
           backgroundColor: "rgba(7,20,18,0.92)",
           borderColor: "rgba(255,255,255,0.15)",
-          duration: 0.95,
-          ease: "power3.out",
+          duration: 1.35,
+          ease: "sine.inOut",
           width: 236,
         })
         .to(
           [brandLink, ...links],
           {
-            duration: 0.82,
-            ease: "power3.out",
+            duration: 1.12,
+            ease: "sine.inOut",
             stagger: 0.015,
             width: "100%",
           },
           0.05,
         )
-        .set(labels, { autoAlpha: 1 }, 0.14)
+        .set(labels, { autoAlpha: 1 }, 0.18)
+        .set(
+          letters,
+          { autoAlpha: 1, clearProps: "color,filter", x: -6, width: "auto" },
+          0.18,
+        )
         .fromTo(
           popTargets,
           { rotation: 0, scale: 1, x: 0, y: 0 },
@@ -219,7 +298,7 @@ export function AetherSidebar({
           0.08,
         );
 
-      signalLetters(timeline, 0.28);
+      decryptLabels(timeline, 0.3);
     };
 
     const collapseRail = () => {
@@ -237,7 +316,7 @@ export function AetherSidebar({
           letters,
           {
             autoAlpha: 0,
-            clearProps: "color,filter",
+            clearProps: "color,filter,width",
             duration: 0.12,
             ease: "power2.out",
             x: -8,
@@ -257,7 +336,8 @@ export function AetherSidebar({
           },
           0,
         )
-        .set(popTargets, { clearProps: "transform" });
+        .set(popTargets, { clearProps: "transform" })
+        .call(resetCipherText);
     };
 
     setCollapsed();
@@ -286,20 +366,27 @@ export function AetherSidebar({
         title="Glimmail"
         aria-label="Glimmail"
       >
-        <span className="rail-welcome-mark grid shrink-0 place-items-center" data-rail-pop>
+        <span
+          className="rail-welcome-mark grid shrink-0 place-items-center"
+          data-rail-pop
+        >
           GM
         </span>
         <span className="rail-brand-label overflow-hidden whitespace-nowrap text-[#f4f5e9]">
-          {Array.from("Glimmail").map((character, characterIndex) => (
-            <span
-              aria-hidden="true"
-              className="rail-letter inline-block"
-              data-rail-letter
-              key={`${character}-${characterIndex}`}
-            >
-              {character}
-            </span>
-          ))}
+          {Array.from({ length: cipherSlotCount("Glimmail") }).map(
+            (_, characterIndex) => (
+              <span
+                aria-hidden="true"
+                className="rail-letter inline-block"
+                data-rail-letter
+                data-cipher={cipherGlyph("Glimmail", characterIndex)}
+                data-final={brandCharacters[characterIndex] ?? ""}
+                key={`glimmail-${characterIndex}`}
+              >
+                {cipherGlyph("Glimmail", characterIndex)}
+              </span>
+            ),
+          )}
         </span>
       </a>
 
