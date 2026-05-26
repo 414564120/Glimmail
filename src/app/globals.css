@@ -72,6 +72,10 @@ a {
   text-decoration: none;
 }
 
+a[label="Glimmail"] {
+  flex-direction: column;
+}
+
 .surface-grid {
   position: relative;
 }
@@ -211,47 +215,37 @@ a {
 }
 
 .preview-split-header-bg {
-  background: linear-gradient(
-    180deg,
-    rgb(10 27 24 / 0.96),
-    rgb(10 27 24 / 0.84)
-  );
+  background: linear-gradient(180deg,
+      rgb(10 27 24 / 0.96),
+      rgb(10 27 24 / 0.84));
 }
 
 .preview-split-mark-bg {
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       transparent 0 44%,
       rgb(215 255 71 / 0.95) 45% 56%,
-      transparent 57%
-    ),
-    radial-gradient(
-      circle at 50% 50%,
+      transparent 57%),
+    radial-gradient(circle at 50% 50%,
       rgb(79 215 255 / 0.55),
-      transparent 64%
-    );
+      transparent 64%);
 }
 
 .mail-list-item-active {
   border-color: rgb(215 255 71 / 0.36);
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgb(215 255 71 / 0.1),
-      rgb(79 215 255 / 0.05)
-    ),
+      rgb(79 215 255 / 0.05)),
     rgb(255 255 255 / 0.06);
 }
 
 .mail-summary-strip {
   border-color: rgb(17 30 26 / 0.12);
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgb(215 255 71 / 0.38),
-      rgb(79 215 255 / 0.16)
-    ),
+      rgb(79 215 255 / 0.16)),
     rgb(255 255 255 / 0.36);
 }
 
@@ -263,11 +257,9 @@ a {
 .context-panel-featured {
   border-color: rgb(196 255 226 / 0.13);
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       rgb(79 215 255 / 0.12),
-      rgb(215 255 71 / 0.08)
-    ),
+      rgb(215 255 71 / 0.08)),
     rgb(10 27 24 / 0.78);
 }
 
@@ -347,6 +339,25 @@ a {
   font-weight: 800;
 }
 
+.logo-wrap {
+  width: 100%;
+  justify-self: center;
+  overflow: hidden;
+  color: var(--rail-ink);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.logo-wrap span:first-child {
+  width: 54px;
+  flex-shrink: 0;
+}
+
+.logo-wrap span:last-child {
+  width: fit-content;
+}
+
 .rail-shell {
   font-family:
     "Satoshi", "Geist", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC",
@@ -365,6 +376,10 @@ a {
 
 .rail-link:hover {
   color: var(--rail-hover-ink);
+}
+
+.rail-shell[data-expanded="true"] .rail-link {
+  width: 100%;
 }
 
 .rail-welcome-mark {
@@ -387,7 +402,11 @@ a {
 .rail-label,
 .rail-brand-label {
   visibility: hidden;
-  opacity: 0;
+}
+
+.rail-shell[data-expanded="true"] .rail-label,
+.rail-shell[data-expanded="true"] .rail-brand-label {
+  visibility: visible;
 }
 
 .rail-label {
@@ -402,9 +421,14 @@ a {
   letter-spacing: -0.04em;
 }
 
-.rail-letter {
+.rail-pixel {
+  background: var(--pixel-color);
   opacity: 0;
-  transform: translateX(-8px);
+  position: absolute;
+  transform: translateZ(0);
+  transform-origin: 50% 50%;
+  visibility: visible;
+  will-change: opacity, transform;
 }
 
 .split-drift-mark {
@@ -428,12 +452,10 @@ a {
   width: 120px;
   height: 120px;
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       transparent 0 44%,
       rgb(255 107 87 / 0.64) 45% 55%,
-      transparent 56%
-    ),
+      transparent 56%),
     radial-gradient(circle, rgb(79 215 255 / 0.32), transparent 66%);
   animation: reader-drift-primary 10s ease-in-out infinite;
 }
@@ -444,12 +466,10 @@ a {
   width: 58px;
   height: 58px;
   background:
-    linear-gradient(
-      135deg,
+    linear-gradient(135deg,
       transparent 0 42%,
       rgb(215 255 71 / 0.46) 43% 57%,
-      transparent 58%
-    ),
+      transparent 58%),
     radial-gradient(circle, rgb(11 107 102 / 0.22), transparent 68%);
   animation: reader-drift-secondary 8.5s ease-in-out infinite;
   opacity: 0.52;
@@ -459,29 +479,35 @@ a {
   0% {
     background-position: 0% 50%;
   }
+
   50% {
     background-position: 100% 50%;
   }
+
   100% {
     background-position: 0% 50%;
   }
 }
 
 @keyframes float {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
+
   50% {
     transform: translate3d(0, -20px, 0) rotate(8deg);
   }
 }
 
 @keyframes split-drift {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
+
   50% {
     transform: translate3d(-8px, 10px, 0) rotate(16deg);
   }
@@ -491,12 +517,15 @@ a {
   0% {
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
+
   35% {
     transform: translate3d(-46px, 34px, 0) rotate(13deg);
   }
+
   68% {
     transform: translate3d(24px, 148px, 0) rotate(-8deg);
   }
+
   100% {
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
@@ -506,19 +535,23 @@ a {
   0% {
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
+
   50% {
     transform: translate3d(38px, 126px, 0) rotate(18deg);
   }
+
   100% {
     transform: translate3d(0, 0, 0) rotate(0deg);
   }
 }
 
 @keyframes pulse-green {
+
   0%,
   100% {
     box-shadow: 0 0 0 0 rgb(34 197 94 / 0.55);
   }
+
   50% {
     box-shadow: 0 0 0 8px rgb(34 197 94 / 0);
   }
@@ -533,8 +566,4 @@ a {
     animation: none;
   }
 
-  .rail-letter {
-    opacity: 1;
-    transform: none;
-  }
 }

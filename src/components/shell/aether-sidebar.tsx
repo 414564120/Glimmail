@@ -2,7 +2,7 @@
 
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 
 gsap.registerPlugin(useGSAP);
@@ -22,20 +22,15 @@ const bottomItems = [
   ["设置", "SG", "/settings"],
 ] as const;
 
-const cipherChars = "01AEIMNPRSTVXZ#*:/[]{}<>+=~";
-
-function cipherSlotCount(label: string) {
-  return Math.max(Array.from(label).length + 4, 7);
-}
-
-function cipherGlyph(label: string, index: number, phase = 0) {
-  const seed = Array.from(label).reduce(
-    (sum, character) => sum + character.charCodeAt(0),
-    0,
-  );
-
-  return cipherChars[(seed + index * 7 + phase * 11) % cipherChars.length];
-}
+const COLLAPSED_RAIL_WIDTH = 92;
+const EXPANDED_RAIL_WIDTH = 260;
+const PIXEL_COLUMNS = 10;
+const PIXEL_ROWS = 30;
+const PIXEL_COLOR = "#ffffff";
+const PIXEL_FILL_DURATION = 0.9;
+const PIXEL_HOLD_DURATION = 0.5;
+const PIXEL_CLEAR_DURATION = 0.9;
+const RAIL_EXPAND_DURATION = 0.45;
 
 const activeLabelAliases: Record<string, string> = {
   Accounts: "账号",
@@ -61,6 +56,7 @@ function isActiveLabel(active: string, label: string) {
 }
 
 type RailItemProps = {
+  expanded: boolean;
   href: string;
   isActive: boolean;
   label: string;
@@ -68,14 +64,12 @@ type RailItemProps = {
 };
 
 function RailItem({
+  expanded,
   href,
   isActive,
   label,
   shortLabel,
 }: RailItemProps) {
-  const labelCharacters = Array.from(label);
-  const letterSlots = Array.from({ length: cipherSlotCount(label) });
-
   return (
     <a
       className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border text-left transition-[border-color,background-color,color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
@@ -96,19 +90,14 @@ function RailItem({
       <span className="rail-short grid place-items-center" data-rail-pop>
         {shortLabel}
       </span>
-      <span className="rail-label min-w-0 justify-self-start overflow-hidden whitespace-nowrap pr-3 text-left">
-        {letterSlots.map((_, characterIndex) => (
-          <span
-            aria-hidden="true"
-            className="rail-letter inline-block"
-            data-rail-letter
-            data-cipher={cipherGlyph(label, characterIndex)}
-            data-final={labelCharacters[characterIndex] ?? ""}
-            key={`${label}-${characterIndex}`}
-          >
-            {cipherGlyph(label, characterIndex)}
-          </span>
-        ))}
+      <span
+        className={`rail-label min-w-0 justify-self-start overflow-hidden whitespace-nowrap pr-3 text-left transition-[opacity,filter,transform] duration-500 ${
+          expanded
+            ? "translate-x-0 opacity-100 blur-0"
+            : "-translate-x-2 opacity-0 blur-md"
+        }`}
+      >
+        {label}
       </span>
     </a>
   );
@@ -122,322 +111,341 @@ export function AetherSidebar({
   connectedAccountCount?: number;
   details?: ReactNode;
 }) {
-  const railRef = useRef<HTMLElement>(null);
+  const railRef = useRef<HTMLElement | null>(null);
+  const pixelLayerRef = useRef<HTMLDivElement | null>(null);
+  const railTimelineRef = useRef<gsap.core.Timeline | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const brandCharacters = Array.from("Glimmail");
 
-  useGSAP((_, contextSafe) => {
+  const isOpen = isExpanded || isAnimating;
+  const pixelCells = useMemo(
+    () => Array.from({ length: PIXEL_ROWS * PIXEL_COLUMNS }),
+    [],
+  );
+
+  useGSAP(
+    () => {
+      const pixelLayer = pixelLayerRef.current;
+
+      const cells = pixelLayer
+        ? gsap.utils.toArray<HTMLElement>("[data-rail-pixel]", pixelLayer)
+        : [];
+
+      gsap.set(pixelLayer, {
+        opacity: 0,
+        visibility: "hidden",
+      });
+
+      gsap.set(cells, {
+        opacity: 0,
+        scale: 1,
+        transformOrigin: "50% 50%",
+      });
+
+      return () => {
+        railTimelineRef.current?.kill();
+      };
+    },
+    {
+      scope: railRef,
+    },
+  );
+
+  const toggleRail = () => {
     const rail = railRef.current;
-    if (!rail) return;
-    const safe =
-      contextSafe ??
-      (<T extends (...args: never[]) => unknown>(callback: T) => callback);
+    const pixelLayer = pixelLayerRef.current;
 
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (!rail || !pixelLayer) return;
 
-    const links = gsap.utils.toArray<HTMLElement>(".rail-link", rail);
-    const labels = gsap.utils.toArray<HTMLElement>(
-      ".rail-label, .rail-brand-label",
+    const contentTargets = gsap.utils.toArray<HTMLElement>(
+      "[data-rail-content]",
       rail,
     );
-    const letters = gsap.utils.toArray<HTMLElement>("[data-rail-letter]", rail);
-    const popTargets = gsap.utils.toArray<HTMLElement>("[data-rail-pop]", rail);
-    const brandLink = rail.querySelector<HTMLElement>(".rail-brand-link");
 
-    const resetCipherText = () => {
-      labels.forEach((label) => {
-        gsap.utils
-          .toArray<HTMLElement>("[data-rail-letter]", label)
-          .forEach((letter) => {
-            letter.textContent = letter.dataset.cipher ?? "";
+    const labelTargets = gsap.utils.toArray<HTMLElement>(".rail-label", rail);
+
+    const brandLabelTargets = gsap.utils.toArray<HTMLElement>(
+      ".rail-brand-label",
+      rail,
+    );
+
+    const cells = gsap.utils.toArray<HTMLElement>(
+      "[data-rail-pixel]",
+      pixelLayer,
+    );
+
+    if (cells.length === 0) return;
+
+    railTimelineRef.current?.kill();
+
+    gsap.killTweensOf([
+      rail,
+      pixelLayer,
+      ...contentTargets,
+      ...labelTargets,
+      ...brandLabelTargets,
+      ...cells,
+    ]);
+
+    setDetailsOpen(false);
+
+    /**
+     * 收起逻辑：不用 pixel，直接收起。
+     */
+    if (isExpanded || isAnimating) {
+      setIsAnimating(false);
+      setIsExpanded(false);
+
+      gsap.set(pixelLayer, {
+        opacity: 0,
+        visibility: "hidden",
+      });
+
+      gsap.set(cells, {
+        opacity: 0,
+        scale: 1,
+      });
+
+      gsap.set(contentTargets, {
+        opacity: 1,
+        visibility: "visible",
+      });
+
+      gsap.set(labelTargets, {
+        clearProps: "opacity,visibility,filter,transform",
+      });
+
+      gsap.set(brandLabelTargets, {
+        clearProps: "opacity,visibility,filter,transform",
+      });
+
+      gsap.to(rail, {
+        width: COLLAPSED_RAIL_WIDTH,
+        duration: 0.35,
+        ease: "power3.inOut",
+        overwrite: true,
+        onComplete: () => {
+          gsap.set(rail, {
+            clearProps: "width",
           });
+        },
       });
-    };
 
-    const setCollapsed = () => {
-      resetCipherText();
-      gsap.set(rail, {
-        backgroundColor: "rgba(7,20,18,0.75)",
-        borderColor: "rgba(255,255,255,0.1)",
-        width: 92,
-      });
-      gsap.set(links, { width: 48 });
-      gsap.set(brandLink, { width: 54 });
-      gsap.set(labels, { autoAlpha: 0 });
-      gsap.set(letters, {
-        autoAlpha: 0,
-        clearProps: "color,filter,width",
-        x: -8,
-      });
-      gsap.set(popTargets, { clearProps: "transform" });
-    };
+      return;
+    }
 
-    const decryptLabels = (timeline: gsap.core.Timeline, startAt: number) => {
-      labels.forEach((label, labelIndex) => {
-        const labelLetters = gsap.utils.toArray<HTMLElement>(
-          "[data-rail-letter]",
-          label,
-        );
-        const finalLetters = labelLetters.filter(
-          (letter) => letter.dataset.final,
-        );
-        const extraLetters = labelLetters.filter(
-          (letter) => !letter.dataset.final,
-        );
-        const seedText =
-          finalLetters.map((letter) => letter.dataset.final ?? "").join("") ||
-          label.textContent ||
-          "";
-        const labelStart = startAt + labelIndex * 0.075;
-        const stepCount = Math.max(finalLetters.length + 7, 10);
-        const stepDuration = 0.065;
+    /**
+     * 展开逻辑：
+     * 1. 先变宽
+     * 2. 宽度动画结束后跑 pixel transition
+     * 3. pixel 消失后再显示 logo / 文字
+     */
+    setIsAnimating(true);
+    setIsExpanded(false);
 
-        timeline
-          .set(
-            labelLetters,
-            {
-              autoAlpha: 1,
-              color: "#4fd7ff",
-              filter: "blur(0.4px)",
-              width: "auto",
-              x: -4,
-            },
-            labelStart,
-          )
-          .to(
-            labelLetters,
-            {
-              color: "#d7ff47",
-              duration: 0.16,
-              stagger: 0.012,
-            },
-            labelStart + 0.1,
-          );
+    const fillOrder = gsap.utils.shuffle([...cells]);
+    const clearOrder = gsap.utils.shuffle([...cells]);
 
-        Array.from({ length: stepCount + 1 }).forEach((_, step) => {
-          const stepAt = labelStart + step * stepDuration;
-
-          timeline.call(
-            () => {
-              const lockedCount = Math.min(
-                finalLetters.length,
-                Math.floor((step / stepCount) * (finalLetters.length + 1)),
-              );
-
-              labelLetters.forEach((letter, letterIndex) => {
-                const finalCharacter = letter.dataset.final ?? "";
-
-                if (finalCharacter && letterIndex < lockedCount) {
-                  letter.textContent = finalCharacter;
-                  return;
-                }
-
-                letter.textContent = cipherGlyph(seedText, letterIndex, step);
-              });
-            },
-            undefined,
-            stepAt,
-          );
-        });
-
-        const finishAt = labelStart + stepCount * stepDuration;
-
-        timeline
-          .to(
-            extraLetters,
-            {
-              autoAlpha: 0,
-              duration: 0.32,
-              ease: "power3.inOut",
-              width: 0,
-              x: -3,
-            },
-            finishAt - 0.18,
-          )
-          .call(
-            () => {
-              labelLetters.forEach((letter) => {
-                letter.textContent = letter.dataset.final ?? "";
-              });
-            },
-            undefined,
-            finishAt + 0.04,
-          )
-          .to(
-            finalLetters,
-            {
-              clearProps: "color,filter,width",
-              duration: 0.36,
-              ease: "expo.out",
-              stagger: 0.018,
-              x: 0,
-            },
-            finishAt,
-          );
-      });
-    };
-
-    const expandRail = safe(() => {
-      gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
-
-      if (reduceMotion.matches) {
-        gsap.set(rail, {
-          backgroundColor: "rgba(7,20,18,0.92)",
-          borderColor: "rgba(255,255,255,0.15)",
-          width: 236,
-        });
-        gsap.set(links, { width: "100%" });
-        gsap.set(brandLink, { width: "100%" });
-        gsap.set(labels, { autoAlpha: 1 });
-        letters.forEach((letter) => {
-          letter.textContent = letter.dataset.final ?? "";
-        });
-        gsap.set(letters, { autoAlpha: 1, x: 0 });
-        return;
-      }
-
-      const timeline = gsap.timeline();
-
-      timeline
-        .to(rail, {
-          backgroundColor: "rgba(7,20,18,0.92)",
-          borderColor: "rgba(255,255,255,0.15)",
-          duration: 1.55,
-          ease: "power4.inOut",
-          width: 236,
-        })
-        .to(
-          [brandLink, ...links],
-          {
-            duration: 1.38,
-            ease: "power4.inOut",
-            stagger: 0.015,
-            width: "100%",
-          },
-          0.05,
-        )
-        .set(labels, { autoAlpha: 1 }, 0.85)
-        .set(
-          letters,
-          { autoAlpha: 1, clearProps: "color,filter", x: -6, width: "auto" },
-          0.85,
-        )
-        .fromTo(
-          popTargets,
-          { rotation: 0, scale: 1, x: 0, y: 0 },
-          {
-            duration: 0.86,
-            ease: "expo.out",
-            keyframes: [
-              { rotation: -7, scaleX: 1.12, scaleY: 0.88, y: -7 },
-              { rotation: 7, scaleX: 0.92, scaleY: 1.12, x: 5, y: 2 },
-              { rotation: -5, scaleX: 1.06, scaleY: 0.96, x: -4, y: -2 },
-              { rotation: 2, scaleX: 0.98, scaleY: 1.02, x: 2, y: 0 },
-              { rotation: 0, scale: 1, x: 0, y: 0 },
-            ],
-            stagger: 0.055,
-          },
-          0.08,
-        );
-
-      decryptLabels(timeline, 0.85);
+    gsap.set(rail, {
+      width: COLLAPSED_RAIL_WIDTH,
     });
 
-    const collapseRail = safe(() => {
-      gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
-
-      if (reduceMotion.matches) {
-        setCollapsed();
-        return;
-      }
-
-      gsap
-        .timeline()
-        .to(labels, { autoAlpha: 0, duration: 0.12, ease: "power2.out" }, 0)
-        .to(
-          letters,
-          {
-            autoAlpha: 0,
-            clearProps: "color,filter,width",
-            duration: 0.12,
-            ease: "power2.out",
-            x: -8,
-          },
-          0,
-        )
-        .to([brandLink, ...links], { duration: 0.36, ease: "expo.out", width: 48 }, 0)
-        .to(brandLink, { duration: 0.36, ease: "expo.out", width: 54 }, 0)
-        .to(
-          rail,
-          {
-            backgroundColor: "rgba(7,20,18,0.75)",
-            borderColor: "rgba(255,255,255,0.1)",
-            duration: 0.58,
-            ease: "power3.out",
-            width: 92,
-          },
-          0,
-        )
-        .set(popTargets, { clearProps: "transform" })
-        .call(resetCipherText);
+    gsap.set(contentTargets, {
+      opacity: 0,
+      visibility: "hidden",
     });
 
-    setCollapsed();
-    rail.addEventListener("pointerenter", expandRail);
-    rail.addEventListener("pointerleave", collapseRail);
-    rail.addEventListener("focusin", expandRail);
-    rail.addEventListener("focusout", collapseRail);
+    gsap.set(labelTargets, {
+      opacity: 0,
+      visibility: "hidden",
+      x: -8,
+      filter: "blur(8px)",
+    });
 
-    return () => {
-      rail.removeEventListener("pointerenter", expandRail);
-      rail.removeEventListener("pointerleave", collapseRail);
-      rail.removeEventListener("focusin", expandRail);
-      rail.removeEventListener("focusout", collapseRail);
-      gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
-    };
-  }, { scope: railRef });
+    gsap.set(brandLabelTargets, {
+      opacity: 0,
+      visibility: "hidden",
+      x: -8,
+      filter: "blur(8px)",
+    });
+
+    gsap.set(pixelLayer, {
+      opacity: 0,
+      visibility: "hidden",
+    });
+
+    gsap.set(cells, {
+      opacity: 0,
+      scale: 1,
+      transformOrigin: "50% 50%",
+    });
+
+    railTimelineRef.current = gsap
+      .timeline({
+        defaults: {
+          ease: "none",
+        },
+        onComplete: () => {
+          setIsExpanded(true);
+          setIsAnimating(false);
+
+          gsap.set(rail, {
+            clearProps: "width",
+          });
+
+          gsap.set(pixelLayer, {
+            opacity: 0,
+            visibility: "hidden",
+          });
+
+          gsap.set(cells, {
+            opacity: 0,
+            scale: 1,
+          });
+        },
+      })
+
+      /**
+       * 第一步：只做侧边栏宽度动画。
+       */
+      .to(rail, {
+        width: EXPANDED_RAIL_WIDTH,
+        duration: RAIL_EXPAND_DURATION,
+        ease: "power3.inOut",
+      })
+
+      /**
+       * 第二步：宽度动画完成后，才显示 pixel layer。
+       */
+      .set(pixelLayer, {
+        opacity: 1,
+        visibility: "visible",
+      })
+
+      /**
+       * 第三步：白色像素随机铺满。
+       */
+      .to(fillOrder, {
+        opacity: 1,
+        duration: 0,
+        stagger: {
+          amount: PIXEL_FILL_DURATION,
+          from: "random",
+        },
+      })
+
+      /**
+       * 第四步：铺满后停一下。
+       */
+      .to({}, { duration: PIXEL_HOLD_DURATION })
+
+      /**
+       * 第五步：白色像素随机消失。
+       */
+      .to(clearOrder, {
+        opacity: 0,
+        duration: 0,
+        stagger: {
+          amount: PIXEL_CLEAR_DURATION,
+          from: "random",
+        },
+      })
+
+      /**
+       * 第六步：pixel 动画结束后，再显示内容。
+       */
+      .set(pixelLayer, {
+        opacity: 0,
+        visibility: "hidden",
+      })
+      .call(() => {
+        setIsExpanded(true);
+      })
+      .set(contentTargets, {
+        opacity: 1,
+        visibility: "visible",
+      })
+      .to(
+        [...labelTargets, ...brandLabelTargets],
+        {
+          opacity: 1,
+          visibility: "visible",
+          x: 0,
+          y: 0,
+          filter: "blur(0px)",
+          duration: 0.28,
+          ease: "power2.out",
+        },
+        "<",
+      );
+  };
 
   return (
     <aside
-      className="rail-shell fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden w-[92px] flex-col items-center overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/75 px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] md:flex"
       ref={railRef}
+      data-expanded={isExpanded ? "true" : "false"}
+      className={`rail-shell fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden flex-col items-center overflow-hidden rounded-[22px] border px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] transition-[background-color,border-color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:flex ${
+        isOpen
+          ? "w-[260px] border-white/15 bg-[#071412]/[.92]"
+          : "w-[92px] border-white/10 bg-[#071412]/75"
+      }`}
     >
+      <div
+        ref={pixelLayerRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-50 overflow-hidden"
+      >
+        {pixelCells.map((_, index) => (
+          <span
+            className="rail-pixel block"
+            data-rail-pixel
+            key={`rail-pixel-${index}`}
+            style={
+              {
+                "--pixel-color": PIXEL_COLOR,
+                height: `${100 / PIXEL_ROWS}%`,
+                left: `${(index % PIXEL_COLUMNS) * (100 / PIXEL_COLUMNS)}%`,
+                top: `${
+                  Math.floor(index / PIXEL_COLUMNS) * (100 / PIXEL_ROWS)
+                }%`,
+                width: `${100 / PIXEL_COLUMNS}%`,
+              } as CSSProperties
+            }
+          />
+        ))}
+      </div>
       <a
-        className="rail-brand-link grid h-[54px] w-[54px] grid-cols-[54px_minmax(0,1fr)] items-center gap-3 overflow-hidden"
+        data-rail-content
+        className={`rail-brand-link relative z-20 [height:54px]  grid-cols-[54px_minmax(0,1fr)] items-center overflow-hidden rounded-[18px] text-left transition-[opacity,width] duration-300 ${
+          isExpanded ? "w-full opacity-100" : "[width:54px] opacity-100"
+        }`}
         href="/inbox"
         title="Glimmail"
         aria-label="Glimmail"
       >
-        <span
-          className="rail-welcome-mark grid shrink-0 place-items-center"
-          data-rail-pop
-        >
-          GM
-        </span>
-        <span className="rail-brand-label overflow-hidden whitespace-nowrap text-[#f4f5e9]">
-          {Array.from({ length: cipherSlotCount("Glimmail") }).map(
-            (_, characterIndex) => (
-              <span
-                aria-hidden="true"
-                className="rail-letter inline-block"
-                data-rail-letter
-                data-cipher={cipherGlyph("Glimmail", characterIndex)}
-                data-final={brandCharacters[characterIndex] ?? ""}
-                key={`glimmail-${characterIndex}`}
-              >
-                {cipherGlyph("Glimmail", characterIndex)}
-              </span>
-            ),
-          )}
-        </span>
+        <div className={`w-full ${isOpen ? "[margin-left:15px] flex items-center" : "flex"}`}>
+          <span
+            className={`rail-welcome-mark grid shrink-0 place-items-center`}
+          >
+            GM
+          </span>
+          <span className="rail-brand-label block max-w-full overflow-hidden whitespace-nowrap pr-3 text-left text-[#f4f5e9] [margin-left:14px]">
+            Glimmail
+          </span>
+        </div>
       </a>
 
-      <nav className="mt-7 grid w-full gap-[10px]">
+      <nav
+        data-rail-content
+        className={`relative z-20 mt-5 grid w-full gap-[6px] transition-opacity duration-300 ${"opacity-100"}`}
+      >
         {mainItems.map(([label, shortLabel, href]) => {
           const isActive = isActiveLabel(active, label);
 
           return (
             <RailItem
+              expanded={isExpanded}
               href={href}
               isActive={isActive}
               key={label}
@@ -448,12 +456,34 @@ export function AetherSidebar({
         })}
       </nav>
 
-      <div className="mt-auto grid w-full gap-[10px]">
+      <div
+        data-rail-content
+        className={`relative z-20 flex w-full flex-1 items-center cursor-pointer py-4 transition-opacity duration-300 ${isOpen ? "justify-start [padding-left:15px]" : "justify-center"} ${"opacity-100"}`}
+      >
+        <button
+          aria-label={isOpen ? "收起左侧栏" : "展开左侧栏"}
+          aria-pressed={isOpen}
+          className={`"rail-toggle grid size-11 place-items-center cursor-pointer rounded-[8px] border border-[#8b5cf6]/70 bg-[#8b5cf6]/12 text-[#a78bfa] shadow-[0_0_28px_rgba(139,92,246,0.2)] transition hover:border-[#a78bfa] hover:bg-[#8b5cf6]/20`}
+          onClick={toggleRail}
+          type="button"
+        >
+          <span className="grid gap-[5px]" aria-hidden="true">
+            <span className="block h-[2px] w-5 rounded-full bg-current" />
+            <span className="block h-[2px] w-5 rounded-full bg-current" />
+            <span className="block h-[2px] w-5 rounded-full bg-current" />
+          </span>
+        </button>
+      </div>
+
+      <div
+        data-rail-content
+        className={`relative z-20 grid w-full gap-[6px] transition-opacity duration-300 ${"opacity-100"}`}
+      >
         {details ? (
           <>
             <button
               aria-expanded={detailsOpen}
-              className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border text-left transition-[border-color,background-color,color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
+              className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] cursor-pointer items-center rounded-2xl border text-left transition-[border-color,background-color,color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
                 detailsOpen
                   ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
                   : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
@@ -470,28 +500,26 @@ export function AetherSidebar({
               title="更多"
               type="button"
             >
-              <span className="rail-short grid place-items-center" data-rail-pop>
+              <span
+                className="rail-short grid place-items-center"
+                data-rail-pop
+              >
                 MO
               </span>
-              <span className="rail-label min-w-0 justify-self-start overflow-hidden whitespace-nowrap pr-3 text-left">
-                {Array.from({ length: cipherSlotCount("更多") }).map(
-                  (_, characterIndex) => (
-                    <span
-                      aria-hidden="true"
-                      className="rail-letter inline-block"
-                      data-rail-letter
-                      data-cipher={cipherGlyph("更多", characterIndex)}
-                      data-final={Array.from("更多")[characterIndex] ?? ""}
-                      key={`more-${characterIndex}`}
-                    >
-                      {cipherGlyph("更多", characterIndex)}
-                    </span>
-                  ),
-                )}
+              <span
+                className={`rail-label min-w-0 justify-self-start overflow-hidden whitespace-nowrap pr-3 text-left transition-[opacity,filter,transform] duration-500 ${
+                  isExpanded
+                    ? "translate-x-0 opacity-100 blur-0"
+                    : "-translate-x-2 opacity-0 blur-md"
+                }`}
+              >
+                更多
               </span>
             </button>
             {detailsOpen ? (
-              <div className="custom-scrollbar fixed bottom-[14px] left-[264px] top-[14px] z-30 hidden w-[330px] overflow-y-auto rounded-[24px] md:block">
+              <div className={`custom-scrollbar fixed bottom-[14px] top-[14px] z-30 hidden w-[330px] overflow-y-auto rounded-[24px] md:block ${
+                isOpen ? "left-[288px]" : "left-[120px]"
+              }`}>
                 {details}
               </div>
             ) : null}
@@ -502,6 +530,7 @@ export function AetherSidebar({
 
           return (
             <RailItem
+              expanded={isExpanded}
               href={href}
               isActive={isActive}
               key={label}
