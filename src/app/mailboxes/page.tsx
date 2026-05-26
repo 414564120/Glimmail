@@ -190,7 +190,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
         connectedAccountCount={connectedCount}
       />
 
-      <section className="min-h-screen overflow-x-hidden px-4 pb-28 pt-20 md:ml-[106px] md:p-[14px_14px_14px_0] md:pt-[14px]">
+      <section className="min-h-screen overflow-x-hidden px-4 pb-28 pt-20 md:ml-[120px] md:p-[14px_14px_14px_0] md:pt-[14px]">
         <div className="grid min-h-[calc(100vh-28px)] min-w-0 gap-[14px] xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)_minmax(260px,300px)] 2xl:grid-cols-[minmax(360px,430px)_minmax(560px,1fr)_330px]">
           <aside className="preview-glass-border preview-surface-82 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[26px] border shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
             <div className="preview-split-header-bg relative overflow-hidden border-b border-white/10 px-[22px] pb-7 pt-[22px]">
