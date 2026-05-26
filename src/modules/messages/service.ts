@@ -20,6 +20,16 @@ export async function toggleMessageRead(userId: string, messageId: string) {
   });
 }
 
+export async function markMessageRead(userId: string, messageId: string) {
+  const message = await db.message.findUnique({ where: { id: messageId } });
+  if (!message || message.userId !== userId || message.isRead) return null;
+
+  return db.message.update({
+    where: { id: messageId },
+    data: { isRead: true },
+  });
+}
+
 export async function toggleMessageStarred(userId: string, messageId: string) {
   const message = await db.message.findUnique({ where: { id: messageId } });
   if (!message || message.userId !== userId) return null;

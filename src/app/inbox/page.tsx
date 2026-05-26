@@ -11,7 +11,11 @@ import { CopyCodeButton } from "@/components/inbox/copy-code-button";
 import { getCurrentUser } from "@/modules/auth";
 import { getUserMailboxes } from "@/modules/mailboxes";
 import { getUserMessages } from "@/modules/messages";
-import { toggleReadAction, toggleStarredAction } from "./actions";
+import {
+  markReadAndOpenAction,
+  toggleReadAction,
+  toggleStarredAction,
+} from "./actions";
 import {
   syncGmailAction,
   syncMailboxAction,
@@ -562,7 +566,7 @@ function getMessageKind(message: {
     return "通知";
   }
 
-  return message.isRead ? "邮件" : "未读";
+  return "邮件";
 }
 
 function getKindBadgeClass(kind: string) {
@@ -941,23 +945,29 @@ export default async function InboxPage({ searchParams }: PageProps) {
                   const messageKind = getMessageKind(msg);
 
                   return (
-                    <Link
-                      className={`group relative block cursor-pointer overflow-hidden rounded-[18px] border-[1px] p-[15px_14px_14px] text-[#f4f5e9] transition before:absolute before:bottom-[13px] before:left-0 before:top-[13px] before:w-[3px] before:rounded-full before:opacity-80 hover:translate-x-[5px] hover:border-white/[.13] hover:bg-white/[0.06] ${getProviderItemClass(
-                        msg.mailbox.provider,
-                      )} ${
-                        isActive
-                          ? "mail-list-item-active"
-                          : "border-transparent bg-transparent"
-                      }`}
-                      href={createInboxHref({
-                        account: activeAccount,
-                        message: msg.id,
-                        partition: activePartition,
-                        view: activeView,
-                      })}
-                      key={msg.id}
-                      scroll={false}
-                    >
+                    <form action={markReadAndOpenAction} key={msg.id}>
+                      <input name="messageId" type="hidden" value={msg.id} />
+                      <input name="view" type="hidden" value={activeView} />
+                      <input
+                        name="partition"
+                        type="hidden"
+                        value={activePartition}
+                      />
+                      <input
+                        name="account"
+                        type="hidden"
+                        value={activeAccount ?? "all"}
+                      />
+                      <button
+                        className={`group relative block w-full cursor-pointer overflow-hidden rounded-[18px] border-[1px] p-[15px_14px_14px] text-left text-[#f4f5e9] transition before:absolute before:bottom-[13px] before:left-0 before:top-[13px] before:w-[3px] before:rounded-full before:opacity-80 hover:translate-x-[5px] hover:border-white/[.13] hover:bg-white/[0.06] ${getProviderItemClass(
+                          msg.mailbox.provider,
+                        )} ${
+                          isActive
+                            ? "mail-list-item-active"
+                            : "border-transparent bg-transparent"
+                        }`}
+                        type="submit"
+                      >
                       <div className="flex items-center justify-between gap-3">
                         <span
                           className={`truncate text-[13px] font-black ${
@@ -1017,7 +1027,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
                           </span>
                         </div>
                       </div>
-                    </Link>
+                      </button>
+                    </form>
                   );
                 })}
               </div>

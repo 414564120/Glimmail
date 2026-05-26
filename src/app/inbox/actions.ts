@@ -3,7 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
-import { toggleMessageRead, toggleMessageStarred } from "@/modules/messages";
+import {
+  markMessageRead,
+  toggleMessageRead,
+  toggleMessageStarred,
+} from "@/modules/messages";
 
 const allowedViews = new Set([
   "archive",
@@ -15,11 +19,33 @@ const allowedViews = new Set([
   "trash",
 ]);
 
-function getRedirectPath(messageId: string, view: string) {
+const allowedPartitions = new Set([
+  "all",
+  "important",
+  "code",
+  "notification",
+  "subscription",
+  "unread",
+  "starred",
+  "junk",
+]);
+
+function getRedirectPath(
+  messageId: string,
+  view: string,
+  partition = "all",
+  account = "all",
+) {
   const params = new URLSearchParams();
 
   if (allowedViews.has(view) && view !== "inbox") {
     params.set("view", view);
+  }
+  if (allowedPartitions.has(partition) && partition !== "all") {
+    params.set("partition", partition);
+  }
+  if (account && account !== "all") {
+    params.set("account", account);
   }
 
   if (messageId) {
@@ -40,6 +66,20 @@ export async function toggleReadAction(formData: FormData) {
 
   revalidatePath("/inbox");
   redirect(getRedirectPath(messageId, view));
+}
+
+export async function markReadAndOpenAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/inbox");
+
+  const messageId = String(formData.get("messageId") || "");
+  const view = String(formData.get("view") || "inbox");
+  const partition = String(formData.get("partition") || "all");
+  const account = String(formData.get("account") || "all");
+  await markMessageRead(user.id, messageId);
+
+  revalidatePath("/inbox");
+  redirect(getRedirectPath(messageId, view, partition, account));
 }
 
 export async function toggleStarredAction(formData: FormData) {
