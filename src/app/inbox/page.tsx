@@ -971,7 +971,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
         details={railDetails}
       />
 
-      <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-[106px] md:grid md:h-screen md:grid-cols-[minmax(360px,430px)_minmax(520px,1fr)] md:gap-[14px] md:overflow-hidden md:p-[14px_14px_14px_0] md:pb-[14px] md:pt-[14px] xl:grid-cols-[minmax(360px,430px)_minmax(620px,1fr)]">
+      <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-[106px] md:grid md:h-screen md:grid-cols-[minmax(340px,34fr)_minmax(500px,55fr)] md:gap-[14px] md:overflow-hidden md:p-[14px_14px_14px_0] md:pb-[14px] md:pt-[14px] xl:grid-cols-[minmax(440px,34fr)_minmax(700px,55fr)]">
         <aside
           className={`preview-glass-border preview-surface-82 min-w-0 min-h-0 flex-col overflow-hidden border shadow-[0_28px_90px_rgba(0,0,0,0.42)] md:flex md:h-[calc(100vh-28px)] md:rounded-[26px] ${
             mobileMessageOpen ? "hidden" : "flex"
