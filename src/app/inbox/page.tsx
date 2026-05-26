@@ -498,11 +498,11 @@ export default async function InboxPage({ searchParams }: PageProps) {
 
                   return (
                     <Link
-                      className={`group relative block cursor-pointer overflow-hidden rounded-[18px] border p-[15px_14px_14px] text-[#f4f5e9] transition before:absolute before:bottom-[13px] before:left-0 before:top-[13px] before:w-[3px] before:rounded-full before:opacity-80 hover:translate-x-[5px] hover:border-white/13 hover:bg-white/[0.06] ${getProviderItemClass(
+                      className={`group relative block cursor-pointer overflow-hidden rounded-[18px] border-[1px] p-[15px_14px_14px] text-[#f4f5e9] transition before:absolute before:bottom-[13px] before:left-0 before:top-[13px] before:w-[3px] before:rounded-full before:opacity-80 hover:translate-x-[5px] hover:border-white/13 hover:bg-white/[0.06] ${getProviderItemClass(
                         msg.mailbox.provider,
                       )} ${
                         isActive
-                          ? "border-[#d7ff47]/35 bg-[linear-gradient(135deg,rgba(215,255,71,0.1),rgba(79,215,255,0.05)),rgba(255,255,255,0.06)]"
+                          ? "border-[rgba(215,255,71,0.36)] bg-[linear-gradient(135deg,rgba(215,255,71,0.1),rgba(79,215,255,0.05)),rgba(255,255,255,0.06)]"
                           : "border-transparent bg-transparent"
                       }`}
                       href={createInboxHref({
@@ -677,12 +677,12 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 </header>
 
                 <div className="px-[34px] py-7">
-                  <section className="mb-[18px] grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-[18px] rounded-[18px] border border-[#142a24]/12 bg-[linear-gradient(135deg,rgba(215,255,71,0.38),rgba(79,215,255,0.16)),rgba(255,255,255,0.36)] p-[18px]">
+                  <section className="mb-[18px] grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-[18px] rounded-[18px] border border-[rgba(17,30,26,0.12)] bg-[linear-gradient(135deg,rgba(215,255,71,0.38),rgba(79,215,255,0.16)),rgba(255,255,255,0.36)] p-[18px]">
                     <div>
-                      <div className="text-xs font-black uppercase tracking-[0.12em] text-[#0b6b66]">
+                      <div className="text-[12px] font-[950] uppercase tracking-[0.12em] text-[#0b6b66]">
                         邮件摘要
                       </div>
-                      <div className="mt-[7px] text-sm leading-[1.55] text-[#20352f]">
+                      <div className="mt-[7px] text-[14px] leading-[1.55] text-[#20352f]">
                         {selectedMessage.preview ??
                           "这封邮件暂无摘要，打开正文查看完整内容。"}
                       </div>
@@ -743,13 +743,13 @@ export default async function InboxPage({ searchParams }: PageProps) {
           )}
 
           <aside className="custom-scrollbar hidden min-w-0 min-h-0 flex-col gap-[14px] overflow-y-auto xl:flex xl:h-[calc(100vh-28px)]">
-            <section className="rounded-[24px] border border-[#c4ffe2]/13 bg-[linear-gradient(135deg,rgba(79,215,255,0.12),rgba(215,255,71,0.08)),rgba(10,27,24,0.78)] p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+            <section className="rounded-[24px] border border-[rgba(196,255,226,0.13)] bg-[linear-gradient(135deg,rgba(79,215,255,0.12),rgba(215,255,71,0.08)),rgba(10,27,24,0.78)] p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
               <div className="mb-[14px] flex items-center justify-between gap-3">
                 <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
                   当前邮件
                 </h2>
                 <Link
-                  className="text-xs font-black text-[#d7ff47] transition hover:text-[#ecff8a]"
+                  className="text-xs font-[850] text-[#c4ffe2]/72 transition hover:text-[#d7ff47]"
                   href={sourceHref}
                 >
                   查看来源
@@ -764,7 +764,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 ].map(([label, value], index) => (
                   <div
                     className={`grid grid-cols-[minmax(0,1fr)_auto] gap-2.5 py-[9px] ${
-                      index > 0 ? "border-t border-[#c4ffe2]/13" : ""
+                      index > 0 ? "border-t border-[rgba(196,255,226,0.13)]" : ""
                     }`}
                     key={label}
                   >
@@ -777,13 +777,13 @@ export default async function InboxPage({ searchParams }: PageProps) {
               </div>
             </section>
 
-            <section className="rounded-[24px] border border-[#c4ffe2]/13 bg-[#0a1b18]/78 p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+            <section className="rounded-[24px] border border-[rgba(196,255,226,0.13)] bg-[rgba(10,27,24,0.78)] p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
               <div className="mb-[14px] flex items-center justify-between gap-3">
                 <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
                   连接账号
                 </h2>
                 <Link
-                  className="text-xs font-black text-[#d7ff47] transition hover:text-[#ecff8a]"
+                  className="text-xs font-[850] text-[#c4ffe2]/72 transition hover:text-[#d7ff47]"
                   href="/mailboxes"
                 >
                   管理
@@ -798,7 +798,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                   mailboxes.slice(0, 4).map((mailbox, index) => (
                     <Link
                       className={`grid min-w-0 grid-cols-[38px_minmax(0,1fr)] gap-2.5 py-2.5 transition hover:translate-x-0.5 ${
-                        index > 0 ? "border-t border-[#c4ffe2]/13" : ""
+                        index > 0 ? "border-t border-[rgba(196,255,226,0.13)]" : ""
                       }`}
                       href={createInboxHref({
                         account: mailbox.id,
@@ -886,7 +886,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
               </div>
             </section>
 
-            <section className="rounded-[24px] border border-[#c4ffe2]/13 bg-[#0a1b18]/78 p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+            <section className="rounded-[24px] border border-[rgba(196,255,226,0.13)] bg-[rgba(10,27,24,0.78)] p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
               <div className="mb-[14px] flex items-center justify-between gap-3">
                 <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
                   最近同步
