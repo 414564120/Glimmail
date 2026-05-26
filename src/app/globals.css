@@ -184,6 +184,24 @@ a {
   border-radius: 999px;
 }
 
+.chip-scrollbar {
+  scrollbar-color: rgb(215 255 71 / 0.35) transparent;
+  scrollbar-width: thin;
+}
+
+.chip-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.chip-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chip-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgb(215 255 71 / 0.35);
+  border-radius: 999px;
+}
+
 .login-shape {
   position: absolute;
   z-index: 0;
@@ -314,6 +332,50 @@ a {
 
 .split-drift-mark {
   animation: split-drift 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+.reader-drift-mark {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  border: 1px solid rgb(17 30 26 / 0.12);
+  border-radius: 999px;
+  opacity: 0.74;
+  will-change: transform;
+}
+
+.reader-drift-mark-primary {
+  right: 42px;
+  top: 158px;
+  width: 120px;
+  height: 120px;
+  background:
+    linear-gradient(
+      135deg,
+      transparent 0 44%,
+      rgb(255 107 87 / 0.64) 45% 55%,
+      transparent 56%
+    ),
+    radial-gradient(circle, rgb(79 215 255 / 0.32), transparent 66%);
+  animation: reader-drift-primary 10s ease-in-out infinite;
+}
+
+.reader-drift-mark-secondary {
+  right: 196px;
+  top: 252px;
+  width: 58px;
+  height: 58px;
+  background:
+    linear-gradient(
+      135deg,
+      transparent 0 42%,
+      rgb(215 255 71 / 0.46) 43% 57%,
+      transparent 58%
+    ),
+    radial-gradient(circle, rgb(11 107 102 / 0.22), transparent 68%);
+  animation: reader-drift-secondary 8.5s ease-in-out infinite;
+  opacity: 0.52;
 }
 
 @keyframes gradient-flux {
@@ -348,6 +410,33 @@ a {
   }
 }
 
+@keyframes reader-drift-primary {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  35% {
+    transform: translate3d(-46px, 34px, 0) rotate(13deg);
+  }
+  68% {
+    transform: translate3d(24px, 148px, 0) rotate(-8deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes reader-drift-secondary {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(38px, 126px, 0) rotate(18deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
 @keyframes pulse-green {
   0%,
   100% {
@@ -360,6 +449,10 @@ a {
 
 @media (prefers-reduced-motion: reduce) {
   .split-drift-mark {
+    animation: none;
+  }
+
+  .reader-drift-mark {
     animation: none;
   }
 

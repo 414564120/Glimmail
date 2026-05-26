@@ -111,12 +111,36 @@ const viewLabels = {
 
 type InboxView = keyof typeof viewLabels;
 
+const partitionLabels = {
+  all: "全部",
+  important: "重要",
+  code: "验证码",
+  notification: "通知",
+  subscription: "订阅",
+  unread: "未读",
+  starred: "星标",
+  junk: "广告/垃圾",
+} as const;
+
+type InboxPartition = keyof typeof partitionLabels;
+
 function getInboxView(value?: string): InboxView {
   if (value && value in viewLabels) {
     return value as InboxView;
   }
 
   return "inbox";
+}
+
+function getInboxPartition(
+  value: string | undefined,
+  activeView: InboxView,
+): InboxPartition {
+  if (value && value in partitionLabels) {
+    return value as InboxPartition;
+  }
+
+  return activeView === "starred" ? "starred" : "all";
 }
 
 function getViewMessages<T extends { isStarred: boolean }>(
@@ -129,8 +153,66 @@ function getViewMessages<T extends { isStarred: boolean }>(
   return [];
 }
 
+function getPartitionMessages<
+  T extends {
+    isRead: boolean;
+    isStarred: boolean;
+    preview: string | null;
+    subject: string;
+    verificationCode: string | null;
+  },
+>(messages: T[], partition: InboxPartition) {
+  if (partition === "all") return messages;
+  if (partition === "important" || partition === "starred") {
+    return messages.filter((msg) => msg.isStarred);
+  }
+  if (partition === "code") return messages.filter((msg) => msg.verificationCode);
+  if (partition === "unread") return messages.filter((msg) => !msg.isRead);
+
+  return messages.filter((msg) => {
+    const kind = getMessageKind(msg);
+
+    if (partition === "notification") {
+      return kind === "通知" || kind === "安全通知";
+    }
+    if (partition === "subscription") return kind === "订阅";
+    if (partition === "junk") return kind === "广告/垃圾";
+
+    return true;
+  });
+}
+
+function createInboxHref({
+  account,
+  message,
+  partition,
+  view,
+}: {
+  account?: string;
+  message?: string;
+  partition?: InboxPartition;
+  view?: InboxView;
+}) {
+  const params = new URLSearchParams();
+
+  if (view && view !== "inbox") params.set("view", view);
+  if (partition && partition !== "all") params.set("partition", partition);
+  if (account && account !== "all") params.set("account", account);
+  if (message) params.set("message", message);
+
+  const query = params.toString();
+
+  return query ? `/inbox?${query}` : "/inbox";
+}
+
 interface PageProps {
-  searchParams: Promise<{ compose?: string; message?: string; view?: string }>;
+  searchParams: Promise<{
+    account?: string;
+    compose?: string;
+    message?: string;
+    partition?: string;
+    view?: string;
+  }>;
 }
 
 export default async function InboxPage({ searchParams }: PageProps) {
@@ -145,12 +227,26 @@ export default async function InboxPage({ searchParams }: PageProps) {
     getUserMailboxes(user.id),
   ]);
   const {
+    account: accountParam,
     compose: composeParam,
     message: messageIdParam,
+    partition: partitionParam,
     view: viewParam,
   } = await searchParams;
   const activeView = getInboxView(viewParam);
-  const visibleMessages = getViewMessages(messages, activeView);
+  const activePartition = getInboxPartition(partitionParam, activeView);
+  const activeAccount = mailboxes.some((mailbox) => mailbox.id === accountParam)
+    ? accountParam
+    : "all";
+  const viewMessages = getViewMessages(messages, activeView);
+  const partitionedMessages = getPartitionMessages(
+    viewMessages,
+    activePartition,
+  );
+  const visibleMessages =
+    activeAccount === "all"
+      ? partitionedMessages
+      : partitionedMessages.filter((msg) => msg.mailboxId === activeAccount);
   const activeLabel = viewLabels[activeView];
   const composeOpen = composeParam === "new";
 
@@ -172,18 +268,21 @@ export default async function InboxPage({ searchParams }: PageProps) {
     (msg) => getMessageKind(msg) === "广告/垃圾",
   ).length;
   const partitionChips = [
-    ["全部", messages.length, activeView === "inbox", "/inbox"],
-    ["重要", starredCount, activeView === "starred", "/inbox?view=starred"],
-    ["验证码", codeCount, false, null],
-    ["通知", notificationCount, false, null],
-    ["订阅", subscriptionCount, false, null],
-    ["未读", unreadCount, false, null],
-    ["星标", starredCount, activeView === "starred", "/inbox?view=starred"],
-    ["广告/垃圾", junkCount, false, null],
+    ["all", messages.length],
+    ["important", starredCount],
+    ["code", codeCount],
+    ["notification", notificationCount],
+    ["subscription", subscriptionCount],
+    ["unread", unreadCount],
+    ["starred", starredCount],
+    ["junk", junkCount],
   ] as const;
   const activeProviderLabel = selectedMessage
     ? getProviderLabel(selectedMessage.mailbox.provider)
     : "Glimmail";
+  const selectedMessageKind = selectedMessage
+    ? getMessageKind(selectedMessage)
+    : activeLabel;
 
   return (
     <main className="surface-grid min-h-screen bg-background text-[#f4f5e9]">
@@ -198,7 +297,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
           <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto">
             <header className="relative border-b border-white/10 bg-[linear-gradient(180deg,rgba(10,27,24,0.96),rgba(10,27,24,0.84))] pb-0 pt-[22px] backdrop-blur-[18px] md:sticky md:top-0 md:z-10">
               <div className="relative px-[22px] pb-3">
-                <div className="split-drift-mark pointer-events-none absolute right-5 top-0 size-[82px] rounded-full bg-[linear-gradient(135deg,transparent_0_44%,rgba(215,255,71,0.95)_45%_56%,transparent_57%),radial-gradient(circle_at_50%_50%,rgba(79,215,255,0.55),transparent_64%)] opacity-70" />
+                <div className="split-drift-mark pointer-events-none absolute right-5 top-5 size-[82px] rounded-full bg-[linear-gradient(135deg,transparent_0_44%,rgba(215,255,71,0.95)_45%_56%,transparent_57%),radial-gradient(circle_at_50%_50%,rgba(79,215,255,0.55),transparent_64%)] opacity-70" />
                 <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#d7ff47]">
                   Glimmail Unified Inbox
                 </p>
@@ -225,55 +324,87 @@ export default async function InboxPage({ searchParams }: PageProps) {
 
               <div
                 aria-label="邮件分区"
-                className="mt-[18px] flex gap-2 overflow-x-auto px-[22px] pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="chip-scrollbar mt-[18px] flex gap-2 overflow-x-auto px-[22px] pb-3"
               >
-                {partitionChips.map(([label, count, isActive, href]) =>
-                  href ? (
+                {partitionChips.map(([partition, count]) => {
+                  const isActive = activePartition === partition;
+
+                  return (
                     <Link
+                      aria-current={isActive ? "page" : undefined}
                       className={`relative shrink-0 rounded-full border px-3 py-2 text-xs font-black transition hover:-translate-y-0.5 ${
                         isActive
                           ? "border-[#d7ff47]/50 bg-[#d7ff47]/12 text-[#d7ff47] after:absolute after:inset-x-3 after:-bottom-1.5 after:h-0.5 after:rounded-full after:bg-[#d7ff47]"
-                          : "border-white/12 bg-white/[0.05] text-[#f4f5e9]/68 hover:text-[#f4f5e9]"
+                          : "border-white/12 bg-white/[0.05] text-[#f4f5e9]/68 hover:border-white/20 hover:bg-white/[0.08] hover:text-[#f4f5e9]"
                       }`}
-                      href={href}
-                      key={label}
+                      href={createInboxHref({
+                        account: activeAccount,
+                        partition,
+                        view: activeView,
+                      })}
+                      key={partition}
                     >
-                      {label} {count}
+                      {partitionLabels[partition]} {count}
                     </Link>
-                  ) : (
-                    <span
-                      className="relative shrink-0 rounded-full border border-white/12 bg-white/[0.05] px-3 py-2 text-xs font-black text-[#f4f5e9]/68 transition hover:-translate-y-0.5 hover:text-[#f4f5e9]"
-                      key={label}
-                    >
-                      {label} {count}
-                    </span>
-                  ),
-                )}
+                  );
+                })}
               </div>
 
               <div
                 aria-label="账号筛选"
-                className="flex gap-2 overflow-x-auto px-[22px] pb-4 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                className="chip-scrollbar flex gap-2 overflow-x-auto px-[22px] pb-4 pt-1"
               >
-                <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-[#d7ff47]/50 bg-[#d7ff47]/12 px-3 py-2 text-xs font-black text-[#d7ff47]">
+                <Link
+                  aria-current={activeAccount === "all" ? "page" : undefined}
+                  className={`inline-flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition hover:-translate-y-0.5 ${
+                    activeAccount === "all"
+                      ? "border-[#d7ff47]/50 bg-[#d7ff47]/12 text-[#d7ff47]"
+                      : "border-white/12 bg-white/[0.05] text-[#f4f5e9]/68 hover:border-white/20 hover:bg-white/[0.08] hover:text-[#f4f5e9]"
+                  }`}
+                  href={createInboxHref({
+                    account: "all",
+                    partition: activePartition,
+                    view: activeView,
+                  })}
+                >
                   <span className="size-2 rounded-full bg-[#87f2c5]" />
                   全部账号
-                </span>
-                {mailboxes.map((mailbox) => (
-                  <span
-                    className="inline-flex max-w-[180px] shrink-0 items-center gap-2 rounded-full border border-white/12 bg-white/[0.05] px-3 py-2 text-xs font-black text-[#f4f5e9]/68 transition hover:-translate-y-0.5 hover:text-[#f4f5e9]"
-                    key={mailbox.id}
-                  >
-                    <span
-                      className={`size-2 rounded-full ${getProviderTone(
-                        mailbox.provider,
-                      )}`}
-                    />
-                    <span className="truncate">
-                      {getProviderLabel(mailbox.provider)}
-                    </span>
-                  </span>
-                ))}
+                </Link>
+                {mailboxes.map((mailbox) => {
+                  const isActive = activeAccount === mailbox.id;
+                  const mailboxCount = partitionedMessages.filter(
+                    (msg) => msg.mailboxId === mailbox.id,
+                  ).length;
+
+                  return (
+                    <Link
+                      aria-current={isActive ? "page" : undefined}
+                      className={`inline-flex max-w-[180px] shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-xs font-black transition hover:-translate-y-0.5 ${
+                        isActive
+                          ? "border-[#d7ff47]/50 bg-[#d7ff47]/12 text-[#d7ff47]"
+                          : "border-white/12 bg-white/[0.05] text-[#f4f5e9]/68 hover:border-white/20 hover:bg-white/[0.08] hover:text-[#f4f5e9]"
+                      }`}
+                      href={createInboxHref({
+                        account: mailbox.id,
+                        partition: activePartition,
+                        view: activeView,
+                      })}
+                      key={mailbox.id}
+                    >
+                      <span
+                        className={`size-2 rounded-full ${getProviderTone(
+                          mailbox.provider,
+                        )}`}
+                      />
+                      <span className="truncate">
+                        {getProviderLabel(mailbox.provider)}
+                      </span>
+                      <span className="font-mono text-[10px] opacity-60">
+                        {mailboxCount}
+                      </span>
+                    </Link>
+                  );
+                })}
               </div>
             </header>
 
@@ -313,9 +444,12 @@ export default async function InboxPage({ searchParams }: PageProps) {
                           ? "border-[#d7ff47]/35 bg-[linear-gradient(135deg,rgba(215,255,71,0.1),rgba(79,215,255,0.05)),rgba(255,255,255,0.06)]"
                           : "border-transparent bg-transparent"
                       }`}
-                      href={`/inbox?${
-                        activeView === "inbox" ? "" : `view=${activeView}&`
-                      }message=${encodeURIComponent(msg.id)}`}
+                      href={createInboxHref({
+                        account: activeAccount,
+                        message: msg.id,
+                        partition: activePartition,
+                        view: activeView,
+                      })}
                       key={msg.id}
                       scroll={false}
                     >
@@ -387,10 +521,12 @@ export default async function InboxPage({ searchParams }: PageProps) {
           </aside>
 
           {selectedMessage ? (
-            <article className="hidden min-w-0 min-h-0 overflow-hidden bg-[#f7f1df] text-[#111e1a] shadow-[0_28px_80px_rgba(7,20,18,0.18)] md:flex md:h-[calc(100vh-28px)] md:flex-col md:rounded-[30px]">
+            <article className="relative hidden min-w-0 min-h-0 overflow-hidden bg-[#f7f1df] text-[#111e1a] shadow-[0_28px_80px_rgba(7,20,18,0.18)] md:flex md:h-[calc(100vh-28px)] md:flex-col md:rounded-[30px]">
+              <div className="reader-drift-mark reader-drift-mark-primary" />
+              <div className="reader-drift-mark reader-drift-mark-secondary" />
               <header className="sticky top-0 z-10 flex min-h-[72px] items-center justify-between gap-4 border-b border-[#142a24]/14 bg-[#f7f1df]/88 px-[22px] py-4 backdrop-blur-[18px]">
                 <div className="text-[13px] font-bold text-[#647069]">
-                  {activeLabel} / {activeProviderLabel}
+                  {activeLabel} / {activeProviderLabel} / {selectedMessageKind}
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
                   <form action={toggleStarredAction}>
@@ -401,7 +537,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                     />
                     <input name="view" type="hidden" value={activeView} />
                     <button
-                      className="min-w-[38px] rounded-full border border-[#111e1a]/12 bg-[#111e1a]/5 px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
+                      className="min-w-[38px] rounded-full border border-[#111e1a]/12 bg-[#111e1a]/5 cursor-pointer px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
                       title={selectedMessage.isStarred ? "取消星标" : "星标"}
                       type="submit"
                     >
@@ -416,34 +552,46 @@ export default async function InboxPage({ searchParams }: PageProps) {
                     />
                     <input name="view" type="hidden" value={activeView} />
                     <button
-                      className="min-w-[38px] rounded-full border border-[#111e1a]/12 bg-[#111e1a]/5 px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
+                      className="min-w-[38px] rounded-full border border-[#111e1a]/12 bg-[#111e1a]/5 cursor-pointer px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
                       title={selectedMessage.isRead ? "标为未读" : "标为已读"}
                       type="submit"
                     >
                       {selectedMessage.isRead ? "标为未读" : "标为已读"}
                     </button>
                   </form>
-                  <span className="min-w-[38px] rounded-full border border-[#111e1a]/12 bg-[#111e1a]/5 px-3 py-2 text-[10px] font-black text-[#30433d]">
+                  <button
+                    className="min-w-[38px] rounded-full border border-[#111e1a]/12 bg-[#111e1a]/5 cursor-pointer px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
+                    title="归档"
+                    type="button"
+                  >
                     归档
-                  </span>
-                  <span className="min-w-[38px] rounded-full border border-[#ff6b57]/25 bg-[#ff6b57]/10 px-3 py-2 text-[10px] font-black text-[#b33125]">
+                  </button>
+                  <button
+                    className="min-w-[38px] rounded-full border border-[#ff6b57]/25 bg-[#ff6b57]/10 cursor-pointer px-3 py-2 text-[10px] font-black text-[#b33125] transition hover:-translate-y-0.5 hover:border-[#ff6b57]/50 hover:bg-[#ff6b57]/14"
+                    title="删除"
+                    type="button"
+                  >
                     删除
-                  </span>
-                  <span className="min-w-[38px] rounded-full border border-[#111e1a]/12 bg-[#111e1a]/5 px-3 py-2 text-[10px] font-black text-[#30433d]">
+                  </button>
+                  <button
+                    className="min-w-[38px] rounded-full border border-[#111e1a]/12 bg-[#111e1a]/5 cursor-pointer px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
+                    title="更多"
+                    type="button"
+                  >
                     MO
-                  </span>
+                  </button>
                 </div>
               </header>
 
-              <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto">
-                <header className="relative border-b border-[#142a24]/14 px-[34px] py-8">
-                  <p className="mb-3 text-[11px] font-black uppercase tracking-[0.16em] text-[#0b6b66]">
+              <div className="custom-scrollbar relative z-[1] min-h-0 flex-1 overflow-y-auto">
+                <header className="relative overflow-hidden border-b border-[#142a24]/14 px-[34px] pb-7 pt-8">
+                  <p className="relative z-[1] mb-3 text-[11px] font-black uppercase tracking-[0.16em] text-[#0b6b66]">
                     邮件摘要 / 来源 {activeProviderLabel}
                   </p>
-                  <h2 className="max-w-4xl break-words text-[clamp(2.1rem,4vw,4.9rem)] font-black leading-[0.92] tracking-[-0.08em]">
+                  <h2 className="relative z-[1] max-w-4xl break-words text-[clamp(2.1rem,4vw,4.9rem)] font-black leading-[0.92] tracking-[-0.08em]">
                     {selectedMessage.subject}
                   </h2>
-                  <div className="mt-7 flex items-center gap-3">
+                  <div className="relative z-[1] mt-7 flex items-center gap-3">
                     <div className="grid size-12 shrink-0 place-items-center rounded-[18px] bg-[#071412] text-sm font-black text-[#d7ff47]">
                       {getInitials(selectedMessage.sender)}
                     </div>
@@ -468,12 +616,12 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 </header>
 
                 <div className="px-[34px] py-7">
-                  <section className="mb-5 flex items-start justify-between gap-4 rounded-[20px] border border-[#142a24]/12 bg-[#e5ddca]/68 p-5">
+                  <section className="mb-[18px] grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-[18px] rounded-[18px] border border-[#142a24]/12 bg-[linear-gradient(135deg,rgba(215,255,71,0.38),rgba(79,215,255,0.16)),rgba(255,255,255,0.36)] p-[18px]">
                     <div>
-                      <div className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#647069]">
+                      <div className="text-xs font-black uppercase tracking-[0.12em] text-[#0b6b66]">
                         邮件摘要
                       </div>
-                      <div className="text-[15px] font-bold leading-7">
+                      <div className="mt-[7px] text-sm leading-[1.55] text-[#20352f]">
                         {selectedMessage.preview ??
                           "这封邮件暂无摘要，打开正文查看完整内容。"}
                       </div>
@@ -485,7 +633,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                     ) : null}
                   </section>
 
-                  <section className="rounded-[24px] border border-[#142a24]/12 bg-[#fffaf0]/72 p-7 shadow-[0_18px_48px_rgba(17,30,26,0.08)]">
+                  <section className="w-full rounded-[22px] border border-[#142a24]/12 bg-[#fff8e8] p-[30px] shadow-[0_22px_60px_rgba(17,30,26,0.08)]">
                     {selectedMessage.bodyText ? (
                       <div>
                         {selectedMessage.bodyText
@@ -493,7 +641,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                           .filter(Boolean)
                           .map((paragraph, i) => (
                             <p
-                              className={`text-base leading-8 text-[#111e1a] ${
+                              className={`text-base leading-[1.9] text-[#26352f] ${
                                 i > 0 ? "mt-5" : ""
                               }`}
                               key={i}
@@ -509,12 +657,12 @@ export default async function InboxPage({ searchParams }: PageProps) {
                     )}
 
                     {selectedMessage.verificationCode ? (
-                      <div className="mt-7 flex items-center justify-between gap-5 rounded-[20px] border border-[#142a24]/12 bg-[#071412] p-5 text-[#f4f5e9]">
+                      <div className="mt-[26px] grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[18px] rounded-[18px] bg-[#101d19] p-5 text-[#f4f5e9]">
                         <div>
-                          <div className="mb-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#f4f5e9]/58">
+                          <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#f4f5e9]/64">
                             识别到的验证码
                           </div>
-                          <div className="font-mono text-[48px] font-black leading-none tracking-[0.18em] text-[#d7ff47]">
+                          <div className="mt-1.5 font-mono text-[38px] font-black leading-none tracking-[0.16em] text-[#d7ff47] drop-shadow-[0_0_22px_rgba(215,255,71,0.22)]">
                             {selectedMessage.verificationCode}
                           </div>
                         </div>
