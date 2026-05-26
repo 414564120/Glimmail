@@ -9,11 +9,11 @@ gsap.registerPlugin(useGSAP);
 
 const mainItems = [
   ["统一收件箱", "IN", "/inbox"],
-  ["重要", "P1", "/inbox?view=important"],
-  ["验证码", "VC", "/inbox?view=codes"],
-  ["通知", "NT", "/inbox?view=notifications"],
-  ["订阅", "RD", "/inbox?view=subscriptions"],
-  ["星标", "ST", "/inbox?view=starred"],
+  ["重要", "P1", "/inbox?partition=important"],
+  ["验证码", "VC", "/inbox?partition=code"],
+  ["通知", "NT", "/inbox?partition=notification"],
+  ["订阅", "RD", "/inbox?partition=subscription"],
+  ["星标", "ST", "/inbox?partition=starred"],
 ] as const;
 
 const bottomItems = [

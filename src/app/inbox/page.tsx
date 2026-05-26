@@ -730,6 +730,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
       ? partitionedMessages
       : partitionedMessages.filter((msg) => msg.mailboxId === activeAccount);
   const activeLabel = viewLabels[activeView];
+  const activeRailLabel =
+    activeView === "inbox" ? partitionLabels[activePartition] : activeLabel;
   const composeOpen = composeParam === "new";
 
   const selectedMessage = messageIdParam
@@ -739,29 +741,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
       null)
     : (visibleMessages[0] ?? null);
   const mobileMessageOpen = Boolean(messageIdParam && selectedMessage);
-  const starredCount = messages.filter((msg) => msg.isStarred).length;
-  const codeCount = messages.filter((msg) => msg.verificationCode).length;
   const unreadCount = messages.filter((msg) => !msg.isRead).length;
-  const notificationCount = messages.filter(
-    (msg) =>
-      getMessageKind(msg) === "通知" || getMessageKind(msg) === "安全通知",
-  ).length;
-  const subscriptionCount = messages.filter(
-    (msg) => getMessageKind(msg) === "订阅",
-  ).length;
-  const junkCount = messages.filter(
-    (msg) => getMessageKind(msg) === "广告/垃圾",
-  ).length;
-  const partitionChips = [
-    ["all", messages.length],
-    ["important", starredCount],
-    ["code", codeCount],
-    ["notification", notificationCount],
-    ["subscription", subscriptionCount],
-    ["unread", unreadCount],
-    ["starred", starredCount],
-    ["junk", junkCount],
-  ] as const;
   const activeProviderLabel = selectedMessage
     ? getProviderLabel(selectedMessage.mailbox.provider)
     : "Glimmail";
@@ -800,7 +780,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
     <main className="surface-grid min-h-screen bg-background text-[#f4f5e9]">
       <MobileTopBar />
       <AetherSidebar
-        active={activeLabel}
+        active={activeRailLabel}
         connectedAccountCount={mailboxes.length}
       />
 
@@ -839,36 +819,8 @@ export default async function InboxPage({ searchParams }: PageProps) {
               </label>
 
               <div
-                aria-label="邮件分区"
-                className="chip-scrollbar pt-[18px] flex gap-2 overflow-x-auto px-[22px] pb-3"
-              >
-                {partitionChips.map(([partition, count]) => {
-                  const isActive = activePartition === partition;
-
-                  return (
-                    <Link
-                      aria-current={isActive ? "page" : undefined}
-                      className={`relative shrink-0 rounded-full border px-3 py-2 text-xs font-black transition hover:-translate-y-0.5 ${
-                        isActive
-                          ? "border-[#d7ff47]/50 bg-[#d7ff47]/[.12] text-[#d7ff47] after:absolute after:inset-x-3 after:-bottom-1.5 after:h-0.5 after:rounded-full after:bg-[#d7ff47]"
-                          : "border-white/[.12] bg-white/[0.05] text-[#f4f5e9]/[.68] hover:border-white/20 hover:bg-white/[0.08] hover:text-[#f4f5e9]"
-                      }`}
-                      href={createInboxHref({
-                        account: activeAccount,
-                        partition,
-                        view: "inbox",
-                      })}
-                      key={partition}
-                    >
-                      {partitionLabels[partition]} {count}
-                    </Link>
-                  );
-                })}
-              </div>
-
-              <div
                 aria-label="账号筛选"
-                className="chip-scrollbar flex gap-2 overflow-x-auto px-[22px] pb-4 pt-1"
+                className="chip-scrollbar flex gap-2 overflow-x-auto px-[22px] pb-4 pt-[18px]"
               >
                 {(() => {
                   const isActive = activeAccount === "all";
