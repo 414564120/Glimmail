@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import type { ReactNode } from "react";
 import {
   AetherSidebar,
   MobileBottomNav,
@@ -88,6 +89,220 @@ function getMailboxStatusLabel(status: string) {
   if (status === "disconnected") return "已断开";
 
   return "已授权同步";
+}
+
+type EmailBlock =
+  | { kind: "list"; items: string[] }
+  | { kind: "paragraph"; text: string }
+  | { kind: "quote"; text: string }
+  | { kind: "signature"; text: string };
+
+const urlPattern = /(https?:\/\/[^\s<>"')]+|www\.[^\s<>"')]+)/gi;
+
+function trimTrailingUrlPunctuation(url: string) {
+  const match = url.match(/[.,;:!?，。；：！？）)]*$/);
+  const trailing = match?.[0] ?? "";
+
+  return {
+    trailing,
+    url: trailing ? url.slice(0, -trailing.length) : url,
+  };
+}
+
+function renderLinkedText(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  let lastIndex = 0;
+
+  for (const match of text.matchAll(urlPattern)) {
+    const rawUrl = match[0];
+    const index = match.index ?? 0;
+    const { trailing, url } = trimTrailingUrlPunctuation(rawUrl);
+
+    if (index > lastIndex) {
+      nodes.push(text.slice(lastIndex, index));
+    }
+
+    nodes.push(
+      <a
+        className="break-words font-semibold text-[#0b6b66] underline decoration-[#0b6b66]/30 underline-offset-4 transition hover:text-[#071412] hover:decoration-[#071412]/60"
+        href={url.startsWith("http") ? url : `https://${url}`}
+        key={`${url}-${index}`}
+        rel="noreferrer"
+        target="_blank"
+      >
+        {url}
+      </a>,
+    );
+
+    if (trailing) nodes.push(trailing);
+    lastIndex = index + rawUrl.length;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+function parseEmailBody(bodyText: string): EmailBlock[] {
+  const lines = bodyText.replace(/\r\n?/g, "\n").split("\n");
+  const blocks: EmailBlock[] = [];
+  let paragraph: string[] = [];
+  let listItems: string[] = [];
+  let quoteLines: string[] = [];
+  const signatureLines: string[] = [];
+  let inSignature = false;
+
+  function flushParagraph() {
+    if (paragraph.length === 0) return;
+    blocks.push({ kind: "paragraph", text: paragraph.join(" ") });
+    paragraph = [];
+  }
+
+  function flushList() {
+    if (listItems.length === 0) return;
+    blocks.push({ kind: "list", items: listItems });
+    listItems = [];
+  }
+
+  function flushQuote() {
+    if (quoteLines.length === 0) return;
+    blocks.push({ kind: "quote", text: quoteLines.join("\n") });
+    quoteLines = [];
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    const trimmed = line.trim();
+
+    if (trimmed === "--") {
+      flushParagraph();
+      flushList();
+      flushQuote();
+      inSignature = true;
+      continue;
+    }
+
+    if (inSignature) {
+      if (trimmed) signatureLines.push(trimmed);
+      continue;
+    }
+
+    if (!trimmed) {
+      flushParagraph();
+      flushList();
+      flushQuote();
+      continue;
+    }
+
+    if (trimmed.startsWith(">")) {
+      flushParagraph();
+      flushList();
+      quoteLines.push(trimmed.replace(/^>\s?/, ""));
+      continue;
+    }
+
+    const bulletMatch = trimmed.match(/^(?:[-*•]|\d+[.)])\s+(.+)$/);
+
+    if (bulletMatch) {
+      flushParagraph();
+      flushQuote();
+      listItems.push(bulletMatch[1]);
+      continue;
+    }
+
+    flushList();
+    flushQuote();
+    paragraph.push(trimmed);
+  }
+
+  flushParagraph();
+  flushList();
+  flushQuote();
+
+  if (signatureLines.length > 0) {
+    blocks.push({ kind: "signature", text: signatureLines.join("\n") });
+  }
+
+  return blocks;
+}
+
+function EmailBody({
+  bodyText,
+  fallback,
+}: {
+  bodyText: string | null;
+  fallback: string | null;
+}) {
+  const blocks = bodyText ? parseEmailBody(bodyText) : [];
+
+  if (blocks.length === 0) {
+    return (
+      <p className="text-[16px] leading-8 text-[#647069]">
+        {fallback ?? "这封邮件暂无正文。"}
+      </p>
+    );
+  }
+
+  return (
+    <div className="email-body-flow">
+      {blocks.map((block, index) => {
+        if (block.kind === "list") {
+          return (
+            <ul
+              className="my-5 grid gap-2.5 pl-5 text-[16px] leading-7 text-[#26352f]"
+              key={`${block.kind}-${index}`}
+            >
+              {block.items.map((item, itemIndex) => (
+                <li
+                  className="list-disc marker:text-[#0b6b66]"
+                  key={`${item}-${itemIndex}`}
+                >
+                  {renderLinkedText(item)}
+                </li>
+              ))}
+            </ul>
+          );
+        }
+
+        if (block.kind === "quote") {
+          return (
+            <blockquote
+              className="my-5 rounded-[16px] border border-[#142a24]/[.1] bg-[#111e1a]/[.04] px-4 py-3 text-[15px] leading-7 text-[#647069]"
+              key={`${block.kind}-${index}`}
+            >
+              {block.text.split("\n").map((line, lineIndex) => (
+                <p key={`${line}-${lineIndex}`}>{renderLinkedText(line)}</p>
+              ))}
+            </blockquote>
+          );
+        }
+
+        if (block.kind === "signature") {
+          return (
+            <div
+              className="mt-8 border-t border-[#142a24]/[.12] pt-5 text-[14px] leading-7 text-[#647069]"
+              key={`${block.kind}-${index}`}
+            >
+              {block.text.split("\n").map((line, lineIndex) => (
+                <p key={`${line}-${lineIndex}`}>{renderLinkedText(line)}</p>
+              ))}
+            </div>
+          );
+        }
+
+        return (
+          <p
+            className="text-[16px] leading-8 text-[#26352f]"
+            key={`${block.kind}-${index}`}
+          >
+            {renderLinkedText(block.text)}
+          </p>
+        );
+      })}
+    </div>
+  );
 }
 
 function getMailboxSyncAction(provider: string) {
@@ -707,31 +922,30 @@ export default async function InboxPage({ searchParams }: PageProps) {
                   </span>
                 </section>
 
-                <section className="w-full rounded-[22px] border border-[#142a24]/[.12] bg-[#fff8e8] p-[30px] shadow-[0_22px_60px_rgba(17,30,26,0.08)]">
-                  {selectedMessage.bodyText ? (
+                <section className="w-full rounded-[22px] border border-[#142a24]/[.12] bg-[#fff8e8] shadow-[0_22px_60px_rgba(17,30,26,0.08)]">
+                  <div className="flex items-center justify-between gap-4 border-b border-[#142a24]/[.1] px-[30px] py-4">
                     <div>
-                      {selectedMessage.bodyText
-                        .split("\n")
-                        .filter(Boolean)
-                        .map((paragraph, i) => (
-                          <p
-                            className={`text-base leading-[1.9] text-[#26352f] ${
-                              i > 0 ? "mt-5" : ""
-                            }`}
-                            key={i}
-                          >
-                            {paragraph}
-                          </p>
-                        ))}
+                      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#0b6b66]">
+                        Message Body
+                      </p>
+                      <p className="mt-1 text-xs font-semibold text-[#647069]">
+                        已按邮件客户端格式整理正文
+                      </p>
                     </div>
-                  ) : (
-                    <p className="text-base leading-8 text-[#647069]">
-                      {selectedMessage.preview ?? "No content."}
-                    </p>
-                  )}
+                    <span className="rounded-full border border-[#142a24]/[.12] bg-[#111e1a]/[.04] px-3 py-1 text-[10px] font-black text-[#647069]">
+                      安全文本
+                    </span>
+                  </div>
+
+                  <div className="px-[30px] py-[26px]">
+                    <EmailBody
+                      bodyText={selectedMessage.bodyText}
+                      fallback={selectedMessage.preview}
+                    />
+                  </div>
 
                   {selectedMessage.verificationCode ? (
-                    <div className="mt-[26px] grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[18px] rounded-[18px] bg-[#101d19] p-5 text-[#f4f5e9]">
+                    <div className="mx-[30px] mb-[30px] grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[18px] rounded-[18px] bg-[#101d19] p-5 text-[#f4f5e9]">
                       <div>
                         <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#f4f5e9]/[.64]">
                           识别到的验证码
