@@ -856,7 +856,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                       href={createInboxHref({
                         account: activeAccount,
                         partition,
-                        view: activeView,
+                        view: "inbox",
                       })}
                       key={partition}
                     >
@@ -884,7 +884,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                       href={createInboxHref({
                         account: "all",
                         partition: activePartition,
-                        view: activeView,
+                        view: "inbox",
                       })}
                     >
                       <span className="size-2 rounded-full bg-[#87f2c5]" />
@@ -913,7 +913,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                       href={createInboxHref({
                         account: mailbox.id,
                         partition: activePartition,
-                        view: activeView,
+                        view: "inbox",
                       })}
                       key={mailbox.id}
                     >
