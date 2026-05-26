@@ -78,7 +78,7 @@ function RailItem({
 
   return (
     <a
-      className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border transition-[border-color,background-color,color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
+      className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border text-left transition-[border-color,background-color,color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
         isActive
           ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
           : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
@@ -96,7 +96,7 @@ function RailItem({
       <span className="rail-short grid place-items-center" data-rail-pop>
         {shortLabel}
       </span>
-      <span className="rail-label min-w-0 overflow-hidden whitespace-nowrap pr-3">
+      <span className="rail-label min-w-0 justify-self-start overflow-hidden whitespace-nowrap pr-3 text-left">
         {letterSlots.map((_, characterIndex) => (
           <span
             aria-hidden="true"
@@ -473,7 +473,7 @@ export function AetherSidebar({
               <span className="rail-short grid place-items-center" data-rail-pop>
                 MO
               </span>
-              <span className="rail-label min-w-0 overflow-hidden whitespace-nowrap pr-3">
+              <span className="rail-label min-w-0 justify-self-start overflow-hidden whitespace-nowrap pr-3 text-left">
                 {Array.from({ length: cipherSlotCount("更多") }).map(
                   (_, characterIndex) => (
                     <span
