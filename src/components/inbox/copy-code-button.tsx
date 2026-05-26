@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { SymbolIcon } from "@/components/shell/aether-icons";
 
 export function CopyCodeButton({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
@@ -12,18 +11,17 @@ export function CopyCodeButton({ code }: { code: string }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard unavailable — no fallback needed.
+      // Clipboard unavailable, no fallback needed.
     }
   }
 
   return (
     <button
-      className="vibrant-flux hover-lift mx-auto flex items-center justify-center gap-2 rounded-full px-8 py-3 font-label text-xs font-semibold uppercase tracking-[0.1em] text-white shadow-[0_0_15px_rgba(168,0,170,0.4)]"
+      className="ml-auto shrink-0 rounded-full bg-[#d7ff47] px-[18px] py-[11px] text-xs font-black tracking-[0.02em] text-[#071412] transition hover:-translate-y-0.5 hover:bg-[#ecff8a]"
       onClick={handleCopy}
       type="button"
     >
-      <SymbolIcon className="text-[20px]">content_copy</SymbolIcon>
-      {copied ? "Copied!" : "Copy Code"}
+      {copied ? "已复制" : "复制验证码"}
     </button>
   );
 }

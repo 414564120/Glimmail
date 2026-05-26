@@ -184,6 +184,24 @@ a {
   border-radius: 999px;
 }
 
+.chip-scrollbar {
+  scrollbar-color: rgb(215 255 71 / 0.35) transparent;
+  scrollbar-width: thin;
+}
+
+.chip-scrollbar::-webkit-scrollbar {
+  height: 6px;
+}
+
+.chip-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chip-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgb(215 255 71 / 0.35);
+  border-radius: 999px;
+}
+
 .login-shape {
   position: absolute;
   z-index: 0;
@@ -252,6 +270,114 @@ a {
   font-weight: 800;
 }
 
+.rail-shell {
+  font-family:
+    "Satoshi", "Geist", "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC",
+    system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.rail-link {
+  justify-self: center;
+  width: 48px;
+  overflow: hidden;
+  color: var(--rail-ink);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.rail-link:hover {
+  color: var(--rail-hover-ink);
+}
+
+.rail-welcome-mark {
+  width: 54px;
+  height: 54px;
+  border: 1px solid rgb(215 255 71 / 0.38);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgb(215 255 71 / 0.95), rgb(135 242 197 / 0.88)),
+    #d7ff47;
+  color: #071412;
+  font-size: 15px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+  box-shadow:
+    0 18px 40px rgb(215 255 71 / 0.18),
+    inset 0 1px 0 rgb(255 255 255 / 0.45);
+}
+
+.rail-label,
+.rail-brand-label {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.rail-label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.rail-brand-label {
+  font-size: 15px;
+  font-weight: 950;
+  letter-spacing: -0.04em;
+}
+
+.rail-letter {
+  opacity: 0;
+  transform: translateX(-8px);
+}
+
+.split-drift-mark {
+  animation: split-drift 7s ease-in-out infinite;
+  will-change: transform;
+}
+
+.reader-drift-mark {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+  border: 1px solid rgb(17 30 26 / 0.12);
+  border-radius: 999px;
+  opacity: 0.74;
+  will-change: transform;
+}
+
+.reader-drift-mark-primary {
+  right: 42px;
+  top: 158px;
+  width: 120px;
+  height: 120px;
+  background:
+    linear-gradient(
+      135deg,
+      transparent 0 44%,
+      rgb(255 107 87 / 0.64) 45% 55%,
+      transparent 56%
+    ),
+    radial-gradient(circle, rgb(79 215 255 / 0.32), transparent 66%);
+  animation: reader-drift-primary 10s ease-in-out infinite;
+}
+
+.reader-drift-mark-secondary {
+  right: 196px;
+  top: 252px;
+  width: 58px;
+  height: 58px;
+  background:
+    linear-gradient(
+      135deg,
+      transparent 0 42%,
+      rgb(215 255 71 / 0.46) 43% 57%,
+      transparent 58%
+    ),
+    radial-gradient(circle, rgb(11 107 102 / 0.22), transparent 68%);
+  animation: reader-drift-secondary 8.5s ease-in-out infinite;
+  opacity: 0.52;
+}
+
 @keyframes gradient-flux {
   0% {
     background-position: 0% 50%;
@@ -274,6 +400,43 @@ a {
   }
 }
 
+@keyframes split-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-8px, 10px, 0) rotate(16deg);
+  }
+}
+
+@keyframes reader-drift-primary {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  35% {
+    transform: translate3d(-46px, 34px, 0) rotate(13deg);
+  }
+  68% {
+    transform: translate3d(24px, 148px, 0) rotate(-8deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes reader-drift-secondary {
+  0% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(38px, 126px, 0) rotate(18deg);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
 @keyframes pulse-green {
   0%,
   100% {
@@ -281,5 +444,20 @@ a {
   }
   50% {
     box-shadow: 0 0 0 8px rgb(34 197 94 / 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .split-drift-mark {
+    animation: none;
+  }
+
+  .reader-drift-mark {
+    animation: none;
+  }
+
+  .rail-letter {
+    opacity: 1;
+    transform: none;
   }
 }

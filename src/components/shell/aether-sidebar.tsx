@@ -1,3 +1,9 @@
+"use client";
+
+import gsap from "gsap";
+import { useEffect, useRef } from "react";
+import type { CSSProperties } from "react";
+
 const mainItems = [
   ["统一收件箱", "IN", "/inbox"],
   ["重要", "P1", "/inbox?view=important"],
@@ -11,6 +17,21 @@ const bottomItems = [
   ["账号", "AC", "/mailboxes"],
   ["设置", "SG", "/settings"],
 ] as const;
+
+const cipherChars = "01AEIMNPRSTVXZ#*:/[]{}<>+=~";
+
+function cipherSlotCount(label: string) {
+  return Math.max(Array.from(label).length + 4, 7);
+}
+
+function cipherGlyph(label: string, index: number, phase = 0) {
+  const seed = Array.from(label).reduce(
+    (sum, character) => sum + character.charCodeAt(0),
+    0,
+  );
+
+  return cipherChars[(seed + index * 7 + phase * 11) % cipherChars.length];
+}
 
 const activeLabelAliases: Record<string, string> = {
   Accounts: "账号",
@@ -35,87 +56,368 @@ function isActiveLabel(active: string, label: string) {
   return active === label || activeLabelAliases[active] === label;
 }
 
+type RailItemProps = {
+  href: string;
+  isActive: boolean;
+  label: string;
+  shortLabel: string;
+};
+
+function RailItem({
+  href,
+  isActive,
+  label,
+  shortLabel,
+}: RailItemProps) {
+  const labelCharacters = Array.from(label);
+  const letterSlots = Array.from({ length: cipherSlotCount(label) });
+
+  return (
+    <a
+      className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
+        isActive
+          ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
+          : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
+      }`}
+      href={href}
+      style={
+        {
+          "--rail-hover-ink": isActive ? "#111e1a" : "#f4f5e9",
+          "--rail-ink": isActive ? "#111e1a" : "rgba(244,245,233,0.68)",
+        } as CSSProperties
+      }
+      title={label}
+      aria-label={label}
+    >
+      <span className="rail-short grid place-items-center" data-rail-pop>
+        {shortLabel}
+      </span>
+      <span className="rail-label min-w-0 overflow-hidden whitespace-nowrap pr-3">
+        {letterSlots.map((_, characterIndex) => (
+          <span
+            aria-hidden="true"
+            className="rail-letter inline-block"
+            data-rail-letter
+            data-cipher={cipherGlyph(label, characterIndex)}
+            data-final={labelCharacters[characterIndex] ?? ""}
+            key={`${label}-${characterIndex}`}
+          >
+            {cipherGlyph(label, characterIndex)}
+          </span>
+        ))}
+      </span>
+    </a>
+  );
+}
+
 export function AetherSidebar({
   active = "统一收件箱",
 }: {
   active?: string;
   connectedAccountCount?: number;
 }) {
+  const railRef = useRef<HTMLElement>(null);
+  const brandCharacters = Array.from("Glimmail");
+
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    const links = gsap.utils.toArray<HTMLElement>(".rail-link", rail);
+    const labels = gsap.utils.toArray<HTMLElement>(
+      ".rail-label, .rail-brand-label",
+      rail,
+    );
+    const letters = gsap.utils.toArray<HTMLElement>("[data-rail-letter]", rail);
+    const popTargets = gsap.utils.toArray<HTMLElement>("[data-rail-pop]", rail);
+    const brandLink = rail.querySelector<HTMLElement>(".rail-brand-link");
+
+    const resetCipherText = () => {
+      labels.forEach((label) => {
+        gsap.utils
+          .toArray<HTMLElement>("[data-rail-letter]", label)
+          .forEach((letter) => {
+            letter.textContent = letter.dataset.cipher ?? "";
+          });
+      });
+    };
+
+    const setCollapsed = () => {
+      resetCipherText();
+      gsap.set(rail, {
+        backgroundColor: "rgba(7,20,18,0.75)",
+        borderColor: "rgba(255,255,255,0.1)",
+        width: 92,
+      });
+      gsap.set(links, { width: 48 });
+      gsap.set(brandLink, { width: 54 });
+      gsap.set(labels, { autoAlpha: 0 });
+      gsap.set(letters, {
+        autoAlpha: 0,
+        clearProps: "color,filter,width",
+        x: -8,
+      });
+      gsap.set(popTargets, { clearProps: "transform" });
+    };
+
+    const decryptLabels = (timeline: gsap.core.Timeline, startAt: number) => {
+      labels.forEach((label, labelIndex) => {
+        const labelLetters = gsap.utils.toArray<HTMLElement>(
+          "[data-rail-letter]",
+          label,
+        );
+
+        labelLetters.forEach((letter, letterIndex) => {
+          const finalCharacter = letter.dataset.final ?? "";
+          const slotStart = startAt + labelIndex * 0.08 + letterIndex * 0.045;
+
+          timeline
+            .call(
+              () => {
+                letter.textContent = cipherGlyph(
+                  finalCharacter || label.textContent || "",
+                  letterIndex,
+                  1,
+                );
+              },
+              undefined,
+              slotStart,
+            )
+            .to(
+              letter,
+              {
+                autoAlpha: 1,
+                color: "#d7ff47",
+                duration: 0.08,
+                filter: "blur(0px)",
+                x: -3,
+              },
+              slotStart,
+            )
+            .call(
+              () => {
+                letter.textContent = cipherGlyph(
+                  finalCharacter || label.textContent || "",
+                  letterIndex,
+                  2,
+                );
+              },
+              undefined,
+              slotStart + 0.1,
+            )
+            .to(
+              letter,
+              { color: "#4fd7ff", duration: 0.1, x: 1 },
+              slotStart + 0.1,
+            )
+            .call(
+              () => {
+                letter.textContent = finalCharacter;
+              },
+              undefined,
+              slotStart + 0.24,
+            )
+            .to(
+              letter,
+              {
+                autoAlpha: finalCharacter ? 1 : 0,
+                clearProps: "color,filter",
+                duration: finalCharacter ? 0.34 : 0.48,
+                ease: "expo.out",
+                width: finalCharacter ? "auto" : 0,
+                x: 0,
+              },
+              slotStart + 0.24,
+            );
+        });
+      });
+    };
+
+    const expandRail = () => {
+      gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
+
+      if (reduceMotion.matches) {
+        gsap.set(rail, {
+          backgroundColor: "rgba(7,20,18,0.92)",
+          borderColor: "rgba(255,255,255,0.15)",
+          width: 236,
+        });
+        gsap.set(links, { width: "100%" });
+        gsap.set(brandLink, { width: "100%" });
+        gsap.set(labels, { autoAlpha: 1 });
+        letters.forEach((letter) => {
+          letter.textContent = letter.dataset.final ?? "";
+        });
+        gsap.set(letters, { autoAlpha: 1, x: 0 });
+        return;
+      }
+
+      const timeline = gsap.timeline();
+
+      timeline
+        .to(rail, {
+          backgroundColor: "rgba(7,20,18,0.92)",
+          borderColor: "rgba(255,255,255,0.15)",
+          duration: 1.35,
+          ease: "sine.inOut",
+          width: 236,
+        })
+        .to(
+          [brandLink, ...links],
+          {
+            duration: 1.12,
+            ease: "sine.inOut",
+            stagger: 0.015,
+            width: "100%",
+          },
+          0.05,
+        )
+        .set(labels, { autoAlpha: 1 }, 0.18)
+        .set(
+          letters,
+          { autoAlpha: 1, clearProps: "color,filter", x: -6, width: "auto" },
+          0.18,
+        )
+        .fromTo(
+          popTargets,
+          { rotation: 0, scale: 1, x: 0, y: 0 },
+          {
+            duration: 0.86,
+            ease: "expo.out",
+            keyframes: [
+              { rotation: -7, scaleX: 1.12, scaleY: 0.88, y: -7 },
+              { rotation: 7, scaleX: 0.92, scaleY: 1.12, x: 5, y: 2 },
+              { rotation: -5, scaleX: 1.06, scaleY: 0.96, x: -4, y: -2 },
+              { rotation: 2, scaleX: 0.98, scaleY: 1.02, x: 2, y: 0 },
+              { rotation: 0, scale: 1, x: 0, y: 0 },
+            ],
+            stagger: 0.055,
+          },
+          0.08,
+        );
+
+      decryptLabels(timeline, 0.3);
+    };
+
+    const collapseRail = () => {
+      gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
+
+      if (reduceMotion.matches) {
+        setCollapsed();
+        return;
+      }
+
+      gsap
+        .timeline()
+        .to(labels, { autoAlpha: 0, duration: 0.12, ease: "power2.out" }, 0)
+        .to(
+          letters,
+          {
+            autoAlpha: 0,
+            clearProps: "color,filter,width",
+            duration: 0.12,
+            ease: "power2.out",
+            x: -8,
+          },
+          0,
+        )
+        .to([brandLink, ...links], { duration: 0.36, ease: "expo.out", width: 48 }, 0)
+        .to(brandLink, { duration: 0.36, ease: "expo.out", width: 54 }, 0)
+        .to(
+          rail,
+          {
+            backgroundColor: "rgba(7,20,18,0.75)",
+            borderColor: "rgba(255,255,255,0.1)",
+            duration: 0.58,
+            ease: "power3.out",
+            width: 92,
+          },
+          0,
+        )
+        .set(popTargets, { clearProps: "transform" })
+        .call(resetCipherText);
+    };
+
+    setCollapsed();
+    rail.addEventListener("pointerenter", expandRail);
+    rail.addEventListener("pointerleave", collapseRail);
+    rail.addEventListener("focusin", expandRail);
+    rail.addEventListener("focusout", collapseRail);
+
+    return () => {
+      rail.removeEventListener("pointerenter", expandRail);
+      rail.removeEventListener("pointerleave", collapseRail);
+      rail.removeEventListener("focusin", expandRail);
+      rail.removeEventListener("focusout", collapseRail);
+      gsap.killTweensOf([rail, brandLink, ...links, ...labels, ...letters, ...popTargets]);
+    };
+  }, []);
+
   return (
-    <aside className="group/sidebar fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden w-[92px] flex-col items-center overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/75 px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] transition-[width,background-color] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] hover:w-[236px] hover:bg-[#071412]/92 md:flex">
-      <a className="flex h-[54px] w-full items-center justify-center gap-3 group-hover/sidebar:justify-start" href="/inbox">
-          <span className="grid size-14 shrink-0 place-items-center rounded-[18px] border border-[#d7ff47]/35 bg-[#d7ff47] text-sm font-black text-[#071412] shadow-[0_18px_42px_rgba(215,255,71,0.16)]">
-            GL
-          </span>
-          <span className="max-w-0 overflow-hidden whitespace-nowrap text-[15px] font-black tracking-[-0.04em] opacity-0 transition-[max-width,opacity] duration-300 group-hover/sidebar:max-w-32 group-hover/sidebar:opacity-100">
-            Glimmail
-          </span>
-        </a>
+    <aside
+      className="rail-shell fixed bottom-[14px] left-[14px] top-[14px] z-40 hidden w-[92px] flex-col items-center overflow-hidden rounded-[22px] border border-white/10 bg-[#071412]/75 px-[10px] py-[14px] text-[#f4f5e9] shadow-[0_28px_90px_rgba(0,0,0,0.42)] md:flex"
+      ref={railRef}
+    >
+      <a
+        className="rail-brand-link grid h-[54px] w-[54px] grid-cols-[54px_minmax(0,1fr)] items-center gap-3 overflow-hidden"
+        href="/inbox"
+        title="Glimmail"
+        aria-label="Glimmail"
+      >
+        <span
+          className="rail-welcome-mark grid shrink-0 place-items-center"
+          data-rail-pop
+        >
+          GM
+        </span>
+        <span className="rail-brand-label overflow-hidden whitespace-nowrap text-[#f4f5e9]">
+          {Array.from({ length: cipherSlotCount("Glimmail") }).map(
+            (_, characterIndex) => (
+              <span
+                aria-hidden="true"
+                className="rail-letter inline-block"
+                data-rail-letter
+                data-cipher={cipherGlyph("Glimmail", characterIndex)}
+                data-final={brandCharacters[characterIndex] ?? ""}
+                key={`glimmail-${characterIndex}`}
+              >
+                {cipherGlyph("Glimmail", characterIndex)}
+              </span>
+            ),
+          )}
+        </span>
+      </a>
 
       <nav className="mt-7 grid w-full gap-[10px]">
-          {mainItems.map(([label, shortLabel, href]) => {
-            const isActive = isActiveLabel(active, label);
+        {mainItems.map(([label, shortLabel, href]) => {
+          const isActive = isActiveLabel(active, label);
 
-            return (
-              <a
-                className={`grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
-                  isActive
-                    ? "border-transparent bg-[#f7f1df] text-[#111e1a] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
-                    : "border-transparent bg-transparent text-[#f4f5e9]/68 hover:border-white/15 hover:bg-white/[0.06] hover:text-[#f4f5e9]"
-                }`}
-                href={href}
-                key={label}
-                title={label}
-              >
-                <span
-                  className="grid place-items-center"
-                >
-                  {shortLabel}
-                </span>
-                <span
-                  className={
-                    isActive
-                      ? "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
-                      : "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
-                  }
-                >
-                  {label}
-                </span>
-              </a>
-            );
-          })}
-        </nav>
+          return (
+            <RailItem
+              href={href}
+              isActive={isActive}
+              key={label}
+              label={label}
+              shortLabel={shortLabel}
+            />
+          );
+        })}
+      </nav>
 
       <div className="mt-auto grid w-full gap-[10px]">
         {bottomItems.map(([label, shortLabel, href]) => {
           const isActive = isActiveLabel(active, label);
 
           return (
-            <a
-              className={`grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border text-[11px] font-black tracking-[0.04em] transition duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
-                isActive
-                  ? "border-transparent bg-[#f7f1df] text-[#111e1a] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
-                  : "border-transparent bg-transparent text-[#f4f5e9]/68 hover:border-white/15 hover:bg-white/[0.06] hover:text-[#f4f5e9]"
-              }`}
+            <RailItem
               href={href}
+              isActive={isActive}
               key={label}
-              title={label}
-            >
-              <span
-                className="grid place-items-center"
-              >
-                {shortLabel}
-              </span>
-              <span
-                className={
-                  isActive
-                    ? "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
-                    : "max-w-0 overflow-hidden whitespace-nowrap pr-0 text-xs font-black opacity-0 transition-[max-width,opacity,padding] duration-300 group-hover/sidebar:max-w-28 group-hover/sidebar:pr-3 group-hover/sidebar:opacity-100"
-                }
-              >
-                {label}
-              </span>
-            </a>
+              label={label}
+              shortLabel={shortLabel}
+            />
           );
         })}
       </div>
@@ -128,7 +430,7 @@ export function MobileTopBar() {
     <header className="fixed top-0 z-50 flex h-16 w-full items-center justify-between border-b border-white/10 bg-[#071412]/94 px-4 text-[#f4f5e9] shadow-[0_18px_42px_rgba(0,0,0,0.26)] md:hidden">
       <a className="flex items-center gap-2" href="/inbox">
         <span className="grid size-9 place-items-center rounded-xl bg-[#d7ff47] text-xs font-black text-[#071412]">
-          GL
+          GM
         </span>
         <span className="font-display text-[24px] font-extrabold leading-[1.2] tracking-tight">
           Glimmail
