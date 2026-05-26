@@ -312,6 +312,10 @@ a {
   transform: translateX(-8px);
 }
 
+.split-drift-mark {
+  animation: split-drift 7s ease-in-out infinite;
+}
+
 @keyframes gradient-flux {
   0% {
     background-position: 0% 50%;
@@ -334,6 +338,16 @@ a {
   }
 }
 
+@keyframes split-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-8px, 10px, 0) rotate(16deg);
+  }
+}
+
 @keyframes pulse-green {
   0%,
   100% {
@@ -345,6 +359,10 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .split-drift-mark {
+    animation: none;
+  }
+
   .rail-letter {
     opacity: 1;
     transform: none;
