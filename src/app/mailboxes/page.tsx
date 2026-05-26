@@ -235,12 +235,9 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
             </div>
 
             <div className="mt-auto border-t border-white/[0.08] p-2.5">
-              <Link
-                className="grid min-h-12 place-items-center rounded-[18px] border border-[#d7ff47]/40 bg-[#d7ff47] px-4 text-xs font-black text-[#071412] transition hover:-translate-y-0.5 hover:bg-[#ecff8a]"
-                href="/mailboxes/connect?provider=mail163"
-              >
-                添加 163 授权码
-              </Link>
+              <p className="rounded-[18px] border border-white/[0.08] bg-white/[0.035] p-[15px] text-xs leading-5 text-[#f4f5e9]/[.58]">
+                添加新账号请使用中间的邮箱连接区域或右侧快速连接。
+              </p>
             </div>
           </aside>
 
