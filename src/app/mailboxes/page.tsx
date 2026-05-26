@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import type { MailboxProvider } from "@prisma/client";
+import type { Mailbox, MailboxProvider, SyncLog } from "@prisma/client";
 import {
   AetherSidebar,
   MobileBottomNav,
   MobileTopBar,
 } from "@/components/shell/aether-sidebar";
+import { SymbolIcon } from "@/components/shell/aether-icons";
 import { getCurrentUser } from "@/modules/auth";
 import { getRecentSyncLogs, getUserMailboxes } from "@/modules/mailboxes";
 import { getMailboxCredential } from "@/modules/mailboxes/credentials";
@@ -15,53 +16,58 @@ import { RemoveMailboxForm } from "@/components/mailboxes/remove-mailbox-form";
 import { SyncNowButton } from "@/components/mailboxes/sync-now-button";
 import { TestConnectionButton } from "@/components/mailboxes/test-connection-button";
 
-function formatActivityTime(date: Date): string {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  const h = String(date.getHours()).padStart(2, "0");
-  const min = String(date.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${d} ${h}:${min}`;
-}
-
-function formatActivityMessage(message: string | null): string {
-  return message?.trim() || "Activity recorded.";
-}
-
-const PROVIDER_CARDS: Array<{
-  provider: MailboxProvider;
-  name: string;
-  iconClass: string;
-  description: string;
-}> = [
+const PROVIDER_META: Record<
+  MailboxProvider,
   {
-    provider: "gmail",
-    name: "Gmail",
-    iconClass: "gmail-mark",
-    description:
-      "Sync your primary Google workspace and personal accounts seamlessly.",
+    action: string;
+    accent: string;
+    connectHref: string;
+    description: string;
+    label: string;
+    logoClass: string;
+    short: string;
+  }
+> = {
+  gmail: {
+    action: "连接 Gmail",
+    accent: "bg-[#87f2c5]",
+    connectHref: "/api/auth/gmail/start?scope=gmail",
+    description: "读取 Google 邮箱并同步到统一收件箱。",
+    label: "Gmail",
+    logoClass: "gmail-mark",
+    short: "Gm",
   },
-  {
-    provider: "outlook",
-    name: "Outlook",
-    iconClass: "outlook-mark",
-    description:
-      "Integrate Exchange and Office 365 environments effortlessly.",
+  outlook: {
+    action: "连接 Outlook",
+    accent: "bg-[#4fd7ff]",
+    connectHref: "/api/auth/outlook/start?scope=mail",
+    description: "连接 Microsoft、Exchange 或 Office 365 邮箱。",
+    label: "Outlook",
+    logoClass: "outlook-mark",
+    short: "Ou",
   },
-  {
-    provider: "mail163",
-    name: "163 Mail",
-    iconClass: "netease-mark",
-    description:
-      "Link your NetEase 163 account for complete regional coverage.",
+  mail163: {
+    action: "连接 163 邮箱",
+    accent: "bg-[#ff6b57]",
+    connectHref: "/mailboxes/connect?provider=mail163",
+    description: "使用 163 客户端授权码同步区域邮箱。",
+    label: "163 邮箱",
+    logoClass: "netease-mark",
+    short: "16",
   },
-];
+};
 
+const PROVIDER_ORDER: MailboxProvider[] = ["outlook", "gmail", "mail163"];
 const RECENT_ACTIVITY_PROVIDERS = new Set<MailboxProvider>([
   "gmail",
   "outlook",
   "mail163",
 ]);
+
+type MailboxWithActivity = Mailbox & {
+  authorized: boolean;
+  recentLogs: SyncLog[];
+};
 
 function supportsRecentActivity(provider: MailboxProvider): boolean {
   return RECENT_ACTIVITY_PROVIDERS.has(provider);
@@ -70,6 +76,53 @@ function supportsRecentActivity(provider: MailboxProvider): boolean {
 function normalizeBannerMessage(message: string | undefined): string | null {
   const normalized = message?.trim();
   return normalized || null;
+}
+
+function formatActivityTime(date: Date): string {
+  return date.toLocaleString("zh-CN", {
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    month: "2-digit",
+  });
+}
+
+function formatActivityMessage(message: string | null): string {
+  return message?.trim() || "同步记录已更新";
+}
+
+function getStatusLabel(status: string): string {
+  if (status === "error") return "需要处理";
+  if (status === "disconnected") return "已断开";
+  return "已连接";
+}
+
+function getStatusTone(status: string): string {
+  if (status === "error") return "text-[#ff8b78]";
+  if (status === "disconnected") return "text-[#f4f5e9]/[.46]";
+  return "text-[#d7ff47]";
+}
+
+function getLatestSyncAt(mailboxes: Mailbox[]) {
+  return mailboxes
+    .map((mailbox) => mailbox.lastSyncedAt)
+    .filter((date): date is Date => Boolean(date))
+    .sort((a, b) => b.getTime() - a.getTime())[0];
+}
+
+function getInitials(email: string) {
+  return email.slice(0, 2).toUpperCase();
+}
+
+function getProviderMeta(provider: MailboxProvider) {
+  return PROVIDER_META[provider];
+}
+
+function getSyncAuthorizationCopy(mailbox: MailboxWithActivity) {
+  if (mailbox.authorized) return "同步权限完整";
+  if (mailbox.provider === "gmail") return "Gmail 读取权限未完成";
+  if (mailbox.provider === "outlook") return "Outlook 邮件权限未完成";
+  return "IMAP 授权可用";
 }
 
 interface PageProps {
@@ -88,268 +141,334 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
   const errorMessage = normalizeBannerMessage(error);
   const successMessage = normalizeBannerMessage(success);
 
-  const recentSyncLogs = new Map<string, Awaited<ReturnType<typeof getRecentSyncLogs>>>();
-  for (const mb of mailboxes) {
-    if (supportsRecentActivity(mb.provider)) {
-      const logs = await getRecentSyncLogs(user.id, mb.id, 3);
-      if (logs.length > 0) recentSyncLogs.set(mb.id, logs);
-    }
-  }
+  const mailboxesWithActivity: MailboxWithActivity[] = await Promise.all(
+    mailboxes.map(async (mailbox) => {
+      const recentLogs = supportsRecentActivity(mailbox.provider)
+        ? await getRecentSyncLogs(user.id, mailbox.id, 3)
+        : [];
+      let authorized = true;
 
-  const gmailSyncAuthorized = new Map<string, boolean>();
-  for (const mb of mailboxes) {
-    if (mb.provider === "gmail") {
-      const scope = await getMailboxCredential(user.id, mb.id, "oauth_granted_scope");
-      gmailSyncAuthorized.set(mb.id, scope ? hasGmailReadonlyScope(scope) : false);
-    }
-  }
+      if (mailbox.provider === "gmail") {
+        const scope = await getMailboxCredential(
+          user.id,
+          mailbox.id,
+          "oauth_granted_scope",
+        );
+        authorized = scope ? hasGmailReadonlyScope(scope) : false;
+      }
 
-  const outlookSyncAuthorized = new Map<string, boolean>();
-  for (const mb of mailboxes) {
-    if (mb.provider === "outlook") {
-      const scope = await getMailboxCredential(user.id, mb.id, "oauth_granted_scope");
-      outlookSyncAuthorized.set(mb.id, scope ? hasMailReadScope(scope) : false);
-    }
-  }
+      if (mailbox.provider === "outlook") {
+        const scope = await getMailboxCredential(
+          user.id,
+          mailbox.id,
+          "oauth_granted_scope",
+        );
+        authorized = scope ? hasMailReadScope(scope) : false;
+      }
+
+      return { ...mailbox, authorized, recentLogs };
+    }),
+  );
+
+  const connectedCount = mailboxesWithActivity.length;
+  const healthyCount = mailboxesWithActivity.filter(
+    (mailbox) => mailbox.status === "active" && mailbox.authorized,
+  ).length;
+  const attentionCount = mailboxesWithActivity.filter(
+    (mailbox) => mailbox.status !== "active" || !mailbox.authorized,
+  ).length;
+  const latestSyncAt = getLatestSyncAt(mailboxesWithActivity);
+  const connectedProviders = new Set(
+    mailboxesWithActivity.map((mailbox) => mailbox.provider),
+  );
 
   return (
-    <main className="surface-grid min-h-screen bg-background text-slate-950">
+    <main className="surface-grid min-h-screen bg-background text-[#f4f5e9]">
       <MobileTopBar />
       <AetherSidebar
         active="Accounts"
-        connectedAccountCount={mailboxes.length}
+        connectedAccountCount={connectedCount}
       />
 
-      <section className="flex min-h-screen items-start justify-center px-4 pb-28 pt-24 md:ml-[106px] md:px-12 md:pt-24">
-        <div className="w-full max-w-[1056px]">
-          <header className="mx-auto mb-10 max-w-2xl text-center md:mb-14">
-            <h1 className="gradient-text font-display text-[44px] font-extrabold leading-[1.2] md:text-[64px] md:leading-[1.1]">
-              Connect Your World
-            </h1>
-            <p className="mt-4 text-lg leading-relaxed text-slate-600">
-              Bind your external email providers to Glimmail to experience a
-              unified, weightless inbox.
-            </p>
-          </header>
-
-          {errorMessage && (
-            <div className="mx-auto mb-8 max-w-lg rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-center text-sm text-red-700">
-              {errorMessage}
+      <section className="min-h-screen px-4 pb-28 pt-20 md:ml-[106px] md:p-[14px_14px_14px_0] md:pt-[14px]">
+        <div className="grid min-h-[calc(100vh-28px)] gap-[14px] xl:grid-cols-[minmax(360px,430px)_minmax(560px,1fr)_330px]">
+          <aside className="preview-glass-border preview-surface-82 flex min-h-0 flex-col overflow-hidden rounded-[26px] border shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+            <div className="preview-split-header-bg relative overflow-hidden border-b border-white/10 px-[22px] pb-7 pt-[22px]">
+              <div className="split-drift-mark preview-split-mark-bg pointer-events-none absolute right-5 top-6 size-[82px] rounded-full opacity-70" />
+              <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#d7ff47]">
+                Glimmail Account Hub
+              </p>
+              <h1 className="max-w-[300px] text-[42px] font-black leading-[0.96] tracking-[-0.08em] text-[#f4f5e9]">
+                账号控制台
+                <span className="block text-[#d7ff47]">{connectedCount}</span>
+              </h1>
+              <p className="mt-3 max-w-[286px] text-[13px] leading-[1.55] text-[#f4f5e9]/[.68]">
+                连接邮箱、刷新授权、测试同步。这里是 Glimmail 的账号接入面板。
+              </p>
             </div>
-          )}
 
-          {successMessage && (
-            <div className="mx-auto mb-8 max-w-lg rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-center text-sm text-green-700">
-              {successMessage}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 lg:gap-8">
-            {PROVIDER_CARDS.map((pc) => {
-              const mailbox = mailboxes.find(
-                (mb) => mb.provider === pc.provider,
-              );
-              const connected = !!mailbox;
-
-              return (
-                <article
-                  className={`glass-card group hover-lift relative flex min-h-[320px] flex-col items-center overflow-hidden rounded-xl p-8 text-center ${
-                    connected ? "" : "opacity-90"
-                  }`}
-                  key={pc.provider}
+            <div className="grid gap-2.5 p-2.5">
+              {[
+                ["连接账号", `${connectedCount} 个`, "mail"],
+                ["正常可用", `${healthyCount} 个`, "sync"],
+                ["需要处理", `${attentionCount} 个`, "warning"],
+              ].map(([label, value, icon]) => (
+                <div
+                  className="rounded-[18px] border border-white/[0.08] bg-white/[0.045] p-[15px] text-[#f4f5e9]"
+                  key={label}
                 >
-                  {!connected ? (
-                    <Link
-                      aria-label={`Connect ${pc.name}`}
-                      className="absolute inset-0 z-20 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/40"
-                      href={`/mailboxes/connect?provider=${pc.provider}`}
-                    />
-                  ) : null}
-                  <div className="absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-0 transition group-hover:opacity-100" />
-                  <div
-                    className={`absolute right-4 top-4 flex items-center gap-2 ${
-                      connected ? "" : "opacity-60"
-                    }`}
-                  >
-                    <span
-                      className={`font-label text-[10px] font-semibold uppercase tracking-wider ${
-                        connected ? "text-primary" : "text-slate-600"
-                      }`}
-                    >
-                      {connected ? "Connected" : "Not Connected"}
-                    </span>
-                    <span
-                      className={`size-2 rounded-full ${
-                        connected ? "bg-green-500" : "bg-surface-dim"
-                      } ${
-                        connected
-                          ? "animate-[pulse-green_1.8s_ease-in-out_infinite]"
-                          : ""
-                      }`}
-                    />
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#f4f5e9]/[.48]">
+                        {label}
+                      </p>
+                      <p className="mt-2 text-[26px] font-black leading-none tracking-[-0.05em]">
+                        {value}
+                      </p>
+                    </div>
+                    <SymbolIcon className="text-[24px] text-[#d7ff47]">
+                      {icon}
+                    </SymbolIcon>
                   </div>
+                </div>
+              ))}
+            </div>
 
-                  <div
-                    className={`relative z-10 mb-6 flex size-20 items-center justify-center rounded-full bg-white shadow-sm transition duration-300 group-hover:scale-110 ${
-                      connected ? "" : "grayscale group-hover:grayscale-0"
-                    }`}
-                  >
-                    <span className={`provider-logo ${pc.iconClass}`} />
+            <div className="mt-auto border-t border-white/[0.08] p-2.5">
+              <Link
+                className="grid min-h-12 place-items-center rounded-[18px] border border-[#d7ff47]/40 bg-[#d7ff47] px-4 text-xs font-black text-[#071412] transition hover:-translate-y-0.5 hover:bg-[#ecff8a]"
+                href="/mailboxes/connect?provider=mail163"
+              >
+                添加 163 授权码
+              </Link>
+            </div>
+          </aside>
+
+          <article className="relative min-h-0 overflow-hidden rounded-[30px] bg-[#f7f1df] text-[#111e1a] shadow-[0_28px_80px_rgba(7,20,18,0.18)]">
+            <div className="reader-drift-mark reader-drift-mark-primary" />
+            <div className="reader-drift-mark reader-drift-mark-secondary" />
+            <header className="relative z-[1] border-b border-[#142a24]/[.14] px-[34px] pb-8 pt-8">
+              <div className="mb-5 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-[#142a24]/[.12] bg-[#111e1a]/[.05] px-3 py-1 text-[11px] font-black text-[#30433d]">
+                  当前登录
+                </span>
+                <span className="rounded-full border border-[#142a24]/[.12] bg-[#111e1a]/[.05] px-3 py-1 text-[11px] font-black text-[#30433d]">
+                  {user.role}
+                </span>
+                {successMessage ? (
+                  <span className="rounded-full border border-[#0b6b66]/25 bg-[#87f2c5]/35 px-3 py-1 text-[11px] font-black text-[#0b6b66]">
+                    {successMessage}
+                  </span>
+                ) : null}
+                {errorMessage ? (
+                  <span className="rounded-full border border-[#ff6b57]/25 bg-[#ff6b57]/15 px-3 py-1 text-[11px] font-black text-[#a83a2c]">
+                    {errorMessage}
+                  </span>
+                ) : null}
+              </div>
+              <p className="mb-3 text-[11px] font-black uppercase tracking-[0.16em] text-[#0b6b66]">
+                邮箱账号 / 授权管理
+              </p>
+              <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
+                <div>
+                  <h2 className="max-w-[720px] break-all text-[42px] font-black leading-[0.98] tracking-[-0.06em] lg:text-[54px]">
+                    {user.email}
+                  </h2>
+                  <p className="mt-4 max-w-2xl text-sm leading-6 text-[#647069]">
+                    已连接邮箱会进入统一收件箱；缺少读取权限的账号需要重新授权后才能同步。
+                  </p>
+                </div>
+                <div className="grid size-[78px] place-items-center rounded-[24px] bg-[#071412] text-[18px] font-black text-[#d7ff47] shadow-[0_18px_42px_rgba(7,20,18,0.18)]">
+                  {getInitials(user.email)}
+                </div>
+              </div>
+            </header>
+
+            <div className="relative z-[1] grid gap-[18px] px-[34px] py-7">
+              <section className="mail-summary-strip grid gap-4 rounded-[18px] border p-[18px] md:grid-cols-3">
+                <div>
+                  <p className="text-[12px] font-[950] uppercase tracking-[0.12em] text-[#0b6b66]">
+                    已连接
+                  </p>
+                  <p className="mt-2 text-base font-black">
+                    {connectedCount} 个账号
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[12px] font-[950] uppercase tracking-[0.12em] text-[#0b6b66]">
+                    需要处理
+                  </p>
+                  <p className="mt-2 text-base font-black">
+                    {attentionCount} 个状态
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[12px] font-[950] uppercase tracking-[0.12em] text-[#0b6b66]">
+                    最近同步
+                  </p>
+                  <p className="mt-2 text-base font-black">
+                    {latestSyncAt ? formatActivityTime(latestSyncAt) : "暂无记录"}
+                  </p>
+                </div>
+              </section>
+
+              <section className="rounded-[22px] border border-[#142a24]/[.12] bg-[#fff8e8] p-[24px] shadow-[0_22px_60px_rgba(17,30,26,0.08)]">
+                <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-[12px] font-[950] uppercase tracking-[0.12em] text-[#0b6b66]">
+                      Connected Providers
+                    </p>
+                    <h3 className="mt-1 text-2xl font-black tracking-[-0.04em]">
+                      邮箱连接
+                    </h3>
                   </div>
+                  <Link
+                    className="rounded-full border border-[#111e1a]/[.12] bg-[#111e1a]/[.05] px-4 py-2 text-xs font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
+                    href="/mailboxes/connect?provider=mail163"
+                  >
+                    添加邮箱
+                  </Link>
+                </div>
 
-                  <h3 className="mb-2 font-display text-2xl font-bold text-slate-950">
-                    {pc.name}
-                  </h3>
+                <div className="grid gap-3">
+                  {PROVIDER_ORDER.map((provider) => {
+                    const mailbox = mailboxesWithActivity.find(
+                      (item) => item.provider === provider,
+                    );
+                    const meta = getProviderMeta(provider);
 
-                  {connected && mailbox ? (
-                    <>
-                      <p className="mb-1 text-base font-medium text-slate-800">
-                        {mailbox.address}
-                      </p>
-                      <p className="mb-1 text-sm capitalize text-slate-500">
-                        Status: {mailbox.status}
-                      </p>
-                      {supportsRecentActivity(mailbox.provider) &&
-                        recentSyncLogs.has(mailbox.id) && (
-                          <div className="mb-4 w-full text-left">
-                            <span className="font-label text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-                              Recent Activity
-                            </span>
-                            <div className="mt-1 space-y-1">
-                              {recentSyncLogs.get(mailbox.id)!.map((log) => (
-                                <div
-                                  key={log.id}
-                                  className="flex items-start gap-2 rounded-md bg-white/50 px-2 py-1.5 text-xs"
-                                >
-                                  <span
-                                    className={`mt-0.5 size-1.5 shrink-0 rounded-full ${
-                                      log.status === "success"
-                                        ? "bg-green-500"
-                                        : "bg-red-400"
-                                    }`}
-                                  />
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-slate-600">
-                                      {formatActivityMessage(log.message)}
-                                    </p>
-                                    <p className="text-[10px] text-slate-400">
-                                      {formatActivityTime(log.finishedAt ?? log.startedAt)}
-                                    </p>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      <div className="mt-auto flex w-full flex-col gap-2">
-                        {mailbox.provider === "mail163" && (
-                          <>
-                            <SyncNowButton
-                              mailboxId={mailbox.id}
-                              provider={mailbox.provider}
-                            />
-                            <TestConnectionButton
-                              mailboxId={mailbox.id}
-                              provider={mailbox.provider}
-                            />
-                          </>
-                        )}
-                        {mailbox.provider === "gmail" && (
-                          <>
-                            {gmailSyncAuthorized.get(mailbox.id) ? (
-                              <SyncNowButton
-                                mailboxId={mailbox.id}
-                                provider={mailbox.provider}
-                              />
-                            ) : (
-                              <div className="w-full">
-                                <button
-                                  className="w-full cursor-not-allowed rounded-full border border-slate-300 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-400"
-                                  disabled
-                                  type="button"
-                                >
-                                  Sync Now
-                                </button>
-                                <p className="mt-1 text-[11px] leading-relaxed text-amber-600">
-                                  Gmail inbox access not yet authorized. Click
-                                  Authorize Sync below, then try again.
-                                </p>
-                              </div>
-                            )}
-                            <TestConnectionButton
-                              mailboxId={mailbox.id}
-                              provider={mailbox.provider}
-                            />
-                            <Link
-                              className="block w-full rounded-full border border-slate-300 px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600 hover:bg-white/60"
-                              href="/api/auth/gmail/start?scope=gmail"
-                            >
-                              {gmailSyncAuthorized.get(mailbox.id)
-                                ? "Re-authorize Sync"
-                                : "Authorize Sync"}
-                            </Link>
-                          </>
-                        )}
-                        {mailbox.provider === "outlook" && (
-                          <>
-                            {outlookSyncAuthorized.get(mailbox.id) ? (
-                              <SyncNowButton
-                                mailboxId={mailbox.id}
-                                provider={mailbox.provider}
-                              />
-                            ) : (
-                              <div className="w-full">
-                                <button
-                                  className="w-full cursor-not-allowed rounded-full border border-slate-300 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-400"
-                                  disabled
-                                  type="button"
-                                >
-                                  Sync Now
-                                </button>
-                                <p className="mt-1 text-[11px] leading-relaxed text-amber-600">
-                                  Outlook mail access not yet authorized. Click
-                                  Authorize Sync below, then try again.
-                                </p>
-                              </div>
-                            )}
-                            <TestConnectionButton
-                              mailboxId={mailbox.id}
-                              provider={mailbox.provider}
-                            />
-                            <Link
-                              className="block w-full rounded-full border border-slate-300 px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-slate-600 hover:bg-white/60"
-                              href="/api/auth/outlook/start?scope=mail"
-                            >
-                              {outlookSyncAuthorized.get(mailbox.id)
-                                ? "Re-authorize Sync"
-                                : "Authorize Sync"}
-                            </Link>
-                          </>
-                        )}
-                        <RemoveMailboxForm
-                          address={mailbox.address}
-                          mailboxId={mailbox.id}
-                          provider={mailbox.provider}
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <p className="mb-6 text-base leading-relaxed text-slate-600 opacity-80">
-                        {pc.description}
-                      </p>
+                    return mailbox ? (
+                      <ConnectedMailboxCard
+                        key={provider}
+                        mailbox={mailbox}
+                        meta={meta}
+                      />
+                    ) : (
                       <Link
-                        className="vibrant-flux hover-lift relative z-30 mt-auto block w-full rounded-full px-6 py-2 text-center font-label text-xs font-semibold uppercase tracking-[0.1em] text-white"
-                        href={`/mailboxes/connect?provider=${pc.provider}`}
+                        className="grid gap-4 rounded-[20px] border border-[#142a24]/[.12] bg-white/[.42] p-4 transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-white/[.62] md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-center"
+                        href={meta.connectHref}
+                        key={provider}
                       >
-                        Connect
+                        <span className="grid size-12 place-items-center rounded-[17px] bg-[#071412] shadow-[0_18px_38px_rgba(7,20,18,0.14)]">
+                          <span className={`provider-logo ${meta.logoClass}`} />
+                        </span>
+                        <span className="min-w-0">
+                          <span className="flex items-center gap-2">
+                            <span className={`size-2.5 rounded-full ${meta.accent}`} />
+                            <span className="text-base font-black">
+                              {meta.label}
+                            </span>
+                          </span>
+                          <span className="mt-1 block text-sm leading-6 text-[#647069]">
+                            {meta.description}
+                          </span>
+                        </span>
+                        <span className="rounded-full border border-[#142a24]/[.14] bg-[#071412] px-4 py-2 text-center text-xs font-black text-[#f4f5e9]">
+                          {meta.action}
+                        </span>
                       </Link>
-                    </>
-                  )}
-                </article>
-              );
-            })}
-          </div>
+                    );
+                  })}
+                </div>
+              </section>
+            </div>
+          </article>
+
+          <aside className="hidden min-h-0 flex-col gap-[14px] xl:flex">
+            <section className="context-panel-featured rounded-[24px] border p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+              <div className="mb-[14px] flex items-center justify-between gap-3">
+                <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
+                  接入概览
+                </h2>
+                <span className="text-xs font-[850] text-[#c4ffe2]/[.72]">
+                  {connectedCount}/3
+                </span>
+              </div>
+              <div className="grid gap-3">
+                {PROVIDER_ORDER.map((provider) => {
+                  const meta = getProviderMeta(provider);
+                  const connected = connectedProviders.has(provider);
+
+                  return (
+                    <Link
+                      className="grid grid-cols-[36px_minmax(0,1fr)_auto] items-center gap-3 rounded-[16px] border border-white/[0.08] bg-white/[0.045] p-[11px] transition hover:-translate-y-px hover:border-[#d7ff47]/30"
+                      href={connected ? "/mailboxes" : meta.connectHref}
+                      key={provider}
+                    >
+                      <span className="grid size-9 place-items-center rounded-[13px] bg-[#f7f1df] text-[11px] font-black text-[#071412]">
+                        {meta.short}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13px] font-black text-[#f4f5e9]">
+                          {meta.label}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-[#f4f5e9]/[.58]">
+                          {connected ? "已接入" : "未连接"}
+                        </span>
+                      </span>
+                      <span className={`size-2.5 rounded-full ${connected ? meta.accent : "bg-white/[.18]"}`} />
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="context-panel rounded-[24px] border p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+              <h2 className="mb-[14px] text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
+                快速连接
+              </h2>
+              <div className="grid gap-2">
+                {PROVIDER_ORDER.map((provider) => {
+                  const meta = getProviderMeta(provider);
+                  const connected = connectedProviders.has(provider);
+
+                  return (
+                    <Link
+                      className={`grid min-h-10 place-items-center rounded-full border px-4 text-xs font-black transition hover:-translate-y-px ${
+                        connected
+                          ? "border-white/[.14] bg-white/[0.06] text-[#f4f5e9]/[.56]"
+                          : "border-[#d7ff47] bg-[#d7ff47] text-[#071412] hover:bg-[#ecff8a]"
+                      }`}
+                      href={connected ? "/mailboxes" : meta.connectHref}
+                      key={provider}
+                    >
+                      {connected ? `${meta.label} 已连接` : meta.action}
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="context-panel rounded-[24px] border p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+              <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
+                最近同步
+              </h2>
+              <div className="mt-4 grid gap-3">
+                {mailboxesWithActivity.flatMap((mailbox) =>
+                  mailbox.recentLogs.slice(0, 1).map((log) => (
+                    <div
+                      className="rounded-[16px] border border-white/[0.08] bg-white/[0.045] p-[11px]"
+                      key={log.id}
+                    >
+                      <p className="truncate text-[13px] font-black text-[#f4f5e9]">
+                        {getProviderMeta(mailbox.provider).label}
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-[#f4f5e9]/[.58]">
+                        {formatActivityMessage(log.message)}
+                      </p>
+                    </div>
+                  )),
+                )}
+                {mailboxesWithActivity.every(
+                  (mailbox) => mailbox.recentLogs.length === 0,
+                ) ? (
+                  <p className="rounded-[16px] border border-white/[0.08] bg-white/[0.045] p-[11px] text-xs leading-5 text-[#f4f5e9]/[.58]">
+                    还没有同步记录。连接并同步后，这里会显示最新状态。
+                  </p>
+                ) : null}
+              </div>
+            </section>
+          </aside>
         </div>
       </section>
 
@@ -363,5 +482,94 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
         ]}
       />
     </main>
+  );
+}
+
+function ConnectedMailboxCard({
+  mailbox,
+  meta,
+}: {
+  mailbox: MailboxWithActivity;
+  meta: (typeof PROVIDER_META)[MailboxProvider];
+}) {
+  const latestLog = mailbox.recentLogs[0];
+
+  return (
+    <article className="rounded-[20px] border border-[#142a24]/[.12] bg-white/[.42] p-4">
+      <div className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-start">
+        <div className="grid size-12 place-items-center rounded-[17px] bg-[#071412] shadow-[0_18px_38px_rgba(7,20,18,0.14)]">
+          <span className={`provider-logo ${meta.logoClass}`} />
+        </div>
+
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`size-2.5 rounded-full ${meta.accent}`} />
+            <h4 className="truncate text-base font-black">{mailbox.address}</h4>
+            <span className={`text-xs font-black ${getStatusTone(mailbox.status)}`}>
+              {getStatusLabel(mailbox.status)}
+            </span>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-[#647069]">
+            {meta.label} · {getSyncAuthorizationCopy(mailbox)}
+            {latestLog
+              ? ` · ${formatActivityMessage(latestLog.message)}`
+              : " · 等待首次同步"}
+          </p>
+          {latestLog ? (
+            <p className="mt-1 text-[11px] font-black text-[#647069]/80">
+              {formatActivityTime(latestLog.finishedAt ?? latestLog.startedAt)}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="grid gap-2 md:min-w-[150px]">
+          <SyncControls mailbox={mailbox} />
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function SyncControls({ mailbox }: { mailbox: MailboxWithActivity }) {
+  const needsReauth =
+    (mailbox.provider === "gmail" || mailbox.provider === "outlook") &&
+    !mailbox.authorized;
+
+  return (
+    <>
+      {needsReauth ? (
+        <button
+          className="w-full cursor-not-allowed rounded-full border border-[#142a24]/[.14] bg-[#111e1a]/[.04] px-4 py-2 text-xs font-black text-[#647069]"
+          disabled
+          type="button"
+        >
+          暂停同步
+        </button>
+      ) : (
+        <SyncNowButton mailboxId={mailbox.id} provider={mailbox.provider} />
+      )}
+      <TestConnectionButton mailboxId={mailbox.id} provider={mailbox.provider} />
+      {mailbox.provider === "gmail" ? (
+        <Link
+          className="grid min-h-9 place-items-center rounded-full border border-[#142a24]/[.14] px-4 text-center text-xs font-black text-[#30433d] transition hover:-translate-y-px hover:border-[#0b6b66]/35 hover:text-[#0b5551]"
+          href="/api/auth/gmail/start?scope=gmail"
+        >
+          {mailbox.authorized ? "重新授权" : "补全授权"}
+        </Link>
+      ) : null}
+      {mailbox.provider === "outlook" ? (
+        <Link
+          className="grid min-h-9 place-items-center rounded-full border border-[#142a24]/[.14] px-4 text-center text-xs font-black text-[#30433d] transition hover:-translate-y-px hover:border-[#0b6b66]/35 hover:text-[#0b5551]"
+          href="/api/auth/outlook/start?scope=mail"
+        >
+          {mailbox.authorized ? "重新授权" : "补全授权"}
+        </Link>
+      ) : null}
+      <RemoveMailboxForm
+        address={mailbox.address}
+        mailboxId={mailbox.id}
+        provider={mailbox.provider}
+      />
+    </>
   );
 }

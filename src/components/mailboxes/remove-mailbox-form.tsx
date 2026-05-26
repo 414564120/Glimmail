@@ -16,17 +16,17 @@ export function RemoveMailboxForm({
       action={deleteMailboxAction}
       onSubmit={(e) => {
         const confirmed = window.confirm(
-          `Remove ${provider} mailbox ${address}?\n\nThis will permanently delete all local messages, credentials, and sync logs for this mailbox. This cannot be undone.`,
+          `移除 ${provider} 邮箱 ${address}？\n\n这会永久删除本地邮件、凭据和同步记录，无法撤销。`,
         );
         if (!confirmed) e.preventDefault();
       }}
     >
       <input name="mailboxId" type="hidden" value={mailboxId} />
       <button
-        className="w-full rounded-full border border-red-400 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-red-600 hover:bg-red-50"
+        className="w-full rounded-full border border-[#ff6b57]/35 px-4 py-2 font-label text-xs font-black text-[#a83a2c] transition hover:-translate-y-px hover:bg-[#ff6b57]/10"
         type="submit"
       >
-        Remove
+        移除
       </button>
     </form>
   );

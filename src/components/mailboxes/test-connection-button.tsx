@@ -22,10 +22,10 @@ export function TestConnectionButton({
   return (
     <SubmitOnceButton
       action={action}
-      className="w-full rounded-full border border-primary/30 px-6 py-2 font-label text-xs font-semibold uppercase tracking-[0.1em] text-primary hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-50"
-      label="Test Connection"
+      className="w-full rounded-full border border-[#142a24]/[.14] px-4 py-2 font-label text-xs font-black text-[#30433d] transition hover:-translate-y-px hover:border-[#0b6b66]/35 hover:text-[#0b5551] disabled:cursor-not-allowed disabled:opacity-50"
+      label="测试连接"
       mailboxId={mailboxId}
-      submittingLabel="Testing..."
+      submittingLabel="测试中..."
     />
   );
 }
