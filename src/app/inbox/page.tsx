@@ -782,6 +782,185 @@ export default async function InboxPage({ searchParams }: PageProps) {
     partition: activePartition,
     view: activeView,
   });
+  const railDetails = (
+    <div className="grid gap-[14px]">
+      <section className="context-panel-featured rounded-[24px] border p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+        <div className="mb-[14px] flex items-center justify-between gap-3">
+          <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
+            当前邮件
+          </h2>
+          <Link
+            aria-label={`只查看 ${activeProviderLabel} 来源账号的邮件`}
+            className="rounded-full border border-[#d7ff47]/30 bg-[#d7ff47]/10 px-3 py-1.5 text-xs font-black text-[#d7ff47] transition hover:-translate-y-px hover:border-[#d7ff47]/55 hover:bg-[#d7ff47]/18 hover:text-[#ecff8a]"
+            href={sourceHref}
+            title="筛选列表到当前来源账号"
+          >
+            只看此账号
+          </Link>
+        </div>
+        <div className="grid text-sm">
+          {[
+            ["来源账号", activeProviderLabel],
+            ["同步时间", formatClockTime(selectedMailbox?.lastSyncedAt)],
+            ["分类", selectedMessageKind],
+            ["发件人历史", `${selectedSenderCount} 封`],
+          ].map(([label, value], index) => (
+            <div
+              className={`grid grid-cols-[minmax(0,1fr)_auto] gap-2.5 py-[9px] ${
+                index > 0 ? "preview-glass-border border-t" : ""
+              }`}
+              key={label}
+            >
+              <span className="text-xs text-[#f4f5e9]/[.58]">{label}</span>
+              <span className="max-w-[168px] truncate text-right text-[13px] font-black text-[#f4f5e9]">
+                {value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="context-panel rounded-[24px] border p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+        <div className="mb-[14px] flex items-center justify-between gap-3">
+          <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
+            连接账号
+          </h2>
+          <Link className="context-muted-link text-xs font-[850] transition" href="/mailboxes">
+            管理
+          </Link>
+        </div>
+        <div className="grid">
+          {mailboxes.length === 0 ? (
+            <p className="rounded-[16px] border border-white/[0.08] bg-white/[0.045] p-[11px] text-xs leading-[1.55] text-[#f4f5e9]/[.58]">
+              还没有连接账号。连接 Gmail、Outlook 或 163 邮箱后会显示同步状态。
+            </p>
+          ) : (
+            mailboxes.slice(0, 4).map((mailbox, index) => (
+              <Link
+                className={`grid min-w-0 grid-cols-[38px_minmax(0,1fr)] gap-2.5 py-2.5 transition hover:translate-x-0.5 ${
+                  index > 0 ? "preview-glass-border border-t" : ""
+                }`}
+                href={createInboxHref({
+                  account: mailbox.id,
+                  partition: activePartition,
+                  view: activeView,
+                })}
+                key={mailbox.id}
+              >
+                <div className="grid size-[38px] shrink-0 place-items-center rounded-[13px] bg-white/[0.07] text-[11px] font-black text-[#d7ff47]">
+                  {getProviderLabel(mailbox.provider).slice(0, 3)}
+                </div>
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] font-black text-[#f4f5e9]">
+                    {mailbox.address}
+                  </div>
+                  <div className="mt-1 flex items-center gap-[7px] text-xs text-[#f4f5e9]/[.58]">
+                    <span
+                      className={`size-2 animate-pulse rounded-full ${getProviderTone(
+                        mailbox.provider,
+                      )}`}
+                    />
+                    {getMailboxStatusLabel(mailbox.status)}
+                  </div>
+                </div>
+              </Link>
+            ))
+          )}
+        </div>
+
+        <div className="mt-[14px] grid grid-cols-2 gap-2">
+          {syncAction && selectedMailbox ? (
+            <form action={syncAction}>
+              <input name="mailboxId" type="hidden" value={selectedMailbox.id} />
+              <button
+                className="min-h-10 w-full rounded-full border border-[#d7ff47] bg-[#d7ff47] px-4 text-xs font-black text-[#071412] transition hover:-translate-y-px hover:bg-[#ecff8a] focus:outline-none focus:ring-2 focus:ring-[#d7ff47]/35"
+                type="submit"
+              >
+                立即同步
+              </button>
+            </form>
+          ) : (
+            <Link
+              className="grid min-h-10 place-items-center rounded-full border border-[#d7ff47] bg-[#d7ff47] px-4 text-xs font-black text-[#071412] transition hover:-translate-y-px hover:bg-[#ecff8a]"
+              href="/mailboxes"
+            >
+              连接邮箱
+            </Link>
+          )}
+          {testAction && selectedMailbox ? (
+            <form action={testAction}>
+              <input name="mailboxId" type="hidden" value={selectedMailbox.id} />
+              <button
+                className="min-h-10 w-full rounded-full border border-white/[.14] bg-white/[0.06] px-4 text-xs font-black text-[#f4f5e9] transition hover:-translate-y-px hover:border-[#d7ff47]/35 hover:text-[#d7ff47] focus:outline-none focus:ring-2 focus:ring-[#d7ff47]/25"
+                type="submit"
+              >
+                测试连接
+              </button>
+            </form>
+          ) : (
+            <Link
+              className="grid min-h-10 place-items-center rounded-full border border-white/[.14] bg-white/[0.06] px-4 text-xs font-black text-[#f4f5e9] transition hover:-translate-y-px hover:border-[#d7ff47]/35 hover:text-[#d7ff47]"
+              href="/mailboxes"
+            >
+              测试连接
+            </Link>
+          )}
+          <Link
+            className="col-span-2 grid min-h-10 place-items-center rounded-full border border-white/[.14] bg-white/[0.06] px-4 text-xs font-black text-[#f4f5e9] transition hover:-translate-y-px hover:border-[#d7ff47]/35 hover:text-[#d7ff47]"
+            href={
+              selectedMailbox
+                ? `/mailboxes/connect?provider=${selectedMailbox.provider}`
+                : "/mailboxes"
+            }
+          >
+            重新授权
+          </Link>
+        </div>
+      </section>
+
+      <section className="context-panel rounded-[24px] border p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+        <div className="mb-[14px] flex items-center justify-between gap-3">
+          <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
+            最近同步
+          </h2>
+        </div>
+        <div className="grid gap-2">
+          {mailboxes.length > 0 ? (
+            mailboxes.slice(0, 3).map((mailbox) => {
+              const mailboxMessageCount = messages.filter(
+                (msg) => msg.mailboxId === mailbox.id,
+              ).length;
+
+              return (
+                <div
+                  className="rounded-[16px] border border-white/[0.08] bg-white/[0.045] p-[11px] text-xs leading-[1.48] text-[#f4f5e9]/[.58]"
+                  key={mailbox.id}
+                >
+                  <strong className="text-[#f4f5e9]">
+                    {getProviderLabel(mailbox.provider)}
+                  </strong>
+                  <br />
+                  {formatClockTime(mailbox.lastSyncedAt)}，当前保留{" "}
+                  {mailboxMessageCount} 封邮件。
+                </div>
+              );
+            })
+          ) : (
+            <div className="rounded-[16px] border border-white/[0.08] bg-white/[0.045] p-[11px] text-xs leading-[1.48] text-[#f4f5e9]/[.58]">
+              <strong className="text-[#f4f5e9]">邮件流</strong>
+              <br />
+              连接账号后会在这里显示同步结果。
+            </div>
+          )}
+          <div className="rounded-[16px] border border-white/[0.08] bg-white/[0.045] p-[11px] text-xs leading-[1.48] text-[#f4f5e9]/[.58]">
+            <strong className="text-[#f4f5e9]">统一收件箱</strong>
+            <br />
+            当前展示 {selectedMailboxMessageCount} 封邮件，{unreadCount} 封未读。
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 
   return (
     <main className="surface-grid min-h-screen bg-background text-[#f4f5e9]">
@@ -789,9 +968,10 @@ export default async function InboxPage({ searchParams }: PageProps) {
       <AetherSidebar
         active={activeRailLabel}
         connectedAccountCount={mailboxes.length}
+        details={railDetails}
       />
 
-      <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-[106px] md:grid md:h-screen md:grid-cols-[minmax(360px,430px)_minmax(520px,1fr)] md:gap-[14px] md:overflow-hidden md:p-[14px_14px_14px_0] md:pb-[14px] md:pt-[14px] xl:grid-cols-[minmax(360px,430px)_minmax(520px,1fr)_330px]">
+      <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-[106px] md:grid md:h-screen md:grid-cols-[minmax(360px,430px)_minmax(520px,1fr)] md:gap-[14px] md:overflow-hidden md:p-[14px_14px_14px_0] md:pb-[14px] md:pt-[14px] xl:grid-cols-[minmax(360px,430px)_minmax(620px,1fr)]">
         <aside
           className={`preview-glass-border preview-surface-82 min-w-0 min-h-0 flex-col overflow-hidden border shadow-[0_28px_90px_rgba(0,0,0,0.42)] md:flex md:h-[calc(100vh-28px)] md:rounded-[26px] ${
             mobileMessageOpen ? "hidden" : "flex"
@@ -1196,198 +1376,6 @@ export default async function InboxPage({ searchParams }: PageProps) {
           </article>
         )}
 
-        <aside className="custom-scrollbar hidden min-w-0 min-h-0 flex-col gap-[14px] overflow-y-auto xl:flex xl:h-[calc(100vh-28px)]">
-          <section className="context-panel-featured rounded-[24px] border p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
-            <div className="mb-[14px] flex items-center justify-between gap-3">
-              <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
-                当前邮件
-              </h2>
-              <Link
-                aria-label={`只查看 ${activeProviderLabel} 来源账号的邮件`}
-                className="rounded-full border border-[#d7ff47]/30 bg-[#d7ff47]/10 px-3 py-1.5 text-xs font-black text-[#d7ff47] transition hover:-translate-y-px hover:border-[#d7ff47]/55 hover:bg-[#d7ff47]/18 hover:text-[#ecff8a]"
-                href={sourceHref}
-                title="筛选列表到当前来源账号"
-              >
-                只看此账号
-              </Link>
-            </div>
-            <div className="grid text-sm">
-              {[
-                ["来源账号", activeProviderLabel],
-                ["同步时间", formatClockTime(selectedMailbox?.lastSyncedAt)],
-                ["分类", selectedMessageKind],
-                ["发件人历史", `${selectedSenderCount} 封`],
-              ].map(([label, value], index) => (
-                <div
-                  className={`grid grid-cols-[minmax(0,1fr)_auto] gap-2.5 py-[9px] ${
-                    index > 0 ? "preview-glass-border border-t" : ""
-                  }`}
-                  key={label}
-                >
-                  <span className="text-xs text-[#f4f5e9]/[.58]">{label}</span>
-                  <span className="max-w-[168px] truncate text-right text-[13px] font-black text-[#f4f5e9]">
-                    {value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="context-panel rounded-[24px] border p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
-            <div className="mb-[14px] flex items-center justify-between gap-3">
-              <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
-                连接账号
-              </h2>
-              <Link
-                className="context-muted-link text-xs font-[850] transition"
-                href="/mailboxes"
-              >
-                管理
-              </Link>
-            </div>
-            <div className="grid">
-              {mailboxes.length === 0 ? (
-                <p className="rounded-[16px] border border-white/[0.08] bg-white/[0.045] p-[11px] text-xs leading-[1.55] text-[#f4f5e9]/[.58]">
-                  还没有连接账号。连接 Gmail、Outlook 或 163
-                  邮箱后会显示同步状态。
-                </p>
-              ) : (
-                mailboxes.slice(0, 4).map((mailbox, index) => (
-                  <Link
-                    className={`grid min-w-0 grid-cols-[38px_minmax(0,1fr)] gap-2.5 py-2.5 transition hover:translate-x-0.5 ${
-                      index > 0
-                        ? "preview-glass-border border-t"
-                        : ""
-                    }`}
-                    href={createInboxHref({
-                      account: mailbox.id,
-                      partition: activePartition,
-                      view: activeView,
-                    })}
-                    key={mailbox.id}
-                  >
-                    <div className="grid size-[38px] shrink-0 place-items-center rounded-[13px] bg-white/[0.07] text-[11px] font-black text-[#d7ff47]">
-                      {getProviderLabel(mailbox.provider).slice(0, 3)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-[13px] font-black text-[#f4f5e9]">
-                        {mailbox.address}
-                      </div>
-                      <div className="mt-1 flex items-center gap-[7px] text-xs text-[#f4f5e9]/[.58]">
-                        <span
-                          className={`size-2 animate-pulse rounded-full ${getProviderTone(
-                            mailbox.provider,
-                          )}`}
-                        />
-                        {getMailboxStatusLabel(mailbox.status)}
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              )}
-            </div>
-
-            <div className="mt-[14px] grid grid-cols-2 gap-2">
-              {syncAction && selectedMailbox ? (
-                <form action={syncAction}>
-                  <input
-                    name="mailboxId"
-                    type="hidden"
-                    value={selectedMailbox.id}
-                  />
-                  <button
-                    className="min-h-10 w-full rounded-full border border-[#d7ff47] bg-[#d7ff47] px-4 text-xs font-black text-[#071412] transition hover:-translate-y-px hover:bg-[#ecff8a] focus:outline-none focus:ring-2 focus:ring-[#d7ff47]/35"
-                    type="submit"
-                  >
-                    立即同步
-                  </button>
-                </form>
-              ) : (
-                <Link
-                  className="grid min-h-10 place-items-center rounded-full border border-[#d7ff47] bg-[#d7ff47] px-4 text-xs font-black text-[#071412] transition hover:-translate-y-px hover:bg-[#ecff8a]"
-                  href="/mailboxes"
-                >
-                  连接邮箱
-                </Link>
-              )}
-              {testAction && selectedMailbox ? (
-                <form action={testAction}>
-                  <input
-                    name="mailboxId"
-                    type="hidden"
-                    value={selectedMailbox.id}
-                  />
-                  <button
-                    className="min-h-10 w-full rounded-full border border-white/[.14] bg-white/[0.06] px-4 text-xs font-black text-[#f4f5e9] transition hover:-translate-y-px hover:border-[#d7ff47]/35 hover:text-[#d7ff47] focus:outline-none focus:ring-2 focus:ring-[#d7ff47]/25"
-                    type="submit"
-                  >
-                    测试连接
-                  </button>
-                </form>
-              ) : (
-                <Link
-                  className="grid min-h-10 place-items-center rounded-full border border-white/[.14] bg-white/[0.06] px-4 text-xs font-black text-[#f4f5e9] transition hover:-translate-y-px hover:border-[#d7ff47]/35 hover:text-[#d7ff47]"
-                  href="/mailboxes"
-                >
-                  测试连接
-                </Link>
-              )}
-              <Link
-                className="col-span-2 grid min-h-10 place-items-center rounded-full border border-white/[.14] bg-white/[0.06] px-4 text-xs font-black text-[#f4f5e9] transition hover:-translate-y-px hover:border-[#d7ff47]/35 hover:text-[#d7ff47]"
-                href={
-                  selectedMailbox
-                    ? `/mailboxes/connect?provider=${selectedMailbox.provider}`
-                    : "/mailboxes"
-                }
-              >
-                重新授权
-              </Link>
-            </div>
-          </section>
-
-          <section className="context-panel rounded-[24px] border p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
-            <div className="mb-[14px] flex items-center justify-between gap-3">
-              <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
-                最近同步
-              </h2>
-            </div>
-            <div className="grid gap-2">
-              {mailboxes.length > 0 ? (
-                mailboxes.slice(0, 3).map((mailbox) => {
-                  const mailboxMessageCount = messages.filter(
-                    (msg) => msg.mailboxId === mailbox.id,
-                  ).length;
-
-                  return (
-                    <div
-                      className="rounded-[16px] border border-white/[0.08] bg-white/[0.045] p-[11px] text-xs leading-[1.48] text-[#f4f5e9]/[.58]"
-                      key={mailbox.id}
-                    >
-                      <strong className="text-[#f4f5e9]">
-                        {getProviderLabel(mailbox.provider)}
-                      </strong>
-                      <br />
-                      {formatClockTime(mailbox.lastSyncedAt)}，当前保留{" "}
-                      {mailboxMessageCount} 封邮件。
-                    </div>
-                  );
-                })
-              ) : (
-                <div className="rounded-[16px] border border-white/[0.08] bg-white/[0.045] p-[11px] text-xs leading-[1.48] text-[#f4f5e9]/[.58]">
-                  <strong className="text-[#f4f5e9]">邮件流</strong>
-                  <br />
-                  连接账号后会在这里显示同步结果。
-                </div>
-              )}
-              <div className="rounded-[16px] border border-white/[0.08] bg-white/[0.045] p-[11px] text-xs leading-[1.48] text-[#f4f5e9]/[.58]">
-                <strong className="text-[#f4f5e9]">统一收件箱</strong>
-                <br />
-                当前展示 {selectedMailboxMessageCount} 封邮件，{unreadCount}{" "}
-                封未读。
-              </div>
-            </div>
-          </section>
-        </aside>
       </section>
 
       {!mobileMessageOpen ? (

@@ -2,8 +2,8 @@
 
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
-import { useRef } from "react";
-import type { CSSProperties } from "react";
+import { useRef, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 gsap.registerPlugin(useGSAP);
 
@@ -116,11 +116,14 @@ function RailItem({
 
 export function AetherSidebar({
   active = "统一收件箱",
+  details,
 }: {
   active?: string;
   connectedAccountCount?: number;
+  details?: ReactNode;
 }) {
   const railRef = useRef<HTMLElement>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const brandCharacters = Array.from("Glimmail");
 
   useGSAP((_, contextSafe) => {
@@ -445,7 +448,60 @@ export function AetherSidebar({
         })}
       </nav>
 
-      <div className="mt-auto grid w-full gap-[10px]">
+      {details ? (
+        <>
+          <div className="mt-auto w-full">
+            <button
+              aria-expanded={detailsOpen}
+              className={`rail-link grid h-12 w-full grid-cols-[48px_minmax(0,1fr)] items-center rounded-2xl border transition-[border-color,background-color,color,transform,box-shadow] duration-200 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 ${
+                detailsOpen
+                  ? "border-transparent bg-[#f7f1df] shadow-[0_16px_38px_rgba(247,241,223,0.14)]"
+                  : "border-transparent bg-transparent hover:border-white/15 hover:bg-white/[0.06]"
+              }`}
+              onClick={() => setDetailsOpen((open) => !open)}
+              style={
+                {
+                  "--rail-hover-ink": detailsOpen ? "#111e1a" : "#f4f5e9",
+                  "--rail-ink": detailsOpen
+                    ? "#111e1a"
+                    : "rgba(244,245,233,0.68)",
+                } as CSSProperties
+              }
+              title="更多"
+              type="button"
+            >
+              <span className="rail-short grid place-items-center" data-rail-pop>
+                MO
+              </span>
+              <span className="rail-label min-w-0 overflow-hidden whitespace-nowrap pr-3">
+                {Array.from({ length: cipherSlotCount("更多") }).map(
+                  (_, characterIndex) => (
+                    <span
+                      aria-hidden="true"
+                      className="rail-letter inline-block"
+                      data-rail-letter
+                      data-cipher={cipherGlyph("更多", characterIndex)}
+                      data-final={Array.from("更多")[characterIndex] ?? ""}
+                      key={`more-${characterIndex}`}
+                    >
+                      {cipherGlyph("更多", characterIndex)}
+                    </span>
+                  ),
+                )}
+              </span>
+            </button>
+          </div>
+          {detailsOpen ? (
+            <div className="custom-scrollbar fixed bottom-[14px] left-[264px] top-[14px] z-30 hidden w-[330px] overflow-y-auto rounded-[24px] md:block">
+              {details}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <div className="mt-auto" />
+      )}
+
+      <div className="grid w-full gap-[10px]">
         {bottomItems.map(([label, shortLabel, href]) => {
           const isActive = isActiveLabel(active, label);
 
