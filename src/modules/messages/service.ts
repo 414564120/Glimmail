@@ -39,3 +39,13 @@ export async function toggleMessageStarred(userId: string, messageId: string) {
     data: { isStarred: !message.isStarred },
   });
 }
+
+export async function trashMessage(userId: string, messageId: string) {
+  const message = await db.message.findUnique({ where: { id: messageId } });
+  if (!message || message.userId !== userId) return null;
+
+  return db.message.update({
+    where: { id: messageId },
+    data: { trashedAt: new Date() },
+  });
+}

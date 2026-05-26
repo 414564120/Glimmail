@@ -1,0 +1,1 @@
+ALTER TABLE "Message" ADD COLUMN "trashedAt" TIMESTAMP(3);

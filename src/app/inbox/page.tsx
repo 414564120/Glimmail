@@ -15,6 +15,7 @@ import {
   markReadAndOpenAction,
   toggleReadAction,
   toggleStarredAction,
+  trashMessageAction,
 } from "./actions";
 import {
   syncGmailAction,
@@ -586,7 +587,7 @@ const viewLabels = {
   search: "搜索",
   sent: "已发送",
   starred: "星标",
-  trash: "废纸篓",
+  trash: "垃圾箱",
 } as const;
 
 type InboxView = keyof typeof viewLabels;
@@ -623,12 +624,14 @@ function getInboxPartition(
   return activeView === "starred" ? "starred" : "all";
 }
 
-function getViewMessages<T extends { isStarred: boolean }>(
+function getViewMessages<T extends { isStarred: boolean; trashedAt: Date | null }>(
   messages: T[],
   view: InboxView,
 ) {
-  if (view === "starred") return messages.filter((msg) => msg.isStarred);
-  if (view === "inbox") return messages;
+  if (view === "trash") return messages.filter((msg) => msg.trashedAt);
+  if (view === "starred")
+    return messages.filter((msg) => msg.isStarred && !msg.trashedAt);
+  if (view === "inbox") return messages.filter((msg) => !msg.trashedAt);
 
   return [];
 }
@@ -719,12 +722,16 @@ export default async function InboxPage({ searchParams }: PageProps) {
   const activeAccount = mailboxes.some((mailbox) => mailbox.id === accountParam)
     ? accountParam
     : "all";
+  const inboxMessages = getViewMessages(messages, "inbox");
   const viewMessages = getViewMessages(messages, activeView);
   const partitionedMessages = getPartitionMessages(
     viewMessages,
     activePartition,
   );
-  const accountFilterMessages = getPartitionMessages(messages, activePartition);
+  const accountFilterMessages =
+    activeView === "inbox"
+      ? getPartitionMessages(inboxMessages, activePartition)
+      : partitionedMessages;
   const visibleMessages =
     activeAccount === "all"
       ? partitionedMessages
@@ -741,7 +748,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
       null)
     : (visibleMessages[0] ?? null);
   const mobileMessageOpen = Boolean(messageIdParam && selectedMessage);
-  const unreadCount = messages.filter((msg) => !msg.isRead).length;
+  const unreadCount = inboxMessages.filter((msg) => !msg.isRead).length;
   const activeProviderLabel = selectedMessage
     ? getProviderLabel(selectedMessage.mailbox.provider)
     : "Glimmail";
@@ -799,7 +806,9 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 </p>
                 <h1 className="max-w-[280px] text-[42px] font-black leading-[0.96] tracking-[-0.08em] text-[#f4f5e9]">
                   今日处理{" "}
-                  <span className="text-[#d7ff47]">{messages.length}</span>
+                  <span className="text-[#d7ff47]">
+                    {inboxMessages.length}
+                  </span>
                 </h1>
                 <p className="mt-3 max-w-[270px] text-[13px] leading-[1.55] text-[#f4f5e9]/[.68]">
                   多个账号进入一个高能邮件流。按重要、验证码、通知和订阅分层处理。
@@ -1063,13 +1072,30 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 >
                   归档
                 </button>
-                <button
-                  className="min-w-[38px] rounded-full border border-[#ff6b57]/25 bg-[#ff6b57]/10 cursor-pointer px-3 py-2 text-[10px] font-black text-[#b33125] transition hover:-translate-y-0.5 hover:border-[#ff6b57]/50 hover:bg-[#ff6b57]/[.14]"
-                  title="删除"
-                  type="button"
-                >
-                  删除
-                </button>
+                <form action={trashMessageAction}>
+                  <input
+                    name="messageId"
+                    type="hidden"
+                    value={selectedMessage.id}
+                  />
+                  <input
+                    name="partition"
+                    type="hidden"
+                    value={activePartition}
+                  />
+                  <input
+                    name="account"
+                    type="hidden"
+                    value={activeAccount}
+                  />
+                  <button
+                    className="min-w-[38px] rounded-full border border-[#ff6b57]/25 bg-[#ff6b57]/10 cursor-pointer px-3 py-2 text-[10px] font-black text-[#b33125] transition hover:-translate-y-0.5 hover:border-[#ff6b57]/50 hover:bg-[#ff6b57]/[.14]"
+                    title="加入垃圾箱"
+                    type="submit"
+                  >
+                    垃圾箱
+                  </button>
+                </form>
                 <button
                   className="min-w-[38px] rounded-full border border-[#111e1a]/[.12] bg-[#111e1a]/5 cursor-pointer px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
                   title="更多"

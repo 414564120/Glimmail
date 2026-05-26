@@ -7,6 +7,7 @@ import {
   markMessageRead,
   toggleMessageRead,
   toggleMessageStarred,
+  trashMessage,
 } from "@/modules/messages";
 
 const allowedViews = new Set([
@@ -92,4 +93,17 @@ export async function toggleStarredAction(formData: FormData) {
 
   revalidatePath("/inbox");
   redirect(getRedirectPath(messageId, view));
+}
+
+export async function trashMessageAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/inbox");
+
+  const messageId = String(formData.get("messageId") || "");
+  const partition = String(formData.get("partition") || "all");
+  const account = String(formData.get("account") || "all");
+  await trashMessage(user.id, messageId);
+
+  revalidatePath("/inbox");
+  redirect(getRedirectPath("", "inbox", partition, account));
 }

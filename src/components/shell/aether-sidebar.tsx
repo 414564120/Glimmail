@@ -14,6 +14,7 @@ const mainItems = [
   ["通知", "NT", "/inbox?partition=notification"],
   ["订阅", "RD", "/inbox?partition=subscription"],
   ["星标", "ST", "/inbox?partition=starred"],
+  ["垃圾箱", "TR", "/inbox?view=trash"],
 ] as const;
 
 const bottomItems = [
@@ -51,7 +52,7 @@ const activeLabelAliases: Record<string, string> = {
   Settings: "设置",
   Starred: "星标",
   Subscriptions: "订阅",
-  Trash: "废纸篓",
+  Trash: "垃圾箱",
   收件箱: "统一收件箱",
 };
 
