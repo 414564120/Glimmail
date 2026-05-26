@@ -762,10 +762,12 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 当前邮件
               </h2>
               <Link
-                className="context-muted-link text-xs font-[850] transition"
+                aria-label={`只查看 ${activeProviderLabel} 来源账号的邮件`}
+                className="rounded-full border border-[#d7ff47]/30 bg-[#d7ff47]/10 px-3 py-1.5 text-xs font-black text-[#d7ff47] transition hover:-translate-y-px hover:border-[#d7ff47]/55 hover:bg-[#d7ff47]/18 hover:text-[#ecff8a]"
                 href={sourceHref}
+                title="筛选列表到当前来源账号"
               >
-                查看来源
+                只看此账号
               </Link>
             </div>
             <div className="grid text-sm">
