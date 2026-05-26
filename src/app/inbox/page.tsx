@@ -733,9 +733,11 @@ export default async function InboxPage({ searchParams }: PageProps) {
 
   const selectedMessage = messageIdParam
     ? (visibleMessages.find((m) => m.id === messageIdParam) ??
+      messages.find((m) => m.id === messageIdParam) ??
       visibleMessages[0] ??
       null)
     : (visibleMessages[0] ?? null);
+  const mobileMessageOpen = Boolean(messageIdParam && selectedMessage);
   const starredCount = messages.filter((msg) => msg.isStarred).length;
   const codeCount = messages.filter((msg) => msg.verificationCode).length;
   const unreadCount = messages.filter((msg) => !msg.isRead).length;
@@ -787,6 +789,11 @@ export default async function InboxPage({ searchParams }: PageProps) {
         view: activeView,
       })
     : "/mailboxes";
+  const mobileBackHref = createInboxHref({
+    account: activeAccount,
+    partition: activePartition,
+    view: activeView,
+  });
 
   return (
     <main className="surface-grid min-h-screen bg-background text-[#f4f5e9]">
@@ -797,7 +804,11 @@ export default async function InboxPage({ searchParams }: PageProps) {
       />
 
       <section className="min-h-screen overflow-x-hidden pb-20 pt-16 md:ml-[106px] md:grid md:h-screen md:grid-cols-[minmax(360px,430px)_minmax(520px,1fr)] md:gap-[14px] md:overflow-hidden md:p-[14px_14px_14px_0] md:pb-[14px] md:pt-[14px] xl:grid-cols-[minmax(360px,430px)_minmax(520px,1fr)_330px]">
-        <aside className="preview-glass-border preview-surface-82 flex min-w-0 min-h-0 flex-col overflow-hidden border shadow-[0_28px_90px_rgba(0,0,0,0.42)] md:h-[calc(100vh-28px)] md:rounded-[26px]">
+        <aside
+          className={`preview-glass-border preview-surface-82 min-w-0 min-h-0 flex-col overflow-hidden border shadow-[0_28px_90px_rgba(0,0,0,0.42)] md:flex md:h-[calc(100vh-28px)] md:rounded-[26px] ${
+            mobileMessageOpen ? "hidden" : "flex"
+          }`}
+        >
           <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto">
             <header className="preview-split-header-bg relative border-b border-white/10 pb-0 pt-[22px] backdrop-blur-[18px] md:sticky md:top-0 md:z-10">
               <div className="relative px-[22px] pb-3">
@@ -1037,12 +1048,26 @@ export default async function InboxPage({ searchParams }: PageProps) {
         </aside>
 
         {selectedMessage ? (
-          <article className="relative hidden min-w-0 min-h-0 overflow-hidden bg-[#f7f1df] text-[#111e1a] shadow-[0_28px_80px_rgba(7,20,18,0.18)] md:flex md:h-[calc(100vh-28px)] md:flex-col md:rounded-[30px]">
+          <article
+            className={`relative min-w-0 min-h-0 overflow-hidden bg-[#f7f1df] text-[#111e1a] shadow-[0_28px_80px_rgba(7,20,18,0.18)] md:flex md:h-[calc(100vh-28px)] md:flex-col md:rounded-[30px] ${
+              mobileMessageOpen
+                ? "flex min-h-[calc(100vh-4rem)] flex-col rounded-t-[24px]"
+                : "hidden"
+            }`}
+          >
             <div className="reader-drift-mark reader-drift-mark-primary" />
             <div className="reader-drift-mark reader-drift-mark-secondary" />
-            <header className="sticky top-0 z-10 flex min-h-[72px] items-center justify-between gap-4 border-b border-[#142a24]/[.14] bg-[#f7f1df]/[.88] px-[22px] py-4 backdrop-blur-[18px]">
-              <div className="text-[13px] font-bold text-[#647069]">
-                {activeLabel} / {activeProviderLabel} / {selectedMessageKind}
+            <header className="sticky top-0 z-10 flex min-h-[72px] flex-wrap items-center justify-between gap-4 border-b border-[#142a24]/[.14] bg-[#f7f1df]/[.88] px-[18px] py-4 backdrop-blur-[18px] md:px-[22px]">
+              <div className="flex min-w-0 items-center gap-2">
+                <Link
+                  className="shrink-0 rounded-full border border-[#111e1a]/[.12] bg-[#111e1a]/5 px-3 py-2 text-[10px] font-black text-[#30433d] md:hidden"
+                  href={mobileBackHref}
+                >
+                  返回
+                </Link>
+                <div className="truncate text-[13px] font-bold text-[#647069]">
+                  {activeLabel} / {activeProviderLabel} / {selectedMessageKind}
+                </div>
               </div>
               <div className="flex shrink-0 flex-wrap gap-2">
                 <form action={toggleStarredAction}>
@@ -1100,7 +1125,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
             </header>
 
             <div className="custom-scrollbar relative z-[1] min-h-0 flex-1 overflow-y-auto">
-              <header className="relative overflow-hidden border-b border-[#142a24]/[.14] px-[34px] pb-7 pt-8">
+              <header className="relative overflow-hidden border-b border-[#142a24]/[.14] px-5 pb-7 pt-8 md:px-[34px]">
                 <p className="relative z-[1] mb-3 text-[11px] font-black uppercase tracking-[0.16em] text-[#0b6b66]">
                   邮件摘要 / 来源 {activeProviderLabel}
                 </p>
@@ -1131,7 +1156,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 </div>
               </header>
 
-              <div className="px-[34px] py-7">
+              <div className="px-5 py-7 md:px-[34px]">
                 <section className="mail-summary-strip mb-[18px] grid w-full grid-cols-[minmax(0,1fr)_auto] items-start gap-[18px] rounded-[18px] border p-[18px]">
                   <div>
                     <div className="text-[12px] font-[950] uppercase tracking-[0.12em] text-[#0b6b66]">
@@ -1153,7 +1178,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                 </section>
 
                 <section className="w-full rounded-[22px] border border-[#142a24]/[.12] bg-[#fff8e8] shadow-[0_22px_60px_rgba(17,30,26,0.08)]">
-                  <div className="flex items-center justify-between gap-4 border-b border-[#142a24]/[.1] px-[30px] py-4">
+                  <div className="flex items-center justify-between gap-4 border-b border-[#142a24]/[.1] px-5 py-4 md:px-[30px]">
                     <div>
                       <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#0b6b66]">
                         Email Message
@@ -1169,7 +1194,7 @@ export default async function InboxPage({ searchParams }: PageProps) {
                     </span>
                   </div>
 
-                  <div className="px-[30px] py-[26px]">
+                  <div className="px-5 py-[26px] md:px-[30px]">
                     <EmailBody
                       bodyHtml={selectedMessage.bodyHtml}
                       bodyText={selectedMessage.bodyText}
@@ -1383,13 +1408,17 @@ export default async function InboxPage({ searchParams }: PageProps) {
         </aside>
       </section>
 
-      <button
-        className="fixed bottom-24 right-4 z-40 flex size-14 items-center justify-center rounded-full bg-[#d7ff47] text-[#071412] shadow-[0_18px_42px_rgba(0,0,0,0.24)] transition hover:-translate-y-0.5 active:translate-y-0 md:hidden"
-        type="button"
-      >
-        <SymbolIcon className="text-[24px]">edit</SymbolIcon>
-      </button>
-      <MobileBottomNav active={activeLabel} />
+      {!mobileMessageOpen ? (
+        <>
+          <button
+            className="fixed bottom-24 right-4 z-40 flex size-14 items-center justify-center rounded-full bg-[#d7ff47] text-[#071412] shadow-[0_18px_42px_rgba(0,0,0,0.24)] transition hover:-translate-y-0.5 active:translate-y-0 md:hidden"
+            type="button"
+          >
+            <SymbolIcon className="text-[24px]">edit</SymbolIcon>
+          </button>
+          <MobileBottomNav active={activeLabel} />
+        </>
+      ) : null}
     </main>
   );
 }

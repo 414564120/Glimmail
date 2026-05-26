@@ -474,13 +474,6 @@ export function MobileTopBar() {
           Glimmail
         </span>
       </a>
-      <a
-        aria-label="搜索邮件"
-        className="grid h-10 place-items-center rounded-full border border-white/10 px-3 text-[11px] font-black tracking-[0.04em] text-[#f4f5e9]/[.68] transition hover:text-[#d7ff47]"
-        href="/inbox?view=search"
-      >
-        搜索
-      </a>
     </header>
   );
 }
