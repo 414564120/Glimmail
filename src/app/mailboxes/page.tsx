@@ -190,9 +190,9 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
         connectedAccountCount={connectedCount}
       />
 
-      <section className="min-h-screen px-4 pb-28 pt-20 md:ml-[106px] md:p-[14px_14px_14px_0] md:pt-[14px]">
-        <div className="grid min-h-[calc(100vh-28px)] gap-[14px] xl:grid-cols-[minmax(360px,430px)_minmax(560px,1fr)_330px]">
-          <aside className="preview-glass-border preview-surface-82 flex min-h-0 flex-col overflow-hidden rounded-[26px] border shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
+      <section className="min-h-screen overflow-x-hidden px-4 pb-28 pt-20 md:ml-[106px] md:p-[14px_14px_14px_0] md:pt-[14px]">
+        <div className="grid min-h-[calc(100vh-28px)] min-w-0 gap-[14px] xl:grid-cols-[minmax(300px,360px)_minmax(0,1fr)_minmax(260px,300px)] 2xl:grid-cols-[minmax(360px,430px)_minmax(560px,1fr)_330px]">
+          <aside className="preview-glass-border preview-surface-82 flex min-h-0 min-w-0 flex-col overflow-hidden rounded-[26px] border shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
             <div className="preview-split-header-bg relative overflow-hidden border-b border-white/10 px-[22px] pb-7 pt-[22px]">
               <div className="split-drift-mark preview-split-mark-bg pointer-events-none absolute right-5 top-6 size-[82px] rounded-full opacity-70" />
               <p className="mb-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#d7ff47]">
@@ -241,7 +241,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
             </div>
           </aside>
 
-          <article className="relative min-h-0 overflow-hidden rounded-[30px] bg-[#f7f1df] text-[#111e1a] shadow-[0_28px_80px_rgba(7,20,18,0.18)]">
+          <article className="relative min-h-0 min-w-0 overflow-hidden rounded-[30px] bg-[#f7f1df] text-[#111e1a] shadow-[0_28px_80px_rgba(7,20,18,0.18)]">
             <div className="reader-drift-mark reader-drift-mark-primary" />
             <div className="reader-drift-mark reader-drift-mark-secondary" />
             <header className="relative z-[1] border-b border-[#142a24]/[.14] px-[34px] pb-8 pt-8">
@@ -371,7 +371,7 @@ export default async function MailboxesPage({ searchParams }: PageProps) {
             </div>
           </article>
 
-          <aside className="hidden min-h-0 flex-col gap-[14px] xl:flex">
+          <aside className="hidden min-h-0 min-w-0 flex-col gap-[14px] xl:flex">
             <section className="context-panel-featured rounded-[24px] border p-[17px] shadow-[0_28px_90px_rgba(0,0,0,0.42)]">
               <div className="mb-[14px] flex items-center justify-between gap-3">
                 <h2 className="text-[15px] font-black leading-none tracking-[-0.03em] text-[#f4f5e9]">
@@ -499,10 +499,14 @@ function ConnectedMailboxCard({
         </div>
 
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <span className={`size-2.5 rounded-full ${meta.accent}`} />
-            <h4 className="truncate text-base font-black">{mailbox.address}</h4>
-            <span className={`text-xs font-black ${getStatusTone(mailbox.status)}`}>
+            <h4 className="min-w-0 max-w-full truncate text-base font-black">
+              {mailbox.address}
+            </h4>
+            <span
+              className={`shrink-0 text-xs font-black ${getStatusTone(mailbox.status)}`}
+            >
               {getStatusLabel(mailbox.status)}
             </span>
           </div>
