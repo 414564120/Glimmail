@@ -225,6 +225,7 @@ export interface GmailSyncedMessage {
   threadId: string;
   sender: string;
   subject: string;
+  bodyHtml: string | null;
   bodyText: string;
   snippet: string;
   receivedAt: Date;
@@ -251,7 +252,7 @@ export async function getGmailMessage(
 
   const sender = extractSender(getHeader("From"));
   const subject = decodeRfc2047(getHeader("Subject")) || "(no subject)";
-  const bodyText = extractGmailBody(msg.payload);
+  const bodyContent = extractGmailBody(msg.payload);
   const receivedAt = parseGmailDate(getHeader("Date"), msg.internalDate);
 
   return {
@@ -259,7 +260,8 @@ export async function getGmailMessage(
     threadId: msg.threadId,
     sender,
     subject,
-    bodyText,
+    bodyHtml: bodyContent.html,
+    bodyText: bodyContent.text,
     snippet: msg.snippet ?? "",
     receivedAt,
   };
@@ -289,17 +291,22 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function extractGmailBody(payload: GmailMessageResponse["payload"]): string {
+function extractGmailBody(payload: GmailMessageResponse["payload"]): {
+  html: string | null;
+  text: string;
+} {
+  let html: string | null = null;
+
   if (payload.parts) {
     // Prefer text/plain
     for (const part of payload.parts) {
       if (part.mimeType === "text/plain" && part.body.data) {
-        return decodeBase64Url(part.body.data);
+        return { html: findGmailHtml(payload), text: decodeBase64Url(part.body.data) };
       }
       if (part.parts) {
         for (const sub of part.parts) {
           if (sub.mimeType === "text/plain" && sub.body.data) {
-            return decodeBase64Url(sub.body.data);
+            return { html: findGmailHtml(payload), text: decodeBase64Url(sub.body.data) };
           }
         }
       }
@@ -307,12 +314,14 @@ function extractGmailBody(payload: GmailMessageResponse["payload"]): string {
     // Fallback to text/html, stripping tags
     for (const part of payload.parts) {
       if (part.mimeType === "text/html" && part.body.data) {
-        return stripHtml(decodeBase64Url(part.body.data));
+        html = decodeBase64Url(part.body.data);
+        return { html, text: stripHtml(html) };
       }
       if (part.parts) {
         for (const sub of part.parts) {
           if (sub.mimeType === "text/html" && sub.body.data) {
-            return stripHtml(decodeBase64Url(sub.body.data));
+            html = decodeBase64Url(sub.body.data);
+            return { html, text: stripHtml(html) };
           }
         }
       }
@@ -321,18 +330,47 @@ function extractGmailBody(payload: GmailMessageResponse["payload"]): string {
     for (const part of payload.parts) {
       if (part.body.data) {
         const text = decodeBase64Url(part.body.data);
-        return part.mimeType === "text/html" ? stripHtml(text) : text;
+        return {
+          html: part.mimeType === "text/html" ? text : null,
+          text: part.mimeType === "text/html" ? stripHtml(text) : text,
+        };
       }
     }
-    return "";
+    return { html: null, text: "" };
   }
 
   if (payload.body.data) {
     const text = decodeBase64Url(payload.body.data);
-    return payload.mimeType === "text/html" ? stripHtml(text) : text;
+    return {
+      html: payload.mimeType === "text/html" ? text : null,
+      text: payload.mimeType === "text/html" ? stripHtml(text) : text,
+    };
   }
 
-  return "";
+  return { html: null, text: "" };
+}
+
+function findGmailHtml(payload: GmailMessageResponse["payload"]): string | null {
+  if (payload.parts) {
+    for (const part of payload.parts) {
+      if (part.mimeType === "text/html" && part.body.data) {
+        return decodeBase64Url(part.body.data);
+      }
+      if (part.parts) {
+        for (const sub of part.parts) {
+          if (sub.mimeType === "text/html" && sub.body.data) {
+            return decodeBase64Url(sub.body.data);
+          }
+        }
+      }
+    }
+  }
+
+  if (payload.mimeType === "text/html" && payload.body.data) {
+    return decodeBase64Url(payload.body.data);
+  }
+
+  return null;
 }
 
 function decodeBase64Url(data: string): string {

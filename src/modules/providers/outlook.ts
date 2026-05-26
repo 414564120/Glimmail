@@ -238,6 +238,7 @@ export interface OutlookSyncedMessage {
   threadId: string;
   sender: string;
   subject: string;
+  bodyHtml: string | null;
   bodyText: string;
   preview: string;
   receivedAt: Date;
@@ -254,6 +255,7 @@ export function parseOutlookMessage(
     bodyContentType === "html"
       ? stripHtml(entry.body.content)
       : (entry.body?.content ?? "");
+  const bodyHtml = bodyContentType === "html" ? entry.body.content : null;
   const preview = entry.bodyPreview ?? "";
 
   return {
@@ -261,6 +263,7 @@ export function parseOutlookMessage(
     threadId: entry.conversationId ?? "",
     sender,
     subject,
+    bodyHtml,
     bodyText,
     preview,
     receivedAt: new Date(entry.receivedDateTime),

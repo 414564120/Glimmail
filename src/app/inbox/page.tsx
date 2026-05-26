@@ -99,6 +99,59 @@ type EmailBlock =
 
 const urlPattern = /(https?:\/\/[^\s<>"')]+|www\.[^\s<>"')]+)/gi;
 
+function sanitizeEmailHtml(html: string): string {
+  return html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<iframe[^>]*>[\s\S]*?<\/iframe>/gi, "")
+    .replace(/<object[^>]*>[\s\S]*?<\/object>/gi, "")
+    .replace(/<embed[^>]*>/gi, "")
+    .replace(/<form[^>]*>[\s\S]*?<\/form>/gi, "")
+    .replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "")
+    .replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "")
+    .replace(/\son[a-z]+\s*=\s*[^\s>]+/gi, "")
+    .replace(/(href|src)\s*=\s*"javascript:[^"]*"/gi, '$1="#"')
+    .replace(/(href|src)\s*=\s*'javascript:[^']*'/gi, "$1='#'");
+}
+
+function buildEmailHtmlDocument(html: string): string {
+  const safeHtml = sanitizeEmailHtml(html);
+
+  return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<base target="_blank">
+<style>
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background: #f4f5f6;
+    color: #202124;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+  body {
+    padding: 28px 18px;
+  }
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+  table {
+    max-width: 100%;
+  }
+  a {
+    color: #0b57d0;
+  }
+  * {
+    box-sizing: border-box;
+  }
+</style>
+</head>
+<body>${safeHtml}</body>
+</html>`;
+}
+
 function trimTrailingUrlPunctuation(url: string) {
   const match = url.match(/[.,;:!?，。；：！？）)]*$/);
   const trailing = match?.[0] ?? "";
@@ -229,12 +282,25 @@ function parseEmailBody(bodyText: string): EmailBlock[] {
 }
 
 function EmailBody({
+  bodyHtml,
   bodyText,
   fallback,
 }: {
+  bodyHtml: string | null;
   bodyText: string | null;
   fallback: string | null;
 }) {
+  if (bodyHtml) {
+    return (
+      <iframe
+        className="h-[760px] w-full rounded-[18px] border border-[#142a24]/[.12] bg-[#f4f5f6] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.55)]"
+        sandbox=""
+        srcDoc={buildEmailHtmlDocument(bodyHtml)}
+        title="邮件 HTML 内容"
+      />
+    );
+  }
+
   const blocks = bodyText ? parseEmailBody(bodyText) : [];
 
   if (blocks.length === 0) {
@@ -926,19 +992,22 @@ export default async function InboxPage({ searchParams }: PageProps) {
                   <div className="flex items-center justify-between gap-4 border-b border-[#142a24]/[.1] px-[30px] py-4">
                     <div>
                       <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#0b6b66]">
-                        Message Body
+                        Email Message
                       </p>
                       <p className="mt-1 text-xs font-semibold text-[#647069]">
-                        已按邮件客户端格式整理正文
+                        {selectedMessage.bodyHtml
+                          ? "按 EDM 原始版式展示"
+                          : "已按邮件客户端格式整理正文"}
                       </p>
                     </div>
                     <span className="rounded-full border border-[#142a24]/[.12] bg-[#111e1a]/[.04] px-3 py-1 text-[10px] font-black text-[#647069]">
-                      安全文本
+                      {selectedMessage.bodyHtml ? "EDM" : "安全文本"}
                     </span>
                   </div>
 
                   <div className="px-[30px] py-[26px]">
                     <EmailBody
+                      bodyHtml={selectedMessage.bodyHtml}
                       bodyText={selectedMessage.bodyText}
                       fallback={selectedMessage.preview}
                     />

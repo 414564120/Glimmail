@@ -195,6 +195,11 @@ console.log("parseOutlookMessage");
     true,
     "HTML body is stripped of tags",
   );
+  assertEq(
+    parsed.bodyHtml,
+    "<html><body><p>Hello <b>World</b></p></body></html>",
+    "HTML body is preserved for EDM rendering",
+  );
   assert(
     !parsed.bodyText.includes("<b>"),
     "HTML body has no tags remaining",
@@ -211,6 +216,7 @@ console.log("parseOutlookMessage");
   });
   const parsed = parseOutlookMessage(entry);
   assertEq(parsed.bodyText, '& < > " \' @', "HTML entities are decoded");
+  assertEq(parsed.bodyHtml, "&amp; &lt; &gt; &quot; &#x27; &#64;", "HTML body is retained");
 }
 
 // Plain text body is preserved
@@ -220,6 +226,7 @@ console.log("parseOutlookMessage");
   });
   const parsed = parseOutlookMessage(entry);
   assertEq(parsed.bodyText, "Just plain text.\nLine two.", "Plain text body preserved");
+  assertEq(parsed.bodyHtml, null, "Plain text messages have no EDM HTML");
 }
 
 // Sender uses from.emailAddress.name

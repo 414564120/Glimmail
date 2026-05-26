@@ -468,6 +468,7 @@ async function main() {
     assertEqual(message.threadId, "thread-1");
     assertEqual(message.sender, "测试");
     assertEqual(message.subject, "验证码");
+    assertEqual(message.bodyHtml, "<p>HTML body</p>");
     assertEqual(message.bodyText, "Plain body");
     assertEqual(message.snippet, "Short snippet");
     assertEqual(message.receivedAt.toISOString(), "2025-01-01T00:00:00.000Z");
@@ -503,6 +504,10 @@ async function main() {
 
     assertEqual(message.sender, "sender@example.com");
     assertEqual(message.subject, "(no subject)");
+    assertEqual(
+      message.bodyHtml,
+      "<html><body><p>A&amp;B</p><script>hide()</script></body></html>",
+    );
     assertEqual(message.bodyText, "A&B");
     assertEqual(message.receivedAt.toISOString(), "2026-01-01T00:00:00.000Z");
   });
@@ -527,6 +532,7 @@ async function main() {
 
     assertEqual(message.sender, "unknown");
     assertEqual(message.subject, "(no subject)");
+    assertEqual(message.bodyHtml, "<p>Hello <b>World</b></p>");
     assertEqual(message.bodyText, "Hello World");
   });
 

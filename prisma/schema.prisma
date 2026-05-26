@@ -85,6 +85,7 @@ model Message {
   subject           String
   preview           String?
   bodyText          String?
+  bodyHtml          String?
   receivedAt        DateTime
   isRead            Boolean  @default(false)
   isStarred         Boolean  @default(false)
