@@ -99,6 +99,19 @@ type EmailBlock =
 
 const urlPattern = /(https?:\/\/[^\s<>"')]+|www\.[^\s<>"')]+)/gi;
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#x27;");
+}
+
 function sanitizeEmailHtml(html: string): string {
   return html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
@@ -113,8 +126,33 @@ function sanitizeEmailHtml(html: string): string {
     .replace(/(href|src)\s*=\s*'javascript:[^']*'/gi, "$1='#'");
 }
 
-function buildEmailHtmlDocument(html: string): string {
-  const safeHtml = sanitizeEmailHtml(html);
+function injectVerificationIntoHtml(
+  html: string,
+  verificationCode: string | null,
+): string {
+  if (!verificationCode) return html;
+
+  const codePattern = new RegExp(escapeRegExp(verificationCode), "g");
+  const safeCode = escapeHtml(verificationCode);
+
+  return html.replace(
+    codePattern,
+    `<span class="glimmail-code-card" data-code="${safeCode}">
+      <span class="glimmail-code-label">识别到的验证码</span>
+      <span class="glimmail-code-value">${safeCode}</span>
+      <button class="glimmail-code-copy" data-code="${safeCode}" type="button">复制验证码</button>
+    </span>`,
+  );
+}
+
+function buildEmailHtmlDocument(
+  html: string,
+  verificationCode: string | null,
+): string {
+  const safeHtml = injectVerificationIntoHtml(
+    sanitizeEmailHtml(html),
+    verificationCode,
+  );
 
   return `<!doctype html>
 <html>
@@ -143,12 +181,79 @@ function buildEmailHtmlDocument(html: string): string {
   a {
     color: #0b57d0;
   }
+  .glimmail-code-card {
+    display: inline-grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 14px;
+    min-width: min(360px, 100%);
+    margin: 14px 0;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: #101d19;
+    color: #f4f5e9;
+    box-shadow: 0 18px 48px rgba(17, 30, 26, 0.18);
+    vertical-align: middle;
+  }
+  .glimmail-code-label {
+    grid-column: 1 / -1;
+    color: rgba(244, 245, 233, 0.64);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .glimmail-code-value {
+    color: #d7ff47;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 34px;
+    font-weight: 950;
+    letter-spacing: 0.16em;
+    line-height: 1;
+    text-shadow: 0 0 22px rgba(215, 255, 71, 0.22);
+    white-space: nowrap;
+  }
+  .glimmail-code-copy {
+    border: 0;
+    border-radius: 999px;
+    background: #d7ff47;
+    color: #071412;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 900;
+    padding: 11px 16px;
+  }
   * {
     box-sizing: border-box;
   }
 </style>
 </head>
-<body>${safeHtml}</body>
+<body>${safeHtml}
+<script>
+  document.addEventListener("click", async function(event) {
+    var button = event.target.closest(".glimmail-code-copy");
+    if (!button) return;
+    var code = button.getAttribute("data-code") || "";
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(code);
+      } else {
+        var input = document.createElement("textarea");
+        input.value = code;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand("copy");
+        input.remove();
+      }
+      button.textContent = "已复制";
+      setTimeout(function() { button.textContent = "复制验证码"; }, 1600);
+    } catch (error) {
+      button.textContent = "复制失败";
+      setTimeout(function() { button.textContent = "复制验证码"; }, 1600);
+    }
+  });
+</script>
+</body>
 </html>`;
 }
 
@@ -194,6 +299,48 @@ function renderLinkedText(text: string): ReactNode[] {
   if (lastIndex < text.length) {
     nodes.push(text.slice(lastIndex));
   }
+
+  return nodes;
+}
+
+function InlineVerificationCode({ code }: { code: string }) {
+  return (
+    <span className="my-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[18px] rounded-[18px] bg-[#101d19] p-5 text-[#f4f5e9]">
+      <span>
+        <span className="block text-xs font-bold uppercase tracking-[0.08em] text-[#f4f5e9]/[.64]">
+          识别到的验证码
+        </span>
+        <span className="mt-1.5 block font-mono text-[38px] font-black leading-none tracking-[0.16em] text-[#d7ff47] drop-shadow-[0_0_22px_rgba(215,255,71,0.22)]">
+          {code}
+        </span>
+      </span>
+      <CopyCodeButton code={code} />
+    </span>
+  );
+}
+
+function renderEmailText(
+  text: string,
+  verificationCode: string | null,
+): ReactNode[] {
+  if (!verificationCode || !text.includes(verificationCode)) {
+    return renderLinkedText(text);
+  }
+
+  const nodes: ReactNode[] = [];
+  const parts = text.split(verificationCode);
+
+  parts.forEach((part, index) => {
+    if (part) nodes.push(...renderLinkedText(part));
+    if (index < parts.length - 1) {
+      nodes.push(
+        <InlineVerificationCode
+          code={verificationCode}
+          key={`verification-${index}`}
+        />,
+      );
+    }
+  });
 
   return nodes;
 }
@@ -285,17 +432,19 @@ function EmailBody({
   bodyHtml,
   bodyText,
   fallback,
+  verificationCode,
 }: {
   bodyHtml: string | null;
   bodyText: string | null;
   fallback: string | null;
+  verificationCode: string | null;
 }) {
   if (bodyHtml) {
     return (
       <iframe
         className="h-[760px] w-full rounded-[18px] border border-[#142a24]/[.12] bg-[#f4f5f6] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.55)]"
-        sandbox=""
-        srcDoc={buildEmailHtmlDocument(bodyHtml)}
+        sandbox="allow-scripts"
+        srcDoc={buildEmailHtmlDocument(bodyHtml, verificationCode)}
         title="邮件 HTML 内容"
       />
     );
@@ -325,7 +474,7 @@ function EmailBody({
                   className="list-disc marker:text-[#0b6b66]"
                   key={`${item}-${itemIndex}`}
                 >
-                  {renderLinkedText(item)}
+                  {renderEmailText(item, verificationCode)}
                 </li>
               ))}
             </ul>
@@ -339,7 +488,9 @@ function EmailBody({
               key={`${block.kind}-${index}`}
             >
               {block.text.split("\n").map((line, lineIndex) => (
-                <p key={`${line}-${lineIndex}`}>{renderLinkedText(line)}</p>
+                <p key={`${line}-${lineIndex}`}>
+                  {renderEmailText(line, verificationCode)}
+                </p>
               ))}
             </blockquote>
           );
@@ -352,7 +503,9 @@ function EmailBody({
               key={`${block.kind}-${index}`}
             >
               {block.text.split("\n").map((line, lineIndex) => (
-                <p key={`${line}-${lineIndex}`}>{renderLinkedText(line)}</p>
+                <p key={`${line}-${lineIndex}`}>
+                  {renderEmailText(line, verificationCode)}
+                </p>
               ))}
             </div>
           );
@@ -363,7 +516,7 @@ function EmailBody({
             className="text-[16px] leading-8 text-[#26352f]"
             key={`${block.kind}-${index}`}
           >
-            {renderLinkedText(block.text)}
+            {renderEmailText(block.text, verificationCode)}
           </p>
         );
       })}
@@ -1010,22 +1163,9 @@ export default async function InboxPage({ searchParams }: PageProps) {
                       bodyHtml={selectedMessage.bodyHtml}
                       bodyText={selectedMessage.bodyText}
                       fallback={selectedMessage.preview}
+                      verificationCode={selectedMessage.verificationCode}
                     />
                   </div>
-
-                  {selectedMessage.verificationCode ? (
-                    <div className="mx-[30px] mb-[30px] grid grid-cols-[minmax(0,1fr)_auto] items-center gap-[18px] rounded-[18px] bg-[#101d19] p-5 text-[#f4f5e9]">
-                      <div>
-                        <div className="text-xs font-bold uppercase tracking-[0.08em] text-[#f4f5e9]/[.64]">
-                          识别到的验证码
-                        </div>
-                        <div className="mt-1.5 font-mono text-[38px] font-black leading-none tracking-[0.16em] text-[#d7ff47] drop-shadow-[0_0_22px_rgba(215,255,71,0.22)]">
-                          {selectedMessage.verificationCode}
-                        </div>
-                      </div>
-                      <CopyCodeButton code={selectedMessage.verificationCode} />
-                    </div>
-                  ) : null}
                 </section>
               </div>
             </div>
