@@ -518,20 +518,20 @@ export function MobileBottomNav({
 
         return (
           <a
-            className={`mx-auto flex h-16 min-w-16 flex-col items-center justify-center gap-1 rounded-full px-3 font-label text-[10px] font-black uppercase tracking-[0.08em] transition ${
+            className={`mx-auto flex h-16 min-w-16 flex-col items-center justify-center gap-1 px-2 font-label text-[10px] font-black uppercase tracking-[0.08em] transition ${
               isActive
-                ? "scale-105 bg-[#f7f1df] text-[#111e1a] shadow-[0_16px_32px_rgba(247,241,223,0.14)]"
+                ? "text-[#111e1a]"
                 : "text-[#f4f5e9]/[.58] hover:text-[#d7ff47]"
             }`}
             href={mobileHrefByLabel[label] ?? "/inbox"}
             key={label}
           >
             <span
-              className={
+              className={`relative z-[1] rounded-[12px] px-3 py-2 ${
                 isActive
-                  ? "relative z-[1] text-[#111e1a]"
-                  : "relative z-[1] text-[#f4f5e9]/[.58]"
-              }
+                  ? "bg-[#f7f1df] text-[#111e1a]"
+                  : "text-[#f4f5e9]/[.58]"
+              }`}
             >
               {label}
             </span>
