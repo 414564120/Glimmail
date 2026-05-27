@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/modules/auth";
 import {
+  deleteMessage,
   markMessageRead,
+  toggleMessageArchived,
   toggleMessageRead,
   toggleMessageStarred,
-  trashMessage,
+  toggleMessageTrashed,
 } from "@/modules/messages";
 
 const allowedViews = new Set([
@@ -63,10 +65,12 @@ export async function toggleReadAction(formData: FormData) {
 
   const messageId = String(formData.get("messageId") || "");
   const view = String(formData.get("view") || "inbox");
+  const partition = String(formData.get("partition") || "all");
+  const account = String(formData.get("account") || "all");
   await toggleMessageRead(user.id, messageId);
 
   revalidatePath("/inbox");
-  redirect(getRedirectPath(messageId, view));
+  redirect(getRedirectPath(messageId, view, partition, account));
 }
 
 export async function markReadAndOpenAction(formData: FormData) {
@@ -89,21 +93,52 @@ export async function toggleStarredAction(formData: FormData) {
 
   const messageId = String(formData.get("messageId") || "");
   const view = String(formData.get("view") || "inbox");
+  const partition = String(formData.get("partition") || "all");
+  const account = String(formData.get("account") || "all");
   await toggleMessageStarred(user.id, messageId);
 
   revalidatePath("/inbox");
-  redirect(getRedirectPath(messageId, view));
+  redirect(getRedirectPath(messageId, view, partition, account));
 }
 
-export async function trashMessageAction(formData: FormData) {
+export async function toggleArchiveAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) redirect("/login?next=/inbox");
 
   const messageId = String(formData.get("messageId") || "");
+  const view = String(formData.get("view") || "inbox");
   const partition = String(formData.get("partition") || "all");
   const account = String(formData.get("account") || "all");
-  await trashMessage(user.id, messageId);
+  await toggleMessageArchived(user.id, messageId);
 
   revalidatePath("/inbox");
-  redirect(getRedirectPath("", "inbox", partition, account));
+  redirect(getRedirectPath("", view, partition, account));
+}
+
+export async function toggleTrashAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/inbox");
+
+  const messageId = String(formData.get("messageId") || "");
+  const view = String(formData.get("view") || "inbox");
+  const partition = String(formData.get("partition") || "all");
+  const account = String(formData.get("account") || "all");
+  await toggleMessageTrashed(user.id, messageId);
+
+  revalidatePath("/inbox");
+  redirect(getRedirectPath("", view, partition, account));
+}
+
+export async function deleteMessageAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?next=/inbox");
+
+  const messageId = String(formData.get("messageId") || "");
+  const view = String(formData.get("view") || "inbox");
+  const partition = String(formData.get("partition") || "all");
+  const account = String(formData.get("account") || "all");
+  await deleteMessage(user.id, messageId);
+
+  revalidatePath("/inbox");
+  redirect(getRedirectPath("", view, partition, account));
 }

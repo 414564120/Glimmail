@@ -14,6 +14,7 @@ const mainItems = [
   ["通知", "NT", "/inbox?partition=notification"],
   ["订阅", "RD", "/inbox?partition=subscription"],
   ["星标", "ST", "/inbox?partition=starred"],
+  ["归档", "AR", "/inbox?view=archive"],
   ["垃圾箱", "TR", "/inbox?view=trash"],
 ] as const;
 

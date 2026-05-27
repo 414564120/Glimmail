@@ -40,12 +40,33 @@ export async function toggleMessageStarred(userId: string, messageId: string) {
   });
 }
 
-export async function trashMessage(userId: string, messageId: string) {
+export async function toggleMessageArchived(userId: string, messageId: string) {
   const message = await db.message.findUnique({ where: { id: messageId } });
   if (!message || message.userId !== userId) return null;
 
   return db.message.update({
     where: { id: messageId },
-    data: { trashedAt: new Date() },
+    data: message.archivedAt
+      ? { archivedAt: null }
+      : { archivedAt: new Date(), trashedAt: null },
   });
+}
+
+export async function toggleMessageTrashed(userId: string, messageId: string) {
+  const message = await db.message.findUnique({ where: { id: messageId } });
+  if (!message || message.userId !== userId) return null;
+
+  return db.message.update({
+    where: { id: messageId },
+    data: message.trashedAt
+      ? { trashedAt: null }
+      : { archivedAt: null, trashedAt: new Date() },
+  });
+}
+
+export async function deleteMessage(userId: string, messageId: string) {
+  const message = await db.message.findUnique({ where: { id: messageId } });
+  if (!message || message.userId !== userId) return null;
+
+  return db.message.delete({ where: { id: messageId } });
 }

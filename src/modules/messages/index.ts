@@ -1,7 +1,9 @@
 export {
+  deleteMessage,
   getUserMessages,
   markMessageRead,
+  toggleMessageArchived,
   toggleMessageRead,
   toggleMessageStarred,
-  trashMessage,
+  toggleMessageTrashed,
 } from "./service";

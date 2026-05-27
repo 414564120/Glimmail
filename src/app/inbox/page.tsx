@@ -12,10 +12,12 @@ import { getCurrentUser } from "@/modules/auth";
 import { getUserMailboxes } from "@/modules/mailboxes";
 import { getUserMessages } from "@/modules/messages";
 import {
+  deleteMessageAction,
   markReadAndOpenAction,
+  toggleArchiveAction,
   toggleReadAction,
   toggleStarredAction,
-  trashMessageAction,
+  toggleTrashAction,
 } from "./actions";
 import {
   syncGmailAction,
@@ -624,14 +626,23 @@ function getInboxPartition(
   return activeView === "starred" ? "starred" : "all";
 }
 
-function getViewMessages<T extends { isStarred: boolean; trashedAt: Date | null }>(
+function getViewMessages<
+  T extends {
+    archivedAt: Date | null;
+    isStarred: boolean;
+    trashedAt: Date | null;
+  },
+>(
   messages: T[],
   view: InboxView,
 ) {
   if (view === "trash") return messages.filter((msg) => msg.trashedAt);
+  if (view === "archive")
+    return messages.filter((msg) => msg.archivedAt && !msg.trashedAt);
   if (view === "starred")
     return messages.filter((msg) => msg.isStarred && !msg.trashedAt);
-  if (view === "inbox") return messages.filter((msg) => !msg.trashedAt);
+  if (view === "inbox")
+    return messages.filter((msg) => !msg.archivedAt && !msg.trashedAt);
 
   return [];
 }
@@ -755,6 +766,13 @@ export default async function InboxPage({ searchParams }: PageProps) {
   const selectedMessageKind = selectedMessage
     ? getMessageKind(selectedMessage)
     : activeLabel;
+  const selectedArchiveLabel = selectedMessage?.archivedAt
+    ? "移除归档"
+    : "归档";
+  const selectedStarLabel = selectedMessage?.isStarred ? "移出收藏" : "ST";
+  const selectedTrashLabel = selectedMessage?.trashedAt
+    ? "移出垃圾箱"
+    : "垃圾箱";
   const selectedMailbox = selectedMessage
     ? mailboxes.find((mailbox) => mailbox.id === selectedMessage.mailboxId)
     : null;
@@ -1222,12 +1240,22 @@ export default async function InboxPage({ searchParams }: PageProps) {
                     value={selectedMessage.id}
                   />
                   <input name="view" type="hidden" value={activeView} />
+                  <input
+                    name="partition"
+                    type="hidden"
+                    value={activePartition}
+                  />
+                  <input
+                    name="account"
+                    type="hidden"
+                    value={activeAccount}
+                  />
                   <button
                     className="min-w-[38px] rounded-full border border-[#111e1a]/[.12] bg-[#111e1a]/5 cursor-pointer px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
-                    title={selectedMessage.isStarred ? "取消星标" : "星标"}
+                    title={selectedMessage.isStarred ? "移出收藏" : "收藏"}
                     type="submit"
                   >
-                    ST
+                    {selectedStarLabel}
                   </button>
                 </form>
                 <form action={toggleReadAction}>
@@ -1237,6 +1265,16 @@ export default async function InboxPage({ searchParams }: PageProps) {
                     value={selectedMessage.id}
                   />
                   <input name="view" type="hidden" value={activeView} />
+                  <input
+                    name="partition"
+                    type="hidden"
+                    value={activePartition}
+                  />
+                  <input
+                    name="account"
+                    type="hidden"
+                    value={activeAccount}
+                  />
                   <button
                     className="min-w-[38px] rounded-full border border-[#111e1a]/[.12] bg-[#111e1a]/5 cursor-pointer px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
                     title={selectedMessage.isRead ? "标为未读" : "标为已读"}
@@ -1245,19 +1283,38 @@ export default async function InboxPage({ searchParams }: PageProps) {
                     {selectedMessage.isRead ? "标为未读" : "标为已读"}
                   </button>
                 </form>
-                <button
-                  className="min-w-[38px] rounded-full border border-[#111e1a]/[.12] bg-[#111e1a]/5 cursor-pointer px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
-                  title="归档"
-                  type="button"
-                >
-                  归档
-                </button>
-                <form action={trashMessageAction}>
+                <form action={toggleArchiveAction}>
                   <input
                     name="messageId"
                     type="hidden"
                     value={selectedMessage.id}
                   />
+                  <input name="view" type="hidden" value={activeView} />
+                  <input
+                    name="partition"
+                    type="hidden"
+                    value={activePartition}
+                  />
+                  <input
+                    name="account"
+                    type="hidden"
+                    value={activeAccount}
+                  />
+                  <button
+                    className="min-w-[38px] rounded-full border border-[#111e1a]/[.12] bg-[#111e1a]/5 cursor-pointer px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
+                    title={selectedArchiveLabel}
+                    type="submit"
+                  >
+                    {selectedArchiveLabel}
+                  </button>
+                </form>
+                <form action={toggleTrashAction}>
+                  <input
+                    name="messageId"
+                    type="hidden"
+                    value={selectedMessage.id}
+                  />
+                  <input name="view" type="hidden" value={activeView} />
                   <input
                     name="partition"
                     type="hidden"
@@ -1270,19 +1327,59 @@ export default async function InboxPage({ searchParams }: PageProps) {
                   />
                   <button
                     className="min-w-[38px] rounded-full border border-[#ff6b57]/25 bg-[#ff6b57]/10 cursor-pointer px-3 py-2 text-[10px] font-black text-[#b33125] transition hover:-translate-y-0.5 hover:border-[#ff6b57]/50 hover:bg-[#ff6b57]/[.14]"
-                    title="加入垃圾箱"
+                    title={selectedTrashLabel}
                     type="submit"
                   >
-                    垃圾箱
+                    {selectedTrashLabel}
                   </button>
                 </form>
-                <button
-                  className="min-w-[38px] rounded-full border border-[#111e1a]/[.12] bg-[#111e1a]/5 cursor-pointer px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551]"
-                  title="更多"
-                  type="button"
-                >
-                  MO
-                </button>
+                <form action={deleteMessageAction}>
+                  <input
+                    name="messageId"
+                    type="hidden"
+                    value={selectedMessage.id}
+                  />
+                  <input name="view" type="hidden" value={activeView} />
+                  <input
+                    name="partition"
+                    type="hidden"
+                    value={activePartition}
+                  />
+                  <input
+                    name="account"
+                    type="hidden"
+                    value={activeAccount}
+                  />
+                  <button
+                    className="min-w-[38px] rounded-full border border-[#b33125]/25 bg-[#b33125]/10 cursor-pointer px-3 py-2 text-[10px] font-black text-[#8c241c] transition hover:-translate-y-0.5 hover:border-[#b33125]/45 hover:bg-[#b33125]/[.14]"
+                    title="删除"
+                    type="submit"
+                  >
+                    删除
+                  </button>
+                </form>
+                <details className="relative">
+                  <summary
+                    className="min-w-[38px] list-none rounded-full border border-[#111e1a]/[.12] bg-[#111e1a]/5 cursor-pointer px-3 py-2 text-[10px] font-black text-[#30433d] transition hover:-translate-y-0.5 hover:border-[#0b6b66]/35 hover:bg-[#0b6b66]/10 hover:text-[#0b5551] [&::-webkit-details-marker]:hidden"
+                    title="更多"
+                  >
+                    MO
+                  </summary>
+                  <div className="absolute right-0 top-[calc(100%+8px)] z-20 grid min-w-[150px] overflow-hidden rounded-[14px] border border-[#142a24]/[.12] bg-[#fff8e8] p-1.5 text-[11px] font-black text-[#30433d] shadow-[0_18px_50px_rgba(17,30,26,0.18)]">
+                    <Link
+                      className="rounded-[10px] px-3 py-2 transition hover:bg-[#111e1a]/[.06]"
+                      href={sourceHref}
+                    >
+                      只看此账号
+                    </Link>
+                    <Link
+                      className="rounded-[10px] px-3 py-2 transition hover:bg-[#111e1a]/[.06]"
+                      href="/mailboxes"
+                    >
+                      管理账号
+                    </Link>
+                  </div>
+                </details>
               </div>
             </header>
 
